@@ -1,0 +1,40 @@
+import type { DeviceKind } from '../../engine/devices/device';
+
+/** Original, simple line icons for each device type (64×64 viewBox). */
+export function DeviceIcon({ kind, size = 56 }: { kind: DeviceKind; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden className={`device-icon ${kind}`}>
+      {kind === 'computer' && (
+        <g>
+          <rect x="8" y="8" width="48" height="34" rx="3" className="body" />
+          <rect x="12" y="12" width="40" height="26" rx="1" className="screen" />
+          <rect x="26" y="42" width="12" height="7" className="body" />
+          <rect x="16" y="49" width="32" height="5" rx="2" className="body" />
+        </g>
+      )}
+      {kind === 'laptop' && (
+        <g>
+          <rect x="12" y="12" width="40" height="28" rx="3" className="body" />
+          <rect x="16" y="16" width="32" height="20" rx="1" className="screen" />
+          <path d="M4 44 h56 l-4 8 h-48 z" className="body" />
+        </g>
+      )}
+      {kind === 'switch' && (
+        <g>
+          <rect x="4" y="20" width="56" height="24" rx="4" className="body" />
+          {[12, 22, 32, 42, 52].map((x) => (
+            <rect key={x} x={x - 3} y="34" width="6" height="5" className="port" />
+          ))}
+          <path d="M14 27 h14 m-4 -3 l4 3 l-4 3 M50 27 h-14 m4 -3 l-4 3 l4 3" className="arrows" />
+        </g>
+      )}
+      {kind === 'router' && (
+        <g>
+          <ellipse cx="32" cy="22" rx="26" ry="9" className="body" />
+          <path d="M6 22 v18 a26 9 0 0 0 52 0 v-18" className="body" />
+          <path d="M20 22 h24 M40 18 l4 4 l-4 4 M24 18 l-4 4 l4 4" className="arrows" />
+        </g>
+      )}
+    </svg>
+  );
+}
