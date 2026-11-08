@@ -92,6 +92,26 @@ describe('Projet', () => {
     );
   });
 
+  test('les annotations enregistrées avant l’italique se rechargent (non italiques)', () => {
+    const { net } = routedNetwork();
+    net.addNote({
+      kind: 'text',
+      x: 10,
+      y: 10,
+      width: 100,
+      height: 30,
+      text: 'Salle',
+      color: '#000000',
+      fontSize: 12,
+      bold: false,
+      italic: true,
+    });
+    const project = toProject(net);
+    expect(parseProject(JSON.stringify(project)).notes[0]?.italic).toBe(true);
+    const old = { ...project, notes: project.notes.map(({ italic: _italic, ...rest }) => rest) };
+    expect(parseProject(JSON.stringify(old)).notes[0]?.italic).toBe(false);
+  });
+
   test('un routeur dont on a ajouté puis retiré des interfaces se recharge à l’identique', () => {
     const { net, r } = routedNetwork();
     net.addRouterInterface(r.id);

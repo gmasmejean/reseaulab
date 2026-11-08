@@ -159,6 +159,201 @@ describe('Interfaces du routeur', () => {
   });
 });
 
+describe('Clic droit (menus contextuels)', () => {
+  function menuItems() {
+    return [...screen.getByRole('menu').querySelectorAll('[role^="menuitem"]')].map(
+      (item) => item.getAttribute('aria-label') ?? item.textContent,
+    );
+  }
+
+  function lan(session: Session) {
+    let ids = { pc: '', sw: '', router: '' };
+    act(() => {
+      const pc = session.addDevice('computer');
+      const sw = session.addDevice('switch');
+      const router = session.addDevice('router');
+      session.network.host(pc).updateConfig({ ip: ip('10.0.0.1'), mask: MASK_24 });
+      session.network.router(router).setInterface(1, { ip: ip('10.0.0.254'), mask: MASK_24 });
+      session.network.connect(pc, sw);
+      session.network.connect(router, sw, { portA: 1 });
+      ids = { pc, sw, router };
+    });
+    return ids;
+  }
+
+  test('conception : menu d’un équipement (Configurer, câbles, Supprimer)', () => {
+    vi.useFakeTimers();
+    try {
+      const { session } = setup();
+      const { pc, sw, router } = lan(session);
+      fireEvent.contextMenu(screen.getByRole('button', { name: /^Ordinateur 1/ }));
+      expect(screen.getByRole('menu', { name: 'Menu de « Ordinateur 1 »' })).toBeInTheDocument();
+      expect(menuItems()).toEqual(['Configurer', 'Supprimer le câble', 'Supprimer']);
+      expect(session.selection).toEqual({ kind: 'device', id: pc });
+      expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
+
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Configurer' }));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      act(() => {
+        vi.runAllTimers();
+      });
+      expect(screen.getByRole('textbox', { name: 'Nom' })).toHaveFocus();
+
+      fireEvent.contextMenu(screen.getByRole('button', { name: /^Switch 1/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer tous les câbles' }));
+      expect(session.network.cables).toHaveLength(0);
+
+      fireEvent.contextMenu(screen.getByRole('button', { name: /^Ordinateur 1/ }));
+      expect(screen.getByRole('menuitem', { name: 'Supprimer le câble' })).toBeDisabled();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
+      expect(session.network.device(pc)).toBeUndefined();
+      expect(session.network.device(sw)).toBeDefined();
+      expect(session.network.device(router)).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('conception : menu d’un câble ; rien sur le plan vide', () => {
+    const { session } = setup();
+    lan(session);
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Câble Ordinateur 1 – Switch 1' }));
+    expect(menuItems()).toEqual(['Supprimer le câble']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer le câble' }));
+    expect(session.network.cables).toHaveLength(1);
+    expect(session.selection).toBeNull();
+
+    const plan = screen.getByRole('application', { name: 'Plan du réseau' });
+    expect(fireEvent.contextMenu(plan)).toBe(false); // menu du navigateur empêché
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  test('clavier : Maj+F10 ouvre le menu, flèches, Échap le ferme et rend le focus', () => {
+    const { session } = setup();
+    lan(session);
+    const device = screen.getByRole('button', { name: /^Switch 1/ });
+    device.focus();
+    fireEvent.keyDown(device, { key: 'F10', shiftKey: true });
+    const menu = screen.getByRole('menu');
+    expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'Supprimer tous les câbles' })).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'End' });
+    expect(screen.getByRole('menuitem', { name: 'Supprimer' })).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'ArrowUp' });
+    expect(screen.getByRole('menuitem', { name: 'Supprimer' })).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'Home' });
+    expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(device).toHaveFocus();
+
+    // Touche « menu » du clavier, puis clic à l’extérieur.
+    fireEvent.keyDown(device, { key: 'ContextMenu' });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  test('conception : menu d’un texte (taille, style, couleur) et d’une zone', () => {
+    const { session } = setup();
+    let text = '';
+    let zone = '';
+    act(() => {
+      text = session.addNote('text');
+      zone = session.addNote('zone');
+    });
+    const canvas = screen.getByRole('application', { name: 'Plan du réseau' });
+    const openText = () => {
+      fireEvent.contextMenu(within(canvas).getByRole('button', { name: 'Texte : Texte' }));
+    };
+    openText();
+    expect(screen.getByRole('menu', { name: 'Menu de le texte' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitemradio', { name: 'Normal' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Très grande' }));
+    expect(session.network.note(text)?.fontSize).toBe(24);
+    openText();
+    expect(screen.getByRole('menuitemradio', { name: 'Très grande' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Italique' }));
+    expect(session.network.note(text)).toMatchObject({ italic: true, bold: false });
+    openText();
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Gras' }));
+    expect(session.network.note(text)).toMatchObject({ italic: false, bold: true });
+    openText();
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Couleur #ff0000' }));
+    expect(session.network.note(text)?.color).toBe('#ff0000');
+    openText();
+    expect(screen.getByRole('menuitemradio', { name: 'Couleur #ff0000' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
+    expect(session.network.note(text)).toBeUndefined();
+
+    const zoneButton = within(canvas).getByRole('button', { name: 'Zone' });
+    zoneButton.focus();
+    fireEvent.keyDown(zoneButton, { key: 'ContextMenu' });
+    expect(menuItems()).toEqual([
+      ...[
+        '#cccccc',
+        '#ebebeb',
+        '#ffffff',
+        '#ffc9c9',
+        '#fcc9a3',
+        '#ffffe3',
+        '#d4cfb5',
+        '#ded4ff',
+        '#d1e8ff',
+        '#bfffdb',
+        '#ccdead',
+        '#e3eafc',
+      ].map((c) => `Couleur ${c}`),
+      'Supprimer',
+    ]);
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Couleur #d1e8ff' }));
+    expect(session.network.note(zone)?.color).toBe('#d1e8ff');
+  });
+
+  test('simulation : bureau et échanges de données de chaque interface', () => {
+    const { session } = setup();
+    lan(session);
+    fireEvent.click(screen.getByRole('radio', { name: /Simulation/ }));
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Ordinateur 1/ }));
+    expect(menuItems()).toEqual(['Afficher le bureau', 'Afficher les échanges de données (10.0.0.1)']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Afficher le bureau' }));
+    expect(screen.getByRole('dialog', { name: 'Bureau de Ordinateur 1' })).toBeInTheDocument();
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Routeur 1/ }));
+    expect(menuItems()).toEqual([
+      'Afficher les tables du routeur',
+      'Afficher les échanges de données (eth0 – sans adresse)',
+      'Afficher les échanges de données (eth1 – 10.0.0.254)',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: /eth1/ }));
+    const capture = screen.getByRole('dialog', { name: 'Échanges de données — Routeur 1' });
+    expect(within(capture).getByRole('combobox', { name: 'Interface' })).toHaveValue('1');
+    // Même fenêtre, autre interface.
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Routeur 1/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /eth0/ }));
+    expect(screen.getAllByRole('dialog', { name: 'Échanges de données — Routeur 1' })).toHaveLength(1);
+    expect(within(capture).getByRole('combobox', { name: 'Interface' })).toHaveValue('0');
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Switch 1/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Afficher la table des adresses MAC' }));
+    expect(screen.getByRole('dialog', { name: 'Table des adresses MAC — Switch 1' })).toBeInTheDocument();
+
+    // Pas de menu sur un câble en simulation.
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Câble Ordinateur 1 – Switch 1' }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+});
+
 describe('Remplacement du réseau', () => {
   test('demande confirmation avant de remplacer un réseau non vide', () => {
     const { session } = setup();

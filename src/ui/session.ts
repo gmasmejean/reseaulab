@@ -14,7 +14,8 @@ export type Selection = { readonly kind: 'device' | 'cable' | 'note'; readonly i
 export type WindowSpec =
   | { readonly type: 'desktop'; readonly deviceId: string }
   | { readonly type: 'app'; readonly deviceId: string; readonly app: AppId | 'software' }
-  | { readonly type: 'capture'; readonly deviceId: string }
+  /** `iface`: show only the frames of that interface (all when absent). */
+  | { readonly type: 'capture'; readonly deviceId: string; readonly iface?: number }
   | { readonly type: 'switch'; readonly deviceId: string }
   | { readonly type: 'router'; readonly deviceId: string }
   | { readonly type: 'help' };
@@ -260,6 +261,7 @@ export class Session {
             color: '#e3eafc',
             fontSize: 14,
             bold: false,
+            italic: false,
           }
         : {
             kind,
@@ -271,6 +273,7 @@ export class Session {
             color: '#1c2430',
             fontSize: 16,
             bold: false,
+            italic: false,
           },
     );
     this.selection = { kind: 'note', id: note.id };
@@ -321,6 +324,11 @@ export class Session {
     const key = windowKey(spec);
     const existing = this.windows.find((w) => w.id === key);
     if (existing) {
+      // Same window, maybe another view (capture of another interface).
+      if (JSON.stringify(existing.spec) !== JSON.stringify(spec)) {
+        this.windows = this.windows.map((w) => (w.id === key ? { ...w, spec } : w));
+        this.touch();
+      }
       this.focusWindow(key);
       return;
     }

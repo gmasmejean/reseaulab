@@ -576,7 +576,9 @@ class Converter {
       text,
       color: color instanceof JObject ? colorOf(color.args) : kind === 'zone' ? '#e3eafc' : '#1c2430',
       fontSize: Math.min(96, Math.max(8, Math.round(size))),
+      // java.awt.Font style bits: BOLD = 1, ITALIC = 2.
       bold: (style & 1) === 1,
+      italic: (style & 2) === 2,
     });
   }
 }

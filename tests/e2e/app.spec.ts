@@ -248,3 +248,44 @@ test('importe un projet Filius (.fls) avec ses annotations', async ({ page }) =>
   await input.press('Enter');
   await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
 });
+
+test('clic droit : menus contextuels comme dans Filius', async ({ page }) => {
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await page.getByRole('textbox', { name: 'Adresse IP', exact: true }).fill('192.168.0.1');
+  await page.getByRole('textbox', { name: 'Adresse IP', exact: true }).press('Enter');
+  await palette.getByRole('button', { name: /Switch/ }).click();
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Ordinateur 1', 'Switch 1']) await page.locator(`[aria-label^="${name}"]`).click();
+  await expect(page.locator('.cable')).toHaveCount(1);
+
+  // Conception : le menu du navigateur est remplacé par celui de RéseauLab.
+  const computer = page.locator('[aria-label^="Ordinateur 1"]');
+  await computer.click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: 'Menu de « Ordinateur 1 »' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem')).toHaveText(['Configurer', 'Supprimer le câble', 'Supprimer']);
+  await shot(page, '10-menu-conception');
+  await menu.getByRole('menuitem', { name: 'Configurer' }).click();
+  await expect(page.getByRole('textbox', { name: 'Nom' })).toBeFocused();
+
+  await palette.getByRole('button', { name: 'Texte' }).click();
+  const canvas = page.getByRole('application', { name: 'Plan du réseau' });
+  await canvas.getByRole('button', { name: 'Texte : Texte' }).click({ button: 'right' });
+  await page.getByRole('menuitemradio', { name: 'Gras' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Gras' })).toBeChecked();
+
+  // Simulation : bureau et échanges de données.
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await computer.click({ button: 'right' });
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
+    'Afficher le bureau',
+    'Afficher les échanges de données (192.168.0.1)',
+  ]);
+  await shot(page, '11-menu-simulation');
+  await page.getByRole('menuitem', { name: 'Afficher les échanges de données (192.168.0.1)' }).click();
+  await expect(page.getByRole('dialog', { name: 'Échanges de données — Ordinateur 1' })).toBeVisible();
+  await computer.click({ button: 'right' });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+});

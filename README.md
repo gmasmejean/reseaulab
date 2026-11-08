@@ -32,6 +32,11 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   routeur, pare-feu). Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
   retire dans son onglet « Interfaces ». Les outils **Texte** et **Zone** ajoutent des annotations
   sur le plan. Touche Suppr pour effacer la sélection.
+- **Clic droit**, comme dans Filius : sur un équipement (Configurer, Supprimer
+  le câble / tous les câbles, Supprimer), un câble (Supprimer le câble), un
+  texte (taille, style, couleur) ou une zone (couleur). En simulation : Afficher
+  le bureau et les échanges de données de chaque interface. Au clavier : touche
+  Menu ou Maj+F10.
 - **Mode simulation** : cliquer sur un ordinateur ouvre son bureau. On y
   installe et lance des logiciels. La vitesse de la simulation est réglable et
   les paquets sont animés sur les câbles.

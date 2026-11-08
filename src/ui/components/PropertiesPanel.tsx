@@ -489,6 +489,13 @@ function NoteProperties({ note }: { note: Note }) {
               net.updateNote(note.id, { bold });
             }}
           />
+          <Checkbox
+            label="Italique"
+            checked={note.italic}
+            onChange={(italic) => {
+              net.updateNote(note.id, { italic });
+            }}
+          />
           <p className="muted">Glissez pour déplacer ; la poignée en bas à droite redimensionne.</p>
         </Section>
       </div>
@@ -504,7 +511,7 @@ export function PropertiesPanel() {
       <div className="properties empty">
         <p className="muted">
           {session.mode === 'design'
-            ? 'Sélectionnez un équipement ou un câble pour le configurer. Double-clic : ouvrir. Suppr : supprimer.'
+            ? 'Sélectionnez un équipement ou un câble pour le configurer. Double-clic : ouvrir. Clic droit : menu. Suppr : supprimer.'
             : 'Mode simulation : cliquez sur un ordinateur pour ouvrir son bureau, sur un switch ou un routeur pour voir ses tables.'}
         </p>
       </div>

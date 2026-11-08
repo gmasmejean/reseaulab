@@ -253,6 +253,7 @@ describe('Import d’un projet Filius', () => {
         text: 'Salle 101',
         fontSize: 18,
         bold: true,
+        italic: true,
         color: '#1c2430',
       }),
     ]);

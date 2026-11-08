@@ -44,6 +44,7 @@ export interface Note {
   readonly color: string;
   readonly fontSize: number;
   readonly bold: boolean;
+  readonly italic: boolean;
 }
 
 export type NoteInit = Omit<Note, 'id'> & { readonly id?: string };

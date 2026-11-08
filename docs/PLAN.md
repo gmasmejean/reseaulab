@@ -93,6 +93,13 @@ fichier (case cochée).
       routes statiques qui passaient par l'interface, renumérote les suivantes
       (les autres routes suivent leur interface) et demande confirmation dès
       que quelque chose serait perdu.
+- [x] **Étape 13 — Clic droit** : menus contextuels relevés dans les classes de
+      Filius (`GUIEvents`, `JDocuElement`) : équipement, câble, texte et zone en
+      conception (mêmes entrées, mêmes palettes de couleurs, tailles 12/18/24,
+      styles normal/italique/gras) ; bureau et échanges de données par interface
+      en simulation. RéseauLab ajoute les tables du switch et du routeur au
+      menu de simulation. Accessible au clavier (touche Menu, Maj+F10, flèches,
+      Échap).
 
 ## Écarts au plan
 

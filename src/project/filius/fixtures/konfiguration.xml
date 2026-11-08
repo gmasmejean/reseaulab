@@ -623,7 +623,7 @@ lycee.fr. TXT 3600 bonjour
     <void property="font">
      <object class="java.awt.Font">
       <string>Dialog</string>
-      <int>1</int>
+      <int>3</int>
       <int>18</int>
      </object>
     </void>

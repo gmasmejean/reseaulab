@@ -111,7 +111,7 @@ function WindowContent({ w }: { w: OpenWindow }) {
     case 'capture':
       return device instanceof NetworkNode ? (
         <Window window={w} title={`Échanges de données — ${device.name}`} width={900} height={520}>
-          <CaptureWindow node={device} />
+          <CaptureWindow key={spec.iface ?? 'all'} node={device} initialIface={spec.iface} />
         </Window>
       ) : null;
     case 'switch':

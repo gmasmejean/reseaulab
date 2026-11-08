@@ -1,4 +1,5 @@
-import type { KeyboardEvent, PointerEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
+import { anchorOf, isMenuKey } from './ContextMenu';
 import type { Note } from '../../engine/network';
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
   readonly interactive: boolean;
   readonly onPointerDown: (event: PointerEvent, mode: 'move' | 'resize') => void;
   readonly onActivate: () => void;
+  /** Right click, or the menu key: open the context menu at (x, y). */
+  readonly onMenu: (x: number, y: number, opener: SVGGElement) => void;
 }
 
 const HANDLE = 10;
@@ -19,12 +22,13 @@ export function noteLabel(note: Note): string {
 }
 
 /** A documentation element of the plan: coloured zone or text label. */
-export function NoteShape({ note, selected, interactive, onPointerDown, onActivate }: Props) {
+export function NoteShape({ note, selected, interactive, onPointerDown, onActivate, onMenu }: Props) {
   const { x, y, width, height } = note;
   const textStyle = {
     color: note.kind === 'zone' ? undefined : note.color,
     fontSize: note.fontSize,
     fontWeight: note.bold ? 700 : 400,
+    fontStyle: note.italic ? 'italic' : 'normal',
   };
   return (
     <g
@@ -38,10 +42,21 @@ export function NoteShape({ note, selected, interactive, onPointerDown, onActiva
         e.stopPropagation();
         onPointerDown(e, 'move');
       }}
-      onKeyDown={(e: KeyboardEvent) => {
-        if (interactive && (e.key === 'Enter' || e.key === ' ')) {
+      onContextMenu={(e: MouseEvent<SVGGElement>) => {
+        if (!interactive) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onMenu(e.clientX, e.clientY, e.currentTarget);
+      }}
+      onKeyDown={(e: KeyboardEvent<SVGGElement>) => {
+        if (!interactive) return;
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onActivate();
+        } else if (isMenuKey(e)) {
+          e.preventDefault();
+          const { x, y } = anchorOf(e.currentTarget);
+          onMenu(x, y, e.currentTarget);
         }
       }}
     >

@@ -10,9 +10,15 @@ import { Section } from '../components/Fields';
 const SOURCE_LABEL = { connected: 'directe', default: 'passerelle', static: 'statique', rip: 'RIP' } as const;
 
 /** "Échanges de données": every frame sent or received by a device. */
-export function CaptureWindow({ node }: { node: NetworkNode }) {
+export function CaptureWindow({
+  node,
+  initialIface,
+}: {
+  node: NetworkNode;
+  initialIface?: number | undefined;
+}) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [iface, setIface] = useState<number | 'all'>('all');
+  const [iface, setIface] = useState<number | 'all'>(initialIface ?? 'all');
   const entries = node.capture.entries.filter((e) => iface === 'all' || e.iface === iface);
   const current = node.capture.entries.find((e) => e.no === selected);
   return (
@@ -235,6 +241,11 @@ export function HelpWindow() {
         <li>
           Sélectionnez un équipement pour le configurer dans le panneau du bas (adresse IP, masque,
           passerelle…).
+        </li>
+        <li>
+          Comme dans Filius, le <b>clic droit</b> sur un équipement, un câble ou une annotation ouvre un menu
+          : configurer, supprimer les câbles, supprimer ; taille, style et couleur d’un texte ; en simulation,
+          bureau et échanges de données de chaque interface. Au clavier : touche Menu ou Maj+F10.
         </li>
         <li>
           Passez en mode <b>Simulation</b> : cliquez sur un ordinateur pour ouvrir son bureau, installer des

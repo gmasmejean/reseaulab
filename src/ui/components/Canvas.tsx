@@ -1,4 +1,12 @@
-import { useRef, type DragEvent, type KeyboardEvent, type PointerEvent } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from 'react';
 import { IP_ANY, formatIp } from '../../engine/core/ipv4';
 import type { Device, DeviceKind } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
@@ -6,6 +14,8 @@ import { useSession } from '../context';
 import type { Session } from '../session';
 import { DeviceIcon } from './DeviceIcon';
 import { NoteShape } from './NoteShape';
+import { ContextMenu, anchorOf, isMenuKey, type MenuEntry } from './ContextMenu';
+import { cableMenu, deviceMenu, noteMenu } from './canvasMenus';
 
 export const DEVICE_DRAG_TYPE = 'application/x-reseaulab-device';
 const ICON = 56;
@@ -21,6 +31,15 @@ interface Drag {
   readonly originX: number;
   readonly originY: number;
   moved: boolean;
+}
+
+interface OpenMenu {
+  readonly target: { readonly kind: 'device' | 'cable' | 'note'; readonly id: string };
+  readonly x: number;
+  readonly y: number;
+  readonly mode: Session['mode'];
+  /** Element that gets the focus back when the menu is cancelled. */
+  readonly opener: SVGElement;
 }
 
 function subtitle(device: Device): string | null {
@@ -49,11 +68,19 @@ function openDevice(session: Session, device: Device): void {
   else session.openWindow({ type: 'router', deviceId: device.id });
 }
 
+function menuLabel(session: Session, target: OpenMenu['target']): string {
+  const net = session.network;
+  if (target.kind === 'device') return `« ${net.device(target.id)?.name ?? ''} »`;
+  if (target.kind === 'note') return net.note(target.id)?.kind === 'zone' ? 'la zone' : 'le texte';
+  return 'le câble';
+}
+
 export function Canvas() {
   const session = useSession();
   const net = session.network;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
+  const [menu, setMenu] = useState<OpenMenu | null>(null);
   const devices = net.devices;
   const notes = net.notes;
   const width = Math.max(
@@ -152,12 +179,71 @@ export function Canvas() {
     if (device) activate(device);
   };
 
-  const onDeviceKeyDown = (event: KeyboardEvent, device: Device) => {
+  const onDeviceKeyDown = (event: KeyboardEvent<SVGGElement>, device: Device) => {
+    if (onElementMenuKey({ kind: 'device', id: device.id }, event)) return;
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     if (session.tool === 'cable' && !simulation) session.cableClick(device.id);
     else activate(device);
   };
+
+  /** Right click (or menu key) on an element of the plan. */
+  const openMenu = (target: OpenMenu['target'], x: number, y: number, opener: SVGElement) => {
+    drag.current = null;
+    if (session.cableStart) session.setTool('cable');
+    if (!simulation || target.kind === 'device') session.select(target);
+    setMenu({ target, x, y, opener, mode: session.mode });
+  };
+
+  const onElementMenu =
+    (target: OpenMenu['target']) =>
+    (event: MouseEvent<SVGGElement>): void => {
+      event.preventDefault();
+      event.stopPropagation();
+      openMenu(target, event.clientX, event.clientY, event.currentTarget);
+    };
+
+  /** Menu key or Shift+F10 on a focused element; true when handled. */
+  const onElementMenuKey = (target: OpenMenu['target'], event: KeyboardEvent<SVGGElement>): boolean => {
+    if (!isMenuKey(event)) return false;
+    event.preventDefault();
+    const { x, y } = anchorOf(event.currentTarget);
+    openMenu(target, x, y, event.currentTarget);
+    return true;
+  };
+
+  const closeMenu = useCallback(
+    (reason: 'cancel' | 'select' | 'outside') => {
+      if (reason === 'cancel') menu?.opener.focus();
+      setMenu(null);
+    },
+    [menu],
+  );
+
+  /** "Configurer": select the device and move the focus to its settings. */
+  const configure = (device: Device) => {
+    session.select({ kind: 'device', id: device.id });
+    window.setTimeout(() => {
+      document.querySelector<HTMLElement>('.panel [role="tab"], .panel input')?.focus();
+    }, 0);
+  };
+
+  const menuEntries = (open: OpenMenu): MenuEntry[] => {
+    if (open.mode !== session.mode) return [];
+    const { kind, id } = open.target;
+    if (kind === 'cable') return net.cable(id) ? cableMenu(session, id) : [];
+    if (kind === 'note') {
+      const note = net.note(id);
+      return note ? noteMenu(session, note) : [];
+    }
+    const device = net.device(id);
+    return device
+      ? deviceMenu(session, device, () => {
+          configure(device);
+        })
+      : [];
+  };
+  const entries = menu ? menuEntries(menu) : [];
 
   const onDrop = (event: DragEvent) => {
     const kind = event.dataTransfer.getData(DEVICE_DRAG_TYPE) as DeviceKind | '';
@@ -184,6 +270,11 @@ export function Canvas() {
           if (session.cableStart) session.setTool('cable');
           session.select(null);
         }}
+        onContextMenu={(e) => {
+          // Like Filius: no menu on the empty plan (and not the browser's one).
+          e.preventDefault();
+          setMenu(null);
+        }}
         onDragOver={(e) => {
           if (e.dataTransfer.types.includes(DEVICE_DRAG_TYPE)) e.preventDefault();
         }}
@@ -208,6 +299,9 @@ export function Canvas() {
               }}
               onActivate={() => {
                 session.select({ kind: 'note', id: n.id });
+              }}
+              onMenu={(x, y, opener) => {
+                openMenu({ kind: 'note', id: n.id }, x, y, opener);
               }}
             />
           ))}
@@ -236,7 +330,9 @@ export function Canvas() {
                 e.stopPropagation();
                 if (!simulation) session.select({ kind: 'cable', id: c.id });
               }}
+              onContextMenu={onElementMenu({ kind: 'cable', id: c.id })}
               onKeyDown={(e) => {
+                if (!simulation && onElementMenuKey({ kind: 'cable', id: c.id }, e)) return;
                 if ((e.key === 'Enter' || e.key === ' ') && !simulation) {
                   e.preventDefault();
                   session.select({ kind: 'cable', id: c.id });
@@ -289,6 +385,7 @@ export function Canvas() {
               onDoubleClick={() => {
                 openDevice(session, d);
               }}
+              onContextMenu={onElementMenu({ kind: 'device', id: d.id })}
               onKeyDown={(e) => {
                 onDeviceKeyDown(e, d);
               }}
@@ -321,6 +418,15 @@ export function Canvas() {
           );
         })}
       </svg>
+      {menu && entries.length > 0 && (
+        <ContextMenu
+          label={`Menu de ${menuLabel(session, menu.target)}`}
+          x={menu.x}
+          y={menu.y}
+          entries={entries}
+          onClose={closeMenu}
+        />
+      )}
       {devices.length === 0 && notes.length === 0 && (
         <div className="canvas-empty">
           <p>

@@ -136,6 +136,8 @@ const noteSchema = z.object({
   color: z.string().regex(/^#[0-9a-f]{6}$/i, { message: 'Couleur invalide' }),
   fontSize: z.number().int().min(8).max(96),
   bold: z.boolean(),
+  // Added after the first release: older projects have no italic field.
+  italic: z.boolean().default(false),
 });
 
 export const projectSchema = z.object({
