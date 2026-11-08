@@ -25,7 +25,8 @@ export class Port {
 
   constructor(
     readonly owner: PortOwner,
-    readonly index: number,
+    /** Position on the device; renumbered when a router interface is removed. */
+    public index: number,
     public mac: Mac,
   ) {}
 

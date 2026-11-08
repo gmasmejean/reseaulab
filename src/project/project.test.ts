@@ -92,6 +92,22 @@ describe('Projet', () => {
     );
   });
 
+  test('un routeur dont on a ajouté puis retiré des interfaces se recharge à l’identique', () => {
+    const { net, r } = routedNetwork();
+    net.addRouterInterface(r.id);
+    net.addRouterInterface(r.id);
+    r.setInterface(3, { ip: ip('10.0.4.1'), mask: ip('255.255.255.0') });
+    net.removeRouterInterface(r.id, 2);
+    const project = toProject(net);
+    const loaded = parseProject(serializeProject(net));
+    expect(toProject(loaded)).toEqual(project);
+    expect(loaded.router(r.id).interfaces.map((i) => i.ip)).toEqual([
+      ip('192.168.1.1'),
+      ip('192.168.2.1'),
+      ip('10.0.4.1'),
+    ]);
+  });
+
   test.each([
     ['du texte', 'pas un projet', /JSON illisible/],
     [

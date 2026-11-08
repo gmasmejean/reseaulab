@@ -3,7 +3,7 @@ import { MacAllocator } from './core/mac';
 import { Scheduler } from './core/scheduler';
 import type { Device, Position } from './devices/device';
 import { Host, type HostConfig } from './devices/host';
-import { Router } from './devices/router';
+import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from './devices/router';
 import { Switch } from './devices/switch';
 import type { EthernetFrame } from './net/frames';
 import { Cable, type SimContext } from './net/link';
@@ -208,6 +208,36 @@ export class Network {
       macs,
     );
     return this.register(router);
+  }
+
+  /** Adds an interface (with a new MAC address) to a router. Design mode only. */
+  addRouterInterface(routerId: string): void {
+    const router = this.editableRouter(routerId);
+    if (!router.canAddInterface) {
+      throw new RangeError(`Un routeur a au plus ${MAX_ROUTER_INTERFACES} interfaces`);
+    }
+    router.addInterface(this.macs.allocate());
+  }
+
+  /**
+   * Removes interface `index` of a router, with its cable if any. Static
+   * routes through it are deleted; later interfaces are renumbered.
+   */
+  removeRouterInterface(routerId: string, index: number): void {
+    const router = this.editableRouter(routerId);
+    const port = router.portAt(index);
+    if (!port) throw new RangeError(`Interface ${index} inexistante`);
+    if (!router.canRemoveInterface) {
+      throw new RangeError(`Un routeur a au moins ${MIN_ROUTER_INTERFACES} interfaces`);
+    }
+    if (port.cable) this.disconnect(port.cable.id);
+    router.removeInterface(index);
+    this.macs.release(port.mac);
+  }
+
+  private editableRouter(id: string): Router {
+    if (this.runningFlag) throw new Error('Arrêtez la simulation pour modifier les interfaces');
+    return this.router(id);
   }
 
   /** Cables two devices, on the given ports or else on their first free ports. */

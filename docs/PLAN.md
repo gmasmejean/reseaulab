@@ -88,6 +88,11 @@ fichier (case cochée).
       défaut relevées dans les classes de Filius (XMLEncoder n'écrit que ce qui
       en diffère). Testé sur un projet d'exemple écrit à la main et vérifié
       localement sur 32 projets réels (Filius 1.10 à 2.5).
+- [x] **Étape 12 — Interfaces des routeurs** : ajout et retrait d'interfaces
+      (2 à 8) en mode conception. Le retrait supprime le câble branché et les
+      routes statiques qui passaient par l'interface, renumérote les suivantes
+      (les autres routes suivent leur interface) et demande confirmation dès
+      que quelque chose serait perdu.
 
 ## Écarts au plan
 

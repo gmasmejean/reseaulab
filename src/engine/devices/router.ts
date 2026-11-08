@@ -50,6 +50,46 @@ export class Router extends NetworkNode {
     return this.stack.interfaces;
   }
 
+  get canAddInterface(): boolean {
+    return this.ports.length < MAX_ROUTER_INTERFACES;
+  }
+
+  get canRemoveInterface(): boolean {
+    return this.ports.length > MIN_ROUTER_INTERFACES;
+  }
+
+  /** Adds an unconfigured interface (use Network.addRouterInterface). */
+  addInterface(mac: Mac): L3Interface {
+    if (!this.canAddInterface) {
+      throw new RangeError(`Un routeur a au plus ${MAX_ROUTER_INTERFACES} interfaces`);
+    }
+    const port = new Port(this, this.ports.length, mac);
+    this.ports.push(port);
+    const iface = this.stack.addInterface(port);
+    this.changed();
+    return iface;
+  }
+
+  /**
+   * Removes an uncabled interface (use Network.removeRouterInterface). The
+   * following interfaces are renumbered; static routes through the removed
+   * interface are deleted, the others follow their interface.
+   */
+  removeInterface(index: number): void {
+    const port = this.ports[index];
+    if (!port) throw new RangeError(`Interface ${index} inexistante`);
+    if (!this.canRemoveInterface) {
+      throw new RangeError(`Un routeur a au moins ${MIN_ROUTER_INTERFACES} interfaces`);
+    }
+    if (port.isConnected) throw new Error('Débranchez le câble avant de retirer l’interface');
+    this.ports.splice(index, 1);
+    this.ports.forEach((p, i) => {
+      p.index = i;
+    });
+    this.stack.removeInterface(port);
+    this.changed();
+  }
+
   setInterface(index: number, config: InterfaceConfig): void {
     const iface = this.stack.interfaces[index];
     if (!iface) throw new RangeError(`Interface ${index} inexistante`);

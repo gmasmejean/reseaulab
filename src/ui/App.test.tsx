@@ -103,6 +103,62 @@ describe('App', () => {
   });
 });
 
+describe('Interfaces du routeur', () => {
+  test('ajoute une interface puis la retire, avec confirmation quand elle est câblée', () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('switch');
+      session.addDevice('router');
+    });
+    const router = session.network.router(session.network.devices[1]?.id ?? '');
+    expect(screen.queryByRole('button', { name: 'Retirer eth0' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interface' }));
+    expect(router.interfaces).toHaveLength(3);
+    expect(screen.getByRole('textbox', { name: 'IP eth2' })).toBeInTheDocument();
+
+    // Une interface vide et non câblée part sans confirmation.
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer eth2' }));
+    expect(router.interfaces).toHaveLength(2);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une interface' }));
+    act(() => {
+      session.network.connect(router.id, session.network.devices[0]?.id ?? '', { portA: 0 });
+      router.setInterface(0, { ip: ip('192.168.1.1'), mask: MASK_24 });
+      router.setStaticRoutes([
+        { destination: ip('10.0.0.0'), mask: MASK_24, gateway: ip('192.168.1.254'), iface: 0 },
+      ]);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer eth0' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Retirer l’interface eth0 ?' });
+    expect(dialog).toHaveTextContent('Le câble vers « Switch 1 » sera supprimé.');
+    expect(dialog).toHaveTextContent('Son adresse 192.168.1.1 sera perdue.');
+    expect(dialog).toHaveTextContent('La route statique qui l’utilise sera supprimée.');
+    expect(dialog).toHaveTextContent('renumérotées à partir de eth0');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+    expect(router.interfaces).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer eth0' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer' }));
+    expect(router.interfaces).toHaveLength(2);
+    expect(session.network.cables).toHaveLength(0);
+    expect(router.staticRoutes).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Retirer eth0' })).toBeDisabled();
+  });
+
+  test('limite à 8 interfaces', () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('router');
+    });
+    const add = screen.getByRole('button', { name: 'Ajouter une interface' });
+    for (let i = 0; i < 6; i++) fireEvent.click(add);
+    expect(session.network.router(session.network.devices[0]?.id ?? '').interfaces).toHaveLength(8);
+    expect(add).toBeDisabled();
+  });
+});
+
 describe('Remplacement du réseau', () => {
   test('demande confirmation avant de remplacer un réseau non vide', () => {
     const { session } = setup();

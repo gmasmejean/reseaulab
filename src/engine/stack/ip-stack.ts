@@ -64,6 +64,20 @@ export class IpStack {
     return iface;
   }
 
+  /** Removes the interface of `port`; routes keep pointing to valid indices. */
+  removeInterface(port: Port): void {
+    const index = this.interfaces.findIndex((i) => i.port === port);
+    if (index < 0) return;
+    this.interfaces.splice(index, 1);
+    const renumber = (routes: Route[]) =>
+      routes
+        .filter((r) => r.iface !== index)
+        .map((r) => (r.iface > index ? { ...r, iface: r.iface - 1 } : r));
+    this.staticRoutes = renumber(this.staticRoutes);
+    this.dynamicRoutes = renumber(this.dynamicRoutes);
+    this.arp.clear();
+  }
+
   interfaceFor(port: Port): L3Interface | null {
     return this.interfaces.find((i) => i.port === port) ?? null;
   }

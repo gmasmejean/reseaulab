@@ -29,7 +29,8 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   l'ajouter ; choisir l'outil **Câble** puis cliquer sur deux équipements pour
   les relier ; sélectionner un équipement pour le configurer dans le panneau du
   bas (adresse IP, masque, passerelle, DNS, DHCP, interfaces et routes du
-  routeur, pare-feu). Les outils **Texte** et **Zone** ajoutent des annotations
+  routeur, pare-feu). Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
+  retire dans son onglet « Interfaces ». Les outils **Texte** et **Zone** ajoutent des annotations
   sur le plan. Touche Suppr pour effacer la sélection.
 - **Mode simulation** : cliquer sur un ordinateur ouvre son bureau. On y
   installe et lance des logiciels. La vitesse de la simulation est réglable et

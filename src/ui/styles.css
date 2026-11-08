@@ -558,6 +558,10 @@ input.narrow {
   gap: 8px;
   flex-wrap: wrap;
 }
+.table-actions {
+  align-items: center;
+  margin-top: 8px;
+}
 
 .table {
   border-collapse: collapse;

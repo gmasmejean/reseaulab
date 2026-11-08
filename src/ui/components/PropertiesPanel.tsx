@@ -10,10 +10,11 @@ import {
 } from '../../engine/core/ipv4';
 import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
-import { Router } from '../../engine/devices/router';
+import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from '../../engine/devices/router';
 import type { Network, Note } from '../../engine/network';
 import { DEVICE_LABEL } from '../../i18n/fr';
 import { useSession } from '../context';
+import { ConfirmDialog } from './ConfirmDialog';
 import { Checkbox, IpField, Section, TextField } from './Fields';
 import { FirewallEditor } from './FirewallEditor';
 
@@ -121,11 +122,36 @@ function HostProperties({ host }: { host: Host }) {
   );
 }
 
+/** What removing interface `index` would lose, as sentences (empty: nothing). */
+function removalConsequences(net: Network, router: Router, index: number): string[] {
+  const iface = router.interfaces[index];
+  if (!iface) return [];
+  const result: string[] = [];
+  if (iface.port.isConnected) {
+    result.push(`Le câble vers « ${neighbour(net, router, index)} » sera supprimé.`);
+  }
+  if (iface.ip !== IP_ANY) result.push(`Son adresse ${formatIp(iface.ip)} sera perdue.`);
+  const routes = router.staticRoutes.filter((r) => r.iface === index).length;
+  if (routes > 0) {
+    result.push(
+      routes === 1
+        ? 'La route statique qui l’utilise sera supprimée.'
+        : `Les ${routes} routes statiques qui l’utilisent seront supprimées.`,
+    );
+  }
+  if (result.length > 0 && index < router.interfaces.length - 1) {
+    result.push(`Les interfaces suivantes seront renumérotées à partir de eth${index}.`);
+  }
+  return result;
+}
+
 function RouteForm({ router }: { router: Router }) {
   const [destination, setDestination] = useState('');
   const [mask, setMask] = useState('');
   const [gateway, setGateway] = useState('');
-  const [iface, setIface] = useState(0);
+  const [chosenIface, setIface] = useState(0);
+  // The chosen interface may have been removed meanwhile.
+  const iface = Math.min(chosenIface, router.interfaces.length - 1);
   const [error, setError] = useState<string | null>(null);
   return (
     <form
@@ -205,6 +231,10 @@ function RouteForm({ router }: { router: Router }) {
 function RouterProperties({ router }: { router: Router }) {
   const { network } = useSession();
   const [tab, setTab] = useState<'interfaces' | 'routes' | 'firewall'>('interfaces');
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    readonly index: number;
+    readonly consequences: readonly string[];
+  } | null>(null);
   return (
     <div>
       <div className="tabs" role="tablist">
@@ -242,6 +272,7 @@ function RouterProperties({ router }: { router: Router }) {
                   <th>Adresse IP</th>
                   <th>Masque</th>
                   <th>MAC</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -271,11 +302,59 @@ function RouterProperties({ router }: { router: Router }) {
                     <td>
                       <code>{iface.port.mac}</code>
                     </td>
+                    <td>
+                      <button
+                        type="button"
+                        aria-label={`Retirer eth${i}`}
+                        title={
+                          router.canRemoveInterface
+                            ? `Retirer eth${i}`
+                            : `Un routeur garde au moins ${MIN_ROUTER_INTERFACES} interfaces`
+                        }
+                        disabled={!router.canRemoveInterface}
+                        onClick={() => {
+                          const consequences = removalConsequences(network, router, i);
+                          if (consequences.length === 0) network.removeRouterInterface(router.id, i);
+                          else setPendingRemoval({ index: i, consequences });
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div className="button-row table-actions">
+              <button
+                type="button"
+                disabled={!router.canAddInterface}
+                onClick={() => {
+                  network.addRouterInterface(router.id);
+                }}
+              >
+                Ajouter une interface
+              </button>
+              <span className="muted small">
+                De {MIN_ROUTER_INTERFACES} à {MAX_ROUTER_INTERFACES} interfaces.
+              </span>
+            </div>
           </Section>
+          {pendingRemoval && (
+            <ConfirmDialog
+              title={`Retirer l’interface eth${pendingRemoval.index} ?`}
+              message={pendingRemoval.consequences.join(' ')}
+              confirmLabel="Retirer"
+              danger
+              onConfirm={() => {
+                network.removeRouterInterface(router.id, pendingRemoval.index);
+                setPendingRemoval(null);
+              }}
+              onCancel={() => {
+                setPendingRemoval(null);
+              }}
+            />
+          )}
         </div>
       )}
       {tab === 'routes' && (
