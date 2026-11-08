@@ -125,14 +125,33 @@ const cableSchema = z.object({
   portB: z.number().int().min(0).max(255),
 });
 
+const noteSchema = z.object({
+  id: text(32),
+  kind: z.enum(['text', 'zone']),
+  x: coordinate,
+  y: coordinate,
+  width: z.number().min(1).max(20_000),
+  height: z.number().min(1).max(20_000),
+  text: text(2000),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i, { message: 'Couleur invalide' }),
+  fontSize: z.number().int().min(8).max(96),
+  bold: z.boolean(),
+});
+
 export const projectSchema = z.object({
   format: z.literal(PROJECT_FORMAT),
   version: z.literal(PROJECT_VERSION),
   devices: z.array(z.discriminatedUnion('kind', [hostSchema, switchSchema, routerSchema])).max(500),
   cables: z.array(cableSchema).max(2000),
+  /** Added after the first release: optional, so older files stay valid. */
+  notes: z.array(noteSchema).max(2000).default([]),
 });
 
 export type ProjectFile = z.infer<typeof projectSchema>;
 export type HostJson = z.infer<typeof hostSchema>;
 export type RouterJson = z.infer<typeof routerSchema>;
 export type FirewallJson = z.infer<typeof firewall>;
+export type SwitchJson = z.infer<typeof switchSchema>;
+export type NoteJson = z.infer<typeof noteSchema>;
+/** Project data before validation fills in the defaults. */
+export type ProjectInput = z.input<typeof projectSchema>;

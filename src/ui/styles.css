@@ -250,7 +250,8 @@ code {
   color: var(--muted);
   margin: 4px;
 }
-.tool-icon path {
+.tool-icon path,
+.tool-icon rect {
   fill: none;
   stroke: var(--cable);
   stroke-width: 3;
@@ -1046,4 +1047,62 @@ input.narrow {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* ---------- notes (documentation on the plan) ---------- */
+.note {
+  cursor: move;
+}
+.simulating .note {
+  pointer-events: none;
+}
+.note:focus {
+  outline: none;
+}
+.note-zone {
+  stroke: rgb(15 23 42 / 0.18);
+  stroke-width: 1;
+}
+.note-text-box {
+  overflow: visible;
+}
+.note-text {
+  padding: 2px 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  user-select: none;
+}
+.note.zone .note-text {
+  color: var(--muted);
+}
+.note-outline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+.note:focus-visible .note-outline,
+.note:focus-visible .note-zone {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.note-handle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  cursor: nwse-resize;
+}
+.modal.wide {
+  width: min(620px, calc(100vw - 32px));
+}
+.report-list {
+  max-height: 40vh;
+  overflow: auto;
+  margin: 0 0 18px;
+  padding-left: 20px;
+  color: var(--text);
+}
+.report-list li {
+  margin-bottom: 4px;
 }

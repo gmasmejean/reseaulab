@@ -48,19 +48,19 @@ export function Toolbar() {
         <input
           ref={fileInput}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.fls,application/json"
           hidden
           data-testid="open-project"
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
             if (!file) return;
-            file.text().then(
-              (text) => session.openProject(text, file.name),
-              () => {
-                session.notify('Lecture du fichier impossible.', 'error');
-              },
-            );
+            const open = file.name.toLowerCase().endsWith('.fls')
+              ? file.arrayBuffer().then((buffer) => session.openFilius(new Uint8Array(buffer), file.name))
+              : file.text().then((text) => session.openProject(text, file.name));
+            open.catch(() => {
+              session.notify('Lecture du fichier impossible.', 'error');
+            });
           }}
         />
         <button

@@ -1,0 +1,651 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-written test fixture in the format written by Filius 2.x
+     (java.beans.XMLEncoder). Not taken from any real project. -->
+<java version="17" class="java.beans.XMLDecoder">
+ <string>Filius version: 2.5.1 (23.10.2023)</string>
+ <object class="java.util.LinkedList">
+  <!-- PC with Filius' default address (no "ip" written), shown by its IP -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem0">
+    <void property="imageLabel">
+     <object class="filius.gui.netzwerksicht.JSidebarButton" id="JSidebarButton0">
+      <void property="bounds">
+       <object class="java.awt.Rectangle" id="Rectangle0">
+        <void class="java.awt.Rectangle" method="getField">
+         <string>x</string>
+         <void method="set">
+          <object idref="Rectangle0"/>
+          <int>100</int>
+         </void>
+        </void>
+        <void class="java.awt.Rectangle" method="getField">
+         <string>y</string>
+         <void method="set">
+          <object idref="Rectangle0"/>
+          <int>200</int>
+         </void>
+        </void>
+        <void class="java.awt.Rectangle" method="getField">
+         <string>width</string>
+         <void method="set">
+          <object idref="Rectangle0"/>
+          <int>80</int>
+         </void>
+        </void>
+       </object>
+      </void>
+      <void property="horizontalAlignment">
+       <object class="javax.swing.SwingConstants" field="CENTER"/>
+      </void>
+      <void property="text">
+       <string>192.168.0.10</string>
+      </void>
+      <void id="Boolean0" method="isEnabled"/>
+     </object>
+    </void>
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Rechner" id="Rechner0">
+      <void id="LinkedList0" property="netzwerkInterfaces">
+       <void id="NetzwerkInterface0" index="0">
+        <void property="gateway">
+         <string>192.168.0.1</string>
+        </void>
+        <void property="dns">
+         <string>10.0.0.53</string>
+        </void>
+        <void property="mac">
+         <string>a1:b2:c3:d4:e5:01</string>
+        </void>
+        <void id="Port0" property="port"/>
+       </void>
+      </void>
+      <void id="Betriebssystem0" property="systemSoftware">
+       <void id="Dateisystem0" property="dateisystem">
+        <void id="DefaultMutableTreeNode0" property="arbeitsVerzeichnis">
+         <void method="add">
+          <object class="javax.swing.tree.DefaultMutableTreeNode">
+           <void property="userObject">
+            <string>images</string>
+           </void>
+           <void method="add">
+            <object class="javax.swing.tree.DefaultMutableTreeNode">
+             <void property="userObject">
+              <object class="filius.software.system.Datei">
+               <void property="dateiInhalt">
+                <string>iVBORw0KGgo=</string>
+               </void>
+               <void property="dateiTyp">
+                <string>image</string>
+               </void>
+               <void property="name">
+                <string>logo.png</string>
+               </void>
+              </object>
+             </void>
+            </object>
+           </void>
+          </object>
+         </void>
+        </void>
+       </void>
+       <void property="installierteAnwendungen">
+        <void method="put">
+         <string>filius.software.lokal.Terminal</string>
+         <object class="filius.software.lokal.Terminal">
+          <void property="aktuellerOrdner">
+           <void idref="Betriebssystem0">
+            <void id="Dateisystem1" property="dateisystem">
+             <void id="DefaultMutableTreeNode1" property="arbeitsVerzeichnis"/>
+            </void>
+           </void>
+           <object idref="DefaultMutableTreeNode1"/>
+          </void>
+         </object>
+        </void>
+        <void method="put">
+         <string>filius.software.www.WebBrowser</string>
+         <object class="filius.software.www.WebBrowser"/>
+        </void>
+        <void method="put">
+         <string>filius.software.dateiaustausch.PeerToPeerAnwendung</string>
+         <object class="filius.software.dateiaustausch.PeerToPeerAnwendung"/>
+        </void>
+       </void>
+      </void>
+      <void property="useIPAsName">
+       <object idref="Boolean0"/>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <!-- Laptop configured by DHCP -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem1">
+    <void property="imageLabel">
+     <object class="filius.gui.netzwerksicht.JSidebarButton">
+      <void property="bounds">
+       <object class="java.awt.Rectangle" id="Rectangle1">
+        <void class="java.awt.Rectangle" method="getField">
+         <string>x</string>
+         <void method="set">
+          <object idref="Rectangle1"/>
+          <int>100</int>
+         </void>
+        </void>
+        <void class="java.awt.Rectangle" method="getField">
+         <string>y</string>
+         <void method="set">
+          <object idref="Rectangle1"/>
+          <int>400</int>
+         </void>
+        </void>
+       </object>
+      </void>
+     </object>
+    </void>
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Notebook" id="Notebook0">
+      <void property="name">
+       <string>Portable élève</string>
+      </void>
+      <void id="LinkedList1" property="netzwerkInterfaces">
+       <void id="NetzwerkInterface1" index="0">
+        <void property="ip">
+         <string>0.0.0.0</string>
+        </void>
+        <void property="mac">
+         <string>A1:B2:C3:D4:E5:02</string>
+        </void>
+        <void id="Port1" property="port"/>
+       </void>
+      </void>
+      <void id="Betriebssystem1" property="systemSoftware">
+       <void property="DHCPKonfiguration">
+        <boolean>true</boolean>
+       </void>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <!-- DHCP server -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem2">
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Rechner" id="Rechner1">
+      <void property="name">
+       <string>Serveur DHCP</string>
+      </void>
+      <void id="LinkedList2" property="netzwerkInterfaces">
+       <void id="NetzwerkInterface2" index="0">
+        <void property="gateway">
+         <string>192.168.0.1</string>
+        </void>
+        <void property="ip">
+         <string>192.168.0.2</string>
+        </void>
+        <void property="mac">
+         <string>A1:B2:C3:D4:E5:03</string>
+        </void>
+        <void id="Port2" property="port"/>
+       </void>
+      </void>
+      <void id="Betriebssystem2" property="systemSoftware">
+       <void property="DHCPServer">
+        <void property="aktiv">
+         <boolean>true</boolean>
+        </void>
+        <void property="dnsserverip">
+         <string>10.0.0.53</string>
+        </void>
+        <void property="gatewayip">
+         <string>192.168.0.1</string>
+        </void>
+        <void property="obergrenze">
+         <string>192.168.0.150</string>
+        </void>
+        <void property="ownSettings">
+         <boolean>true</boolean>
+        </void>
+        <void property="staticAssignedAddresses">
+         <void method="add">
+          <string>A1:B2:C3:D4:E5:09 192.168.0.99</string>
+         </void>
+        </void>
+        <void property="untergrenze">
+         <string>192.168.0.100</string>
+        </void>
+       </void>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <!-- Switch: only the ports used by cables are written -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem3">
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Switch" id="Switch0">
+      <void property="name">
+       <string>Switch salle</string>
+      </void>
+      <void id="LinkedList3" property="anschluesse">
+       <void id="Port3" index="0"/>
+       <void id="Port4" index="1"/>
+       <void id="Port5" index="2"/>
+       <void id="Port6" index="3"/>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <!-- Router: interface 0 exists by default, the others are added -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem4">
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Vermittlungsrechner" id="Vermittlungsrechner0">
+      <void property="name">
+       <string>Routeur</string>
+      </void>
+      <void id="LinkedList4" property="netzwerkInterfaces">
+       <void id="NetzwerkInterface3" index="0">
+        <void property="ip">
+         <string>192.168.0.1</string>
+        </void>
+        <void property="mac">
+         <string>A1:B2:C3:D4:E5:04</string>
+        </void>
+        <void id="Port7" property="port"/>
+       </void>
+       <void method="add">
+        <object class="filius.hardware.NetzwerkInterface" id="NetzwerkInterface4">
+         <void property="ip">
+          <string>10.0.0.1</string>
+         </void>
+         <void property="mac">
+          <string>A1:B2:C3:D4:E5:05</string>
+         </void>
+         <void property="subnetzMaske">
+          <string>255.255.0.0</string>
+         </void>
+         <void id="Port8" property="port"/>
+        </object>
+       </void>
+       <void method="add">
+        <object class="filius.hardware.NetzwerkInterface" id="NetzwerkInterface5">
+         <void property="ip">
+          <string>172.16.0.1</string>
+         </void>
+         <void property="mac">
+          <string>A1:B2:C3:D4:E5:06</string>
+         </void>
+         <void id="Port9" property="port"/>
+        </object>
+       </void>
+      </void>
+      <void id="VermittlungsrechnerBetriebssystem0" property="systemSoftware">
+       <void id="HashMap0" property="installierteAnwendungen">
+        <void id="WebServer0" method="get">
+         <string>filius.software.www.WebServer</string>
+         <void id="HashMap1" property="plugins">
+          <void id="FirewallWebKonfig0" method="get">
+           <string>konfig</string>
+           <void property="firewall">
+            <void property="activated">
+             <boolean>true</boolean>
+            </void>
+            <void property="ruleset">
+             <void method="add">
+              <object class="filius.software.firewall.FirewallRule" id="FirewallRule0">
+               <void class="filius.software.firewall.FirewallRule" method="getField">
+                <string>srcIP</string>
+                <void method="set">
+                 <object idref="FirewallRule0"/>
+                 <string>999.999.999.999</string>
+                </void>
+               </void>
+               <void class="filius.software.firewall.FirewallRule" method="getField">
+                <string>protocol</string>
+                <void method="set">
+                 <object idref="FirewallRule0"/>
+                 <short>6</short>
+                </void>
+               </void>
+               <void class="filius.software.firewall.FirewallRule" method="getField">
+                <string>port</string>
+                <void method="set">
+                 <object idref="FirewallRule0"/>
+                 <int>80</int>
+                </void>
+               </void>
+               <void class="filius.software.firewall.FirewallRule" method="getField">
+                <string>action</string>
+                <void method="set">
+                 <object idref="FirewallRule0"/>
+                 <short>1</short>
+                </void>
+               </void>
+              </object>
+             </void>
+            </void>
+           </void>
+          </void>
+         </void>
+        </void>
+       </void>
+       <void property="ripEnabled">
+        <boolean>true</boolean>
+       </void>
+       <void id="Weiterleitungstabelle0" property="weiterleitungstabelle">
+        <void property="manuelleTabelle">
+         <void method="add">
+          <array class="java.lang.String" length="4">
+           <void index="0">
+            <string>172.20.5.0</string>
+           </void>
+           <void index="1">
+            <string>255.255.255.0</string>
+           </void>
+           <void index="2">
+            <string>172.16.0.254</string>
+           </void>
+           <void index="3">
+            <string>172.16.0.1</string>
+           </void>
+          </array>
+         </void>
+         <void method="add">
+          <array class="java.lang.String" length="4"/>
+         </void>
+        </void>
+       </void>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <!-- DNS and web server on the second network -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem5">
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Rechner" id="Rechner2">
+      <void property="name">
+       <string>Serveur</string>
+      </void>
+      <void id="LinkedList5" property="netzwerkInterfaces">
+       <void id="NetzwerkInterface6" index="0">
+        <void property="gateway">
+         <string>10.0.0.1</string>
+        </void>
+        <void property="ip">
+         <string>10.0.0.53</string>
+        </void>
+        <void property="mac">
+         <string>A1:B2:C3:D4:E5:07</string>
+        </void>
+        <void property="subnetzMaske">
+         <string>255.255.0.0</string>
+        </void>
+        <void id="Port10" property="port"/>
+       </void>
+      </void>
+      <void id="Betriebssystem3" property="systemSoftware">
+       <void id="Dateisystem2" property="dateisystem">
+        <void property="arbeitsVerzeichnis">
+         <void method="add">
+          <object class="javax.swing.tree.DefaultMutableTreeNode">
+           <void property="userObject">
+            <string>dns</string>
+           </void>
+           <void method="add">
+            <object class="javax.swing.tree.DefaultMutableTreeNode">
+             <void property="userObject">
+              <object class="filius.software.system.Datei">
+               <void property="dateiInhalt">
+                <string>www.lycee.fr. A 3600 10.0.0.53
+lycee.fr. MX 3600 mail.lycee.fr.
+lycee.fr. TXT 3600 bonjour
+</string>
+               </void>
+               <void property="name">
+                <string>hosts</string>
+               </void>
+              </object>
+             </void>
+            </object>
+           </void>
+          </object>
+         </void>
+         <void method="add">
+          <object class="javax.swing.tree.DefaultMutableTreeNode">
+           <void property="userObject">
+            <string>webserver</string>
+           </void>
+           <void method="add">
+            <object class="javax.swing.tree.DefaultMutableTreeNode">
+             <void property="userObject">
+              <object class="filius.software.system.Datei">
+               <void property="dateiInhalt">
+                <string>&lt;html&gt;&lt;body&gt;&lt;h1&gt;Lyc<char code="#233"/>e&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </void>
+               <void property="dateiTyp">
+                <string>html</string>
+               </void>
+               <void property="name">
+                <string>index.html</string>
+               </void>
+              </object>
+             </void>
+            </object>
+           </void>
+          </object>
+         </void>
+        </void>
+       </void>
+       <void property="installierteAnwendungen">
+        <void method="put">
+         <string>filius.software.dns.DNSServer</string>
+         <object class="filius.software.dns.DNSServer">
+          <void property="aktiv">
+           <boolean>true</boolean>
+          </void>
+          <void property="recursiveResolutionEnabled">
+           <boolean>true</boolean>
+          </void>
+         </object>
+        </void>
+        <void method="put">
+         <string>filius.software.www.WebServer</string>
+         <object class="filius.software.www.WebServer">
+          <void property="aktiv">
+           <boolean>true</boolean>
+          </void>
+         </object>
+        </void>
+       </void>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <!-- Modem: not supported -->
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKnotenItem" id="GUIKnotenItem6">
+    <void property="knoten">
+     <object class="filius.hardware.knoten.Modem" id="Modem0">
+      <void id="Port11" property="erstenAnschluss"/>
+     </object>
+    </void>
+   </object>
+  </void>
+ </object>
+ <object class="java.util.LinkedList">
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKabelItem">
+    <void property="dasKabel">
+     <object class="filius.hardware.Kabel">
+      <void property="anschluesse">
+       <array class="filius.hardware.Port" length="2">
+        <void index="0">
+         <object idref="Port0"/>
+        </void>
+        <void index="1">
+         <object idref="Port3"/>
+        </void>
+       </array>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKabelItem">
+    <void property="dasKabel">
+     <object class="filius.hardware.Kabel">
+      <void property="anschluesse">
+       <array class="filius.hardware.Port" length="2">
+        <void index="0">
+         <object idref="Port1"/>
+        </void>
+        <void index="1">
+         <object idref="Port4"/>
+        </void>
+       </array>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKabelItem">
+    <void property="dasKabel">
+     <object class="filius.hardware.Kabel">
+      <void property="anschluesse">
+       <array class="filius.hardware.Port" length="2">
+        <void index="0">
+         <object idref="Port2"/>
+        </void>
+        <void index="1">
+         <object idref="Port5"/>
+        </void>
+       </array>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKabelItem">
+    <void property="dasKabel">
+     <object class="filius.hardware.Kabel">
+      <void property="anschluesse">
+       <array class="filius.hardware.Port" length="2">
+        <void index="0">
+         <object idref="Port7"/>
+        </void>
+        <void index="1">
+         <object idref="Port6"/>
+        </void>
+       </array>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKabelItem">
+    <void property="dasKabel">
+     <object class="filius.hardware.Kabel">
+      <void property="anschluesse">
+       <array class="filius.hardware.Port" length="2">
+        <void index="0">
+         <object idref="Port8"/>
+        </void>
+        <void index="1">
+         <object idref="Port10"/>
+        </void>
+       </array>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIKabelItem">
+    <void property="dasKabel">
+     <object class="filius.hardware.Kabel">
+      <void property="anschluesse">
+       <array class="filius.hardware.Port" length="2">
+        <void index="0">
+         <object idref="Port9"/>
+        </void>
+        <void index="1">
+         <object idref="Port11"/>
+        </void>
+       </array>
+      </void>
+     </object>
+    </void>
+   </object>
+  </void>
+ </object>
+ <object class="java.util.ArrayList">
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIDocuItem">
+    <void property="color">
+     <object class="java.awt.Color">
+      <int>191</int>
+      <int>255</int>
+      <int>219</int>
+      <int>255</int>
+     </object>
+    </void>
+    <void property="height">
+     <int>250</int>
+    </void>
+    <void property="type">
+     <int>1</int>
+    </void>
+    <void property="width">
+     <int>400</int>
+    </void>
+    <void property="x">
+     <int>50</int>
+    </void>
+    <void property="y">
+     <int>150</int>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="filius.gui.netzwerksicht.GUIDocuItem">
+    <void property="font">
+     <object class="java.awt.Font">
+      <string>Dialog</string>
+      <int>1</int>
+      <int>18</int>
+     </object>
+    </void>
+    <void property="height">
+     <int>30</int>
+    </void>
+    <void property="text">
+     <string>Salle 101</string>
+    </void>
+    <void property="type">
+     <int>2</int>
+    </void>
+    <void property="width">
+     <int>120</int>
+    </void>
+    <void property="x">
+     <int>60</int>
+    </void>
+    <void property="y">
+     <int>160</int>
+    </void>
+   </object>
+  </void>
+ </object>
+</java>

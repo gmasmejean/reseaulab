@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { makeZip } from '../../src/test/zip';
 
 const SHOTS = process.env.E2E_SCREENSHOTS;
 
@@ -217,4 +219,32 @@ test('fonctionne ouvert directement depuis le fichier, sans serveur', async ({ p
   await input.press('Enter');
   await expect(terminal.getByRole('log')).toContainText('192.168.2.25', { timeout: 20_000 });
   expect(errors).toEqual([]);
+});
+
+test('importe un projet Filius (.fls) avec ses annotations', async ({ page }) => {
+  const xml = readFileSync(
+    fileURLToPath(new URL('../../src/project/filius/fixtures/konfiguration.xml', import.meta.url)),
+    'utf8',
+  );
+  const fls = await makeZip({ 'projekt/konfiguration.xml': xml }, { deflate: true });
+  await page.getByTestId('open-project').setInputFiles({
+    name: 'salle-101.fls',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(fls),
+  });
+  const report = page.getByRole('dialog', { name: 'Projet Filius importé' });
+  await expect(report).toContainText('Les modems ne sont pas pris en charge');
+  await shot(page, '09-import-rapport');
+  await report.getByRole('button', { name: 'Compris' }).click();
+  await expect(page.locator('.device')).toHaveCount(6);
+  await expect(page.getByText('Salle 101')).toBeVisible();
+  await shot(page, '10-import-filius');
+
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5');
+  const terminal = await openTerminal(page, '192.168.0.10');
+  const input = terminal.getByRole('textbox', { name: 'Commande', exact: true });
+  await input.fill('ping -n 1 10.0.0.53');
+  await input.press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
 });

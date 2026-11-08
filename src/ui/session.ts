@@ -3,12 +3,13 @@ import type { DeviceKind, Position } from '../engine/devices/device';
 import { ConnectError, Network, type TransmitEvent } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
+import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
 
 export type Mode = 'design' | 'simulation';
 export type Tool = 'select' | 'cable';
-export type Selection = { readonly kind: 'device' | 'cable'; readonly id: string } | null;
+export type Selection = { readonly kind: 'device' | 'cable' | 'note'; readonly id: string } | null;
 
 export type WindowSpec =
   | { readonly type: 'desktop'; readonly deviceId: string }
@@ -39,6 +40,13 @@ export interface InFlight {
   readonly start: number;
   readonly end: number;
   readonly protocol: string;
+}
+
+/** Shown after importing a Filius file, when something could not be converted. */
+export interface ImportReport {
+  readonly fileName: string;
+  readonly version: string | null;
+  readonly warnings: readonly string[];
 }
 
 export const SPEEDS = [0.05, 0.1, 0.25, 0.5, 1, 2] as const;
@@ -86,6 +94,7 @@ export class Session {
   fileName = 'reseau.reseaulab.json';
   paused = false;
   inFlight: InFlight[] = [];
+  importReport: ImportReport | null = null;
   readonly clock: SimulationClock;
   private readonly emitter = new Emitter<{ change: undefined }>();
   private revision = 0;
@@ -157,6 +166,26 @@ export class Session {
     }
   }
 
+  /** Imports a Filius project (.fls). Resolves to false when the file was rejected. */
+  async openFilius(bytes: Uint8Array, fileName: string): Promise<boolean> {
+    try {
+      const { network, warnings, version } = await importFilius(bytes);
+      this.replaceNetwork(network, fileName.replace(/\.fls$/i, '') + '.reseaulab.json');
+      if (warnings.length > 0) this.importReport = { fileName, version, warnings };
+      else this.notify(`Projet Filius « ${fileName} » importé.`);
+      this.touch();
+      return true;
+    } catch (error) {
+      this.notify(error instanceof Error ? error.message : String(error), 'error');
+      return false;
+    }
+  }
+
+  dismissImportReport(): void {
+    this.importReport = null;
+    this.touch();
+  }
+
   serialize(): string {
     return serializeProject(this.network);
   }
@@ -216,6 +245,39 @@ export class Session {
     return device.id;
   }
 
+  /** Adds a text label or a coloured zone to the plan. */
+  addNote(kind: 'text' | 'zone'): string {
+    const offset = (this.network.notes.length % 6) * 24;
+    const note = this.network.addNote(
+      kind === 'zone'
+        ? {
+            kind,
+            x: 60 + offset,
+            y: 60 + offset,
+            width: 320,
+            height: 200,
+            text: '',
+            color: '#e3eafc',
+            fontSize: 14,
+            bold: false,
+          }
+        : {
+            kind,
+            x: 80 + offset,
+            y: 80 + offset,
+            width: 200,
+            height: 40,
+            text: 'Texte',
+            color: '#1c2430',
+            fontSize: 16,
+            bold: false,
+          },
+    );
+    this.selection = { kind: 'note', id: note.id };
+    this.touch();
+    return note.id;
+  }
+
   select(selection: Selection): void {
     this.selection = selection;
     this.touch();
@@ -247,6 +309,7 @@ export class Session {
     const sel = this.selection;
     if (!sel || this.mode !== 'design') return;
     if (sel.kind === 'device') this.network.removeDevice(sel.id);
+    else if (sel.kind === 'note') this.network.removeNote(sel.id);
     else this.network.disconnect(sel.id);
     this.selection = null;
     this.touch();

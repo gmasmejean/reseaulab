@@ -264,6 +264,38 @@ describe('Pare-feu', () => {
     expect(ping(net, a, '192.168.0.2').kind).toBe('timeout');
   });
 
+  test('une connexion TCP autorisée passe dans les deux sens (le client peut envoyer)', () => {
+    // Bug corrigé : seuls les segments du serveur étaient reconnus comme appartenant
+    // au flux accepté ; l'ACK et les données du client étaient bloqués.
+    const { net, a, b, r } = routedNetwork();
+    r.firewall.enabled = true;
+    r.firewall.rules = [
+      {
+        action: 'accept',
+        protocol: 'tcp',
+        source: ip('192.168.1.0'),
+        sourceMask: ip('255.255.255.0'),
+        destination: 0,
+        destinationMask: 0,
+        port: 80,
+      },
+    ];
+    net.start();
+    b.tcp.listen(80, (s) => {
+      s.on({
+        data: (text) => {
+          s.send(`reçu ${text}`);
+        },
+      });
+    });
+    const replies: string[] = [];
+    const client = a.tcp.connect(ip('192.168.2.10'), 80, { data: (t) => replies.push(t) });
+    client.send('GET /'.repeat(400)); // plusieurs segments
+    net.scheduler.runUntilIdle();
+    expect(replies.join('')).toContain('reçu GET /');
+    expect(r.firewall.droppedCount).toBe(0);
+  });
+
   test('pare-feu du routeur : filtre le trafic traversant', () => {
     const { net, a, b, r } = routedNetwork();
     r.firewall.enabled = true;

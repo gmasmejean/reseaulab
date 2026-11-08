@@ -249,6 +249,10 @@ export function HelpWindow() {
           Enregistrez votre travail avec <b>Enregistrer</b> (fichier <code>.reseaulab.json</code>). Le réseau
           est aussi sauvegardé automatiquement dans ce navigateur.
         </li>
+        <li>
+          <b>Ouvrir…</b> accepte aussi les projets Filius (<code>.fls</code>) : équipements, configuration,
+          câbles, pages web, enregistrements DNS et annotations sont repris.
+        </li>
       </ol>
       <h3>Logiciels disponibles</h3>
       <p>

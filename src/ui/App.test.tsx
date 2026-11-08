@@ -19,8 +19,8 @@ function elapse(frames: ManualFrames, ms: number) {
   });
 }
 
-function commit(label: string, value: string) {
-  const input = screen.getByRole('textbox', { name: label });
+function commit(label: string, value: string, role: 'textbox' | 'spinbutton' = 'textbox') {
+  const input = screen.getByRole(role, { name: label });
   fireEvent.change(input, { target: { value } });
   fireEvent.keyDown(input, { key: 'Enter' });
 }
@@ -119,5 +119,65 @@ describe('Remplacement du réseau', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Nouveau' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remplacer' }));
     expect(session.network.devices).toHaveLength(0);
+  });
+});
+
+describe('Annotations et import', () => {
+  test('ajoute un texte depuis la palette, le modifie puis le supprime', () => {
+    const { session } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Texte' }));
+    expect(screen.getByRole('button', { name: 'Texte : Texte' })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Texte' }), { target: { value: 'Salle 101' } });
+    expect(screen.getByRole('button', { name: 'Texte : Salle 101' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Gras' }));
+    commit('Taille du texte', '200', 'spinbutton');
+    expect(screen.getByRole('alert')).toHaveTextContent('Entre 8 et 96.');
+    commit('Taille du texte', '24', 'spinbutton');
+    expect(session.network.notes[0]).toMatchObject({ text: 'Salle 101', bold: true, fontSize: 24 });
+    fireEvent.click(screen.getByRole('button', { name: 'Zone' }));
+    expect(screen.getByLabelText('Couleur de fond')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Couleur de fond'), { target: { value: '#ffcc00' } });
+    expect(session.network.notes[1]?.color).toBe('#ffcc00');
+    fireEvent.keyDown(window, { key: 'Delete' });
+    expect(session.network.notes).toHaveLength(1);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Texte : Salle 101' }), { key: 'Enter' });
+    expect(session.selection).toEqual({ kind: 'note', id: session.network.notes[0]?.id });
+  });
+
+  test('déplace et redimensionne une zone à la souris', () => {
+    const { session } = setup();
+    act(() => {
+      session.addNote('zone');
+    });
+    const canvas = screen.getByRole('application', { name: 'Plan du réseau' });
+    const zone = within(canvas).getByRole('button', { name: 'Zone' });
+    const before = session.network.notes[0];
+    fireEvent.pointerDown(zone, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(canvas, { clientX: 150, clientY: 130 });
+    fireEvent.pointerUp(canvas);
+    expect(session.network.notes[0]).toMatchObject({ x: (before?.x ?? 0) + 50, y: (before?.y ?? 0) + 30 });
+    const handle = document.querySelector('.note-handle');
+    if (!handle) throw new Error('poignée absente');
+    fireEvent.pointerDown(handle, { button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(canvas, { clientX: 40, clientY: -20 });
+    fireEvent.pointerUp(canvas);
+    expect(session.network.notes[0]).toMatchObject({
+      width: (before?.width ?? 0) + 40,
+      height: (before?.height ?? 0) - 20,
+    });
+  });
+
+  test('affiche le rapport d’import d’un fichier Filius', () => {
+    const { session } = setup();
+    act(() => {
+      session.importReport = { fileName: 'cours.fls', version: '2.5.1', warnings: ['Modem ignoré.'] };
+      session.touch();
+    });
+    const dialog = screen.getByRole('dialog', { name: 'Projet Filius importé' });
+    expect(dialog).toHaveTextContent('cours.fls');
+    expect(dialog).toHaveTextContent('Filius 2.5.1');
+    expect(dialog).toHaveTextContent('Modem ignoré.');
+    fireEvent.click(screen.getByRole('button', { name: 'Compris' }));
+    expect(screen.queryByRole('dialog', { name: 'Projet Filius importé' })).not.toBeInTheDocument();
   });
 });

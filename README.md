@@ -14,6 +14,11 @@ observer les échanges de données couche par couche.
 3. Les élèves l'ouvrent par un double-clic : il s'ouvre dans le navigateur
    (Firefox, Chrome, Edge…). Tout fonctionne hors ligne.
 
+**Vos projets Filius** (`.fls`) s'ouvrent directement avec **Ouvrir…** :
+équipements, adresses, routes, pare-feu, DHCP, DNS, pages web, câbles et
+annotations (textes, zones colorées) sont repris. Ce qui ne peut pas l'être
+(modem, logiciel pair à pair…) est listé dans un rapport à l'ouverture.
+
 Le travail en cours est sauvegardé automatiquement dans le navigateur du poste.
 Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
 `.reseaulab.json` est téléchargé, qu'on rouvre ensuite avec **Ouvrir…**.
@@ -24,7 +29,8 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   l'ajouter ; choisir l'outil **Câble** puis cliquer sur deux équipements pour
   les relier ; sélectionner un équipement pour le configurer dans le panneau du
   bas (adresse IP, masque, passerelle, DNS, DHCP, interfaces et routes du
-  routeur, pare-feu). Touche Suppr pour effacer la sélection.
+  routeur, pare-feu). Les outils **Texte** et **Zone** ajoutent des annotations
+  sur le plan. Touche Suppr pour effacer la sélection.
 - **Mode simulation** : cliquer sur un ordinateur ouvre son bureau. On y
   installe et lance des logiciels. La vitesse de la simulation est réglable et
   les paquets sont animés sur les câbles.

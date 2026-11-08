@@ -1,7 +1,10 @@
 import { Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { serializeProject } from '../project/serialize';
+import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
+import { FILIUS_CONFIG_ENTRY } from '../project/filius';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
+import { makeZip } from '../test/zip';
 import { AUTOSAVE_KEY, Session } from './session';
 
 function lan(session: Session): { a: string; b: string } {
@@ -173,5 +176,42 @@ describe('Session', () => {
     expect(listener).toHaveBeenCalled();
     expect(session.getVersion()).toBeGreaterThan(before);
     off();
+  });
+});
+
+describe('Session : import Filius et annotations', () => {
+  test('importe un fichier .fls et garde le rapport d’import', async () => {
+    const session = new Session();
+    const zip = await makeZip({ [FILIUS_CONFIG_ENTRY]: fixture });
+    expect(await session.openFilius(zip, 'cours.fls')).toBe(true);
+    expect(session.fileName).toBe('cours.reseaulab.json');
+    expect(session.network.devices.length).toBe(6);
+    expect(session.importReport?.warnings.length).toBeGreaterThan(0);
+    session.dismissImportReport();
+    expect(session.importReport).toBeNull();
+    expect(await session.openFilius(new Uint8Array([1, 2, 3]), 'abime.fls')).toBe(false);
+    expect(session.notice?.kind).toBe('error');
+    expect(session.network.devices.length).toBe(6);
+  });
+
+  test('un fichier .fls sans avertissement affiche un simple message', async () => {
+    const session = new Session();
+    const xml = `<java><object class="java.util.LinkedList"><void method="add">
+      <object class="filius.gui.netzwerksicht.GUIKnotenItem"><void property="knoten">
+        <object class="filius.hardware.knoten.Switch"/></void></object></void></object></java>`;
+    expect(await session.openFilius(await makeZip({ [FILIUS_CONFIG_ENTRY]: xml }), 'a.FLS')).toBe(true);
+    expect(session.importReport).toBeNull();
+    expect(session.notice?.text).toContain('importé');
+  });
+
+  test('ajoute, sélectionne et supprime des annotations', () => {
+    const session = new Session();
+    const text = session.addNote('text');
+    const zone = session.addNote('zone');
+    expect(session.network.note(text)?.text).toBe('Texte');
+    expect(session.network.note(zone)?.kind).toBe('zone');
+    expect(session.selection).toEqual({ kind: 'note', id: zone });
+    session.deleteSelection();
+    expect(session.network.notes.map((n) => n.id)).toEqual([text]);
   });
 });

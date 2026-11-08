@@ -31,6 +31,24 @@ export interface CableEnds {
 
 export class ConnectError extends Error {}
 
+/** Documentation drawn on the plan: a text label or a coloured zone. */
+export interface Note {
+  readonly id: string;
+  readonly kind: 'text' | 'zone';
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly text: string;
+  /** "#rrggbb": text colour for a label, fill colour for a zone. */
+  readonly color: string;
+  readonly fontSize: number;
+  readonly bold: boolean;
+}
+
+export type NoteInit = Omit<Note, 'id'> & { readonly id?: string };
+export type NotePatch = Partial<Omit<Note, 'id' | 'kind'>>;
+
 export const LINK_DELAY = 10;
 
 interface CreateOptions {
@@ -53,6 +71,7 @@ export class Network {
   readonly macs = new MacAllocator();
   private readonly deviceMap = new Map<string, Device>();
   private readonly cableMap = new Map<string, Cable>();
+  private readonly noteMap = new Map<string, Note>();
   private idCounter = 0;
   private runningFlag = false;
   private revision = 0;
@@ -97,6 +116,34 @@ export class Network {
       portA: c.a.index,
       portB: c.b.index,
     }));
+  }
+
+  get notes(): readonly Note[] {
+    return [...this.noteMap.values()];
+  }
+
+  note(id: string): Note | undefined {
+    return this.noteMap.get(id);
+  }
+
+  addNote(init: NoteInit): Note {
+    const id = this.newId(init.id, 'a');
+    if (this.noteMap.has(id)) throw new Error(`Identifiant en double : ${id}`);
+    const note: Note = { ...init, id };
+    this.noteMap.set(id, note);
+    this.touch();
+    return note;
+  }
+
+  updateNote(id: string, patch: NotePatch): void {
+    const note = this.noteMap.get(id);
+    if (!note) return;
+    this.noteMap.set(id, { ...note, ...patch });
+    this.touch();
+  }
+
+  removeNote(id: string): void {
+    if (this.noteMap.delete(id)) this.touch();
   }
 
   device(id: string): Device | undefined {
@@ -271,7 +318,7 @@ export class Network {
     let id: string;
     do {
       id = `${prefix}${++this.idCounter}`;
-    } while (this.deviceMap.has(id) || this.cableMap.has(id));
+    } while (this.deviceMap.has(id) || this.cableMap.has(id) || this.noteMap.has(id));
     return id;
   }
 

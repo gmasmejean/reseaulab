@@ -11,7 +11,7 @@ import {
 import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { Router } from '../../engine/devices/router';
-import type { Network } from '../../engine/network';
+import type { Network, Note } from '../../engine/network';
 import { DEVICE_LABEL } from '../../i18n/fr';
 import { useSession } from '../context';
 import { Checkbox, IpField, Section, TextField } from './Fields';
@@ -347,6 +347,76 @@ function RouterProperties({ router }: { router: Router }) {
   );
 }
 
+function NoteProperties({ note }: { note: Note }) {
+  const session = useSession();
+  const net = session.network;
+  const textId = `note-text-${note.id}`;
+  const colorId = `note-color-${note.id}`;
+  return (
+    <div className="properties">
+      <div className="properties-actions">
+        <button
+          type="button"
+          className="danger"
+          onClick={() => {
+            session.deleteSelection();
+          }}
+        >
+          Supprimer
+        </button>
+      </div>
+      <div className="properties-grid">
+        <Section title={note.kind === 'zone' ? 'Zone' : 'Texte'}>
+          <div className="field">
+            <label htmlFor={textId}>{note.kind === 'zone' ? 'Titre (facultatif)' : 'Texte'}</label>
+            <textarea
+              id={textId}
+              rows={3}
+              value={note.text}
+              maxLength={2000}
+              onChange={(e) => {
+                net.updateNote(note.id, { text: e.target.value });
+              }}
+            />
+          </div>
+        </Section>
+        <Section title="Apparence">
+          <div className="field">
+            <label htmlFor={colorId}>{note.kind === 'zone' ? 'Couleur de fond' : 'Couleur du texte'}</label>
+            <input
+              id={colorId}
+              type="color"
+              value={note.color}
+              onChange={(e) => {
+                net.updateNote(note.id, { color: e.target.value });
+              }}
+            />
+          </div>
+          <TextField
+            label="Taille du texte"
+            type="number"
+            value={String(note.fontSize)}
+            onCommit={(value) => {
+              const size = Number(value);
+              if (!Number.isInteger(size) || size < 8 || size > 96) return 'Entre 8 et 96.';
+              net.updateNote(note.id, { fontSize: size });
+              return null;
+            }}
+          />
+          <Checkbox
+            label="Gras"
+            checked={note.bold}
+            onChange={(bold) => {
+              net.updateNote(note.id, { bold });
+            }}
+          />
+          <p className="muted">Glissez pour déplacer ; la poignée en bas à droite redimensionne.</p>
+        </Section>
+      </div>
+    </div>
+  );
+}
+
 export function PropertiesPanel() {
   const session = useSession();
   const { network: net, selection } = session;
@@ -360,6 +430,10 @@ export function PropertiesPanel() {
         </p>
       </div>
     );
+  }
+  if (selection.kind === 'note') {
+    const note = net.note(selection.id);
+    return note && session.mode === 'design' ? <NoteProperties note={note} /> : null;
   }
   if (selection.kind === 'cable') {
     const cable = net.cables.find((c) => c.id === selection.id);

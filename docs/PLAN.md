@@ -80,6 +80,14 @@ fichier (case cochée).
       données (liste des trames + détail par couche).
 - [x] **Étape 10 — Bout en bout & livraison** : scénarios Playwright, exemple
       de projet, build fichier unique, guide d'utilisation.
+- [x] **Étape 11 — Import des projets Filius (`.fls`)** et annotations du plan
+      (textes, zones colorées). Lecteur ZIP (`DecompressionStream` natif),
+      analyseur XML minimal, interpréteur du sous-ensemble de
+      `java.beans.XMLDecoder` utilisé par Filius (rien n'est exécuté), puis
+      conversion vers le format de projet, validée par le schéma. Valeurs par
+      défaut relevées dans les classes de Filius (XMLEncoder n'écrit que ce qui
+      en diffère). Testé sur un projet d'exemple écrit à la main et vérifié
+      localement sur 32 projets réels (Filius 1.10 à 2.5).
 
 ## Écarts au plan
 
@@ -99,6 +107,14 @@ fichier (case cochée).
 - **Tests de bout en bout** : Playwright pilote le Chrome installé sur la
   machine (`channel: 'chrome'`) plutôt qu'un navigateur téléchargé. Les
   scénarios tournent sur le build final, servi et ouvert en `file://`.
+- **Pare-feu des projets Filius** : Filius laisse passer l'ICMP (sauf
+  « bloquer ICMP ») et, selon l'option, l'UDP ; l'import l'exprime par des
+  règles explicites en tête de liste. Une politique par défaut « accepter »
+  devient une règle finale « tout accepter ». La source « même réseau » est
+  développée en une règle par réseau de l'équipement.
+- **Bug corrigé pendant l'étape 11** : le pare-feu ne reconnaissait pas les
+  segments TCP envoyés par l'initiateur d'une connexion acceptée ; un client
+  ne pouvait donc rien envoyer à travers un pare-feu (test ajouté).
 - **Confirmations** : boîte de dialogue intégrée à la page au lieu de
   `window.confirm`/`window.prompt`, parfois bloqués sur les postes gérés.
 
@@ -108,5 +124,6 @@ fichier (case cochée).
   proprement dans un navigateur sans serveur.
 - **Assistant de création de logiciels** (compilation Java à la volée).
 - **Pair-à-pair (Gnutella)** : envisageable plus tard.
-- **Import des fichiers `.fls` de Filius** : format de sérialisation Java,
-  envisageable plus tard.
+- **Dans les fichiers `.fls`** (signalé dans le rapport d'import) : modems,
+  logiciel pair à pair, comptes du client de messagerie, hôtes virtuels du
+  serveur web, cartes réseau supplémentaires d'un ordinateur.

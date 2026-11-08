@@ -49,6 +49,34 @@ export function Palette() {
         </svg>
         <span>Câble</span>
       </button>
+      <button
+        type="button"
+        className="palette-item tool"
+        disabled={disabled}
+        title="Ajouter un texte sur le plan"
+        onClick={() => {
+          session.addNote('text');
+        }}
+      >
+        <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden className="tool-icon">
+          <path d="M10 10 H30 M20 10 V32 M15 32 H25" />
+        </svg>
+        <span>Texte</span>
+      </button>
+      <button
+        type="button"
+        className="palette-item tool"
+        disabled={disabled}
+        title="Ajouter une zone colorée (pour regrouper des équipements)"
+        onClick={() => {
+          session.addNote('zone');
+        }}
+      >
+        <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden className="tool-icon">
+          <rect x="6" y="10" width="28" height="20" rx="3" />
+        </svg>
+        <span>Zone</span>
+      </button>
       {session.tool === 'cable' && !disabled && (
         <p className="palette-hint">
           {session.cableStart ? 'Cliquez sur le second équipement.' : 'Cliquez sur le premier équipement.'}

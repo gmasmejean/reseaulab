@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { ImportReportDialog } from './components/ImportReportDialog';
 import { Canvas } from './components/Canvas';
 import { Palette } from './components/Palette';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -86,6 +87,7 @@ function Layout() {
         <PropertiesPanel />
       </footer>
       <Notice />
+      <ImportReportDialog />
       <Shortcuts />
     </div>
   );

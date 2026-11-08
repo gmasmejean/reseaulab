@@ -5,6 +5,7 @@ import { Host } from '../../engine/devices/host';
 import { useSession } from '../context';
 import type { Session } from '../session';
 import { DeviceIcon } from './DeviceIcon';
+import { NoteShape } from './NoteShape';
 
 export const DEVICE_DRAG_TYPE = 'application/x-reseaulab-device';
 const ICON = 56;
@@ -12,6 +13,8 @@ const MIN_WIDTH = 1400;
 const MIN_HEIGHT = 900;
 
 interface Drag {
+  /** What is dragged: a device, a note, or the resize handle of a note. */
+  readonly target: 'device' | 'note' | 'resize';
   readonly id: string;
   readonly pointerX: number;
   readonly pointerY: number;
@@ -52,8 +55,17 @@ export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
   const devices = net.devices;
-  const width = Math.max(MIN_WIDTH, ...devices.map((d) => d.position.x + 160));
-  const height = Math.max(MIN_HEIGHT, ...devices.map((d) => d.position.y + 160));
+  const notes = net.notes;
+  const width = Math.max(
+    MIN_WIDTH,
+    ...devices.map((d) => d.position.x + 160),
+    ...notes.map((n) => n.x + n.width + 40),
+  );
+  const height = Math.max(
+    MIN_HEIGHT,
+    ...devices.map((d) => d.position.y + 160),
+    ...notes.map((n) => n.y + n.height + 40),
+  );
   const simulation = session.mode === 'simulation';
   const now = net.scheduler.now;
 
@@ -70,6 +82,7 @@ export function Canvas() {
       return;
     }
     drag.current = {
+      target: 'device',
       id: device.id,
       pointerX: event.clientX,
       pointerY: event.clientY,
@@ -88,10 +101,41 @@ export function Canvas() {
     const dy = event.clientY - d.pointerY;
     if (!d.moved && Math.hypot(dx, dy) < 4) return;
     d.moved = true;
-    net.move(d.id, {
-      x: Math.max(40, Math.round(d.originX + dx)),
-      y: Math.max(40, Math.round(d.originY + dy)),
-    });
+    if (d.target === 'device') {
+      net.move(d.id, {
+        x: Math.max(40, Math.round(d.originX + dx)),
+        y: Math.max(40, Math.round(d.originY + dy)),
+      });
+    } else if (d.target === 'note') {
+      net.updateNote(d.id, {
+        x: Math.max(0, Math.round(d.originX + dx)),
+        y: Math.max(0, Math.round(d.originY + dy)),
+      });
+    } else {
+      net.updateNote(d.id, {
+        width: Math.max(20, Math.round(d.originX + dx)),
+        height: Math.max(16, Math.round(d.originY + dy)),
+      });
+    }
+  };
+
+  const onNotePointerDown = (event: PointerEvent, id: string, mode: 'move' | 'resize') => {
+    if (event.button !== 0) return;
+    const note = net.note(id);
+    if (!note) return;
+    if (session.cableStart) session.setTool('cable');
+    drag.current = {
+      target: mode === 'move' ? 'note' : 'resize',
+      id,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      originX: mode === 'move' ? note.x : note.width,
+      originY: mode === 'move' ? note.y : note.height,
+      moved: false,
+    };
+    session.select({ kind: 'note', id });
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- absent from jsdom
+    svgRef.current?.setPointerCapture?.(event.pointerId);
   };
 
   /** Click (without drag) or Enter/Space on a device. */
@@ -103,7 +147,7 @@ export function Canvas() {
   const onPointerUp = () => {
     const d = drag.current;
     drag.current = null;
-    if (!d || d.moved) return;
+    if (!d || d.moved || d.target !== 'device') return;
     const device = net.device(d.id);
     if (device) activate(device);
   };
@@ -151,6 +195,22 @@ export function Canvas() {
           </pattern>
         </defs>
         <rect width={width} height={height} fill="url(#grid)" />
+        {[...notes]
+          .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'zone' ? -1 : 1))
+          .map((n) => (
+            <NoteShape
+              key={n.id}
+              note={n}
+              selected={selected?.kind === 'note' && selected.id === n.id}
+              interactive={!simulation}
+              onPointerDown={(e, mode) => {
+                onNotePointerDown(e, n.id, mode);
+              }}
+              onActivate={() => {
+                session.select({ kind: 'note', id: n.id });
+              }}
+            />
+          ))}
         {net.cables.map((c) => {
           const a = net.device(c.a)?.position;
           const b = net.device(c.b)?.position;
@@ -261,7 +321,7 @@ export function Canvas() {
           );
         })}
       </svg>
-      {devices.length === 0 && (
+      {devices.length === 0 && notes.length === 0 && (
         <div className="canvas-empty">
           <p>
             <strong>Le plan est vide.</strong>

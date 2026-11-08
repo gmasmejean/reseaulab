@@ -142,6 +142,7 @@ export function toProject(network: Network): ProjectFile {
     version: PROJECT_VERSION,
     devices,
     cables: network.cables.map((c) => ({ ...c })),
+    notes: network.notes.map((n) => ({ ...n })),
   };
 }
 
@@ -243,6 +244,11 @@ export function fromProject(project: ProjectFile): Network {
       loadHost(network, device);
     }
   }
+  for (const note of project.notes) {
+    if (ids.has(note.id)) throw new ProjectError(`Identifiant en double : ${note.id}`);
+    ids.add(note.id);
+    network.addNote(note);
+  }
   for (const cable of project.cables) {
     if (ids.has(cable.id)) throw new ProjectError(`Identifiant en double : ${cable.id}`);
     ids.add(cable.id);
@@ -270,6 +276,11 @@ export function parseProject(text: string): Network {
   } catch {
     throw new ProjectError('Ce fichier n’est pas un projet RéseauLab (JSON illisible).');
   }
+  return validateProject(data);
+}
+
+/** Validates raw project data and builds the network. */
+export function validateProject(data: unknown): Network {
   const result = projectSchema.safeParse(data);
   if (!result.success) {
     const issue = result.error.issues[0];

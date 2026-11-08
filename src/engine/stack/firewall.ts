@@ -56,8 +56,15 @@ export class Firewall {
       return true;
     }
     if (payload.kind === 'udp' && payload.dstPort === DHCP_CLIENT_PORT) return true;
+    // Packets of an accepted flow pass in both directions.
+    const forward = flowKey(packet, false);
     const reverse = flowKey(packet, true);
-    if (reverse && this.flows.has(reverse)) return true;
+    if (
+      (reverse && this.flows.has(reverse)) ||
+      (forward && this.flows.has(forward) && payload.kind !== 'icmp')
+    ) {
+      return true;
+    }
     if (payload.kind === 'tcp' && !(payload.flags.syn && !payload.flags.ack)) {
       // Mid-connection segment of a flow we never accepted.
       this.dropped++;
