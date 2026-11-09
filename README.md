@@ -38,8 +38,10 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   le bureau et les échanges de données de chaque interface. Au clavier : touche
   Menu ou Maj+F10.
 - **Mode simulation** : cliquer sur un ordinateur ouvre son bureau. On y
-  installe et lance des logiciels. La vitesse de la simulation est réglable et
-  les paquets sont animés sur les câbles.
+  installe et lance des logiciels. Les paquets sont animés sur les câbles, au
+  ralenti pour qu'on puisse les suivre (0,4 s par câble à la vitesse par
+  défaut) ; entre deux envois, le temps s'écoule normalement. Le
+  curseur **Vitesse** règle ce ralenti.
 - **Exemple** : charge un réseau de collège complet (salle élèves en DHCP,
   routeur, serveurs DNS, web et messagerie) pour une démonstration immédiate.
 

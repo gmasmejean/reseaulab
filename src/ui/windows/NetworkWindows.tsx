@@ -254,7 +254,8 @@ export function HelpWindow() {
         </li>
         <li>
           Les paquets circulent sur les câbles. La fenêtre <b>Échanges de données</b> montre chaque trame,
-          couche par couche. Ralentissez la vitesse pour mieux observer.
+          couche par couche. Les trames sont montrées au ralenti sur les câbles ; le curseur <b>Vitesse</b>{' '}
+          règle ce ralenti.
         </li>
         <li>
           Enregistrez votre travail avec <b>Enregistrer</b> (fichier <code>.reseaulab.json</code>). Le réseau

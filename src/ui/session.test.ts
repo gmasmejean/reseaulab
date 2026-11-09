@@ -1,4 +1,4 @@
-import { Network } from '../engine/network';
+import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { serializeProject } from '../project/serialize';
 import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
@@ -96,7 +96,10 @@ describe('Session', () => {
     session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, (r) => results.push(r.kind));
     expect(session.inFlight.length).toBeGreaterThan(0);
     expect(session.inFlight[0]?.protocol).toBe('arp');
-    for (let i = 0; i < 20; i++) frames.step(100);
+    // Ralenti : chaque traversée de câble dure HOP_MS (400 ms) à × 1.
+    frames.step(100);
+    expect(session.network.scheduler.now).toBeLessThan(LINK_DELAY);
+    for (let i = 0; i < 60; i++) frames.step(100);
     expect(session.inFlight).toHaveLength(0);
     expect(results).toEqual(['reply']);
   });

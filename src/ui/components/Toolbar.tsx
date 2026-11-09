@@ -118,7 +118,7 @@ export function Toolbar() {
             max={SPEEDS.length - 1}
             value={speedIndex}
             onChange={(e) => {
-              session.setSpeed(SPEEDS[Number(e.target.value)] ?? 0.5);
+              session.setSpeed(SPEEDS[Number(e.target.value)] ?? 1);
             }}
             aria-valuetext={`× ${session.speed}`}
           />

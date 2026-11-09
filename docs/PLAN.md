@@ -38,7 +38,10 @@ Principes clés :
 
 - Le **temps est virtuel** : un ordonnanceur à événements discrets fait
   avancer la simulation. Les tests l'exécutent instantanément ; l'interface
-  le fait avancer en temps réel selon le curseur de vitesse.
+  le fait avancer selon le curseur de vitesse : au ralenti tant qu'une trame
+  est sur un câble (une traversée dure 400 ms ÷ vitesse), comme le temps réel
+  sinon (×vitesse au-delà de 1), pour que l'animation reste lisible sans
+  allonger les attentes (intervalle entre pings, délais d'expiration).
 - Le moteur est **événementiel et synchrone** (callbacks), donc déterministe.
 - L'objet `Network` est l'unique source de vérité ; l'interface s'y abonne.
 
@@ -100,6 +103,12 @@ fichier (case cochée).
       en simulation. RéseauLab ajoute les tables du switch et du routeur au
       menu de simulation. Accessible au clavier (touche Menu, Maj+F10, flèches,
       Échap).
+- [x] **Étape 14 — Animation au ralenti** : le temps simulé ralentit pendant
+      qu'une trame traverse un câble (0,4 s par câble à la vitesse par défaut
+      × 1, réglable de × 0,1 à × 4) et suit le temps réel le reste du temps.
+      Un ping routé dure ainsi 3,2 s, le premier chargement d'une page web de
+      l'exemple environ 18 s (4 s à × 4). Les temps affichés par `ping`
+      restent ceux du réseau simulé (quelques dizaines de millisecondes).
 
 ## Écarts au plan
 

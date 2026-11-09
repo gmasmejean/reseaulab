@@ -50,7 +50,7 @@ export interface ImportReport {
   readonly warnings: readonly string[];
 }
 
-export const SPEEDS = [0.05, 0.1, 0.25, 0.5, 1, 2] as const;
+export const SPEEDS = [0.1, 0.25, 0.5, 1, 2, 4] as const;
 export const AUTOSAVE_KEY = 'reseaulab:autosave';
 
 export interface Storage {
@@ -116,6 +116,7 @@ export class Session {
         this.touch();
       },
       frames,
+      () => this.busyUntil(),
     );
     this.attach();
   }
@@ -396,6 +397,14 @@ export class Session {
   private detach(): void {
     for (const off of this.unsubscribe) off();
     this.unsubscribe = [];
+  }
+
+  /** Arrival time of the last frame still on a cable, or null. */
+  private busyUntil(): number | null {
+    const now = this.network.scheduler.now;
+    let until: number | null = null;
+    for (const f of this.inFlight) if (f.end > now && (until === null || f.end > until)) until = f.end;
+    return until;
   }
 
   private pruneInFlight(): void {
