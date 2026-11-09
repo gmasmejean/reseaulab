@@ -32,6 +32,11 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   routeur, pare-feu). Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
   retire dans son onglet « Interfaces ». Les outils **Texte** et **Zone** ajoutent des annotations
   sur le plan. Touche Suppr pour effacer la sélection.
+- **Wi-Fi**, comme dans Filius : chaque switch est aussi un point d'accès avec
+  un **nom Wi-Fi (SSID)** modifiable. Un ordinateur ou un portable réglé en
+  **Sans fil (Wi-Fi)** rejoint un switch en choisissant ce nom dans sa
+  configuration (ou avec l'outil Câble vers un switch). La connexion est
+  dessinée en pointillés et `ipconfig` indique le réseau rejoint.
 - **Clic droit**, comme dans Filius : sur un équipement (Configurer, Supprimer
   le câble / tous les câbles, Supprimer), un câble (Supprimer le câble), un
   texte (taille, style, couleur) ou une zone (couleur). En simulation : Afficher

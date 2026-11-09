@@ -289,3 +289,38 @@ test('clic droit : menus contextuels comme dans Filius', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
 });
+
+test('Wi-Fi : un portable rejoint le réseau sans fil d’un switch puis répond au ping', async ({ page }) => {
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: /Switch/ }).click();
+  await page.getByRole('textbox', { name: 'Nom Wi-Fi (SSID)' }).fill('CDI');
+  await page.getByRole('textbox', { name: 'Nom Wi-Fi (SSID)' }).press('Enter');
+
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await page.getByRole('textbox', { name: 'Adresse IP', exact: true }).fill('192.168.0.1');
+  await page.getByRole('textbox', { name: 'Adresse IP', exact: true }).press('Enter');
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Ordinateur 1', 'Switch 1']) await page.locator(`[aria-label^="${name}"]`).click();
+  await palette.getByRole('button', { name: 'Câble' }).click();
+
+  await palette.getByRole('button', { name: /Portable/ }).click();
+  await page.getByRole('textbox', { name: 'Adresse IP', exact: true }).fill('192.168.0.2');
+  await page.getByRole('textbox', { name: 'Adresse IP', exact: true }).press('Enter');
+  await page.getByRole('radio', { name: 'Sans fil (Wi-Fi)' }).check();
+  await page.getByRole('combobox', { name: 'Réseau sans fil (SSID)' }).selectOption('CDI');
+  await expect(page.getByText('Connecté au réseau « CDI » (switch « Switch 1 »).')).toBeVisible();
+  // A horizontal link has an empty geometric box: check its presence, not its visibility.
+  await expect(page.getByRole('button', { name: 'Wi-Fi Portable 1 – Switch 1' })).toHaveClass(/wireless/);
+  await expect(page.locator('[aria-label="Switch 1 (Wi-Fi « CDI »)"]')).toBeVisible();
+  await shot(page, '20-wifi');
+
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5'); // vitesse maximale
+  const terminal = await openTerminal(page, 'Portable 1');
+  await terminal.getByRole('textbox', { name: 'Commande', exact: true }).fill('ipconfig');
+  await terminal.getByRole('textbox', { name: 'Commande', exact: true }).press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('Wi-Fi, réseau « CDI »');
+  await terminal.getByRole('textbox', { name: 'Commande', exact: true }).fill('ping -n 1 192.168.0.1');
+  await terminal.getByRole('textbox', { name: 'Commande', exact: true }).press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
+});

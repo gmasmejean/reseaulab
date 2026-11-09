@@ -58,6 +58,18 @@ describe('Terminal', () => {
     expect(out).toContain('255.255.255.0 (/24)');
     expect(out).toContain(a.mac);
     expect(run(net, t, 'ipconfig /renew')).toContain('n’utilise pas DHCP');
+    expect(out).toMatch(/Carte réseau\.* : Ethernet \(câble\)/);
+  });
+
+  test('ipconfig indique la carte Wi-Fi et le réseau rejoint', () => {
+    const { net, a } = setup();
+    const t = terminal(a);
+    net.setHostWifi(a.id, true);
+    expect(run(net, t, 'ipconfig')).toContain('Wi-Fi (non connectée)');
+    const sw = net.switches[0];
+    if (!sw) throw new Error('switch attendu');
+    net.joinWifi(a.id, sw.ssid);
+    expect(run(net, t, 'ipconfig')).toContain(`Wi-Fi, réseau « ${sw.ssid} »`);
   });
 
   test('ipconfig /renew avec et sans serveur DHCP', () => {

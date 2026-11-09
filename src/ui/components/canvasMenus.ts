@@ -60,11 +60,12 @@ export function deviceMenu(session: Session, device: Device, configure: () => vo
   if (session.mode === 'simulation') return simulationMenu(session, device);
   const cables = device.ports.flatMap((p) => (p.cable ? [p.cable.id] : []));
   const singlePort = device instanceof Host;
+  const wifi = singlePort && device.wifi;
   return [
     { kind: 'action', label: 'Configurer', onSelect: configure },
     {
       kind: 'action',
-      label: singlePort ? 'Supprimer le câble' : 'Supprimer tous les câbles',
+      label: wifi ? 'Déconnecter le Wi-Fi' : singlePort ? 'Supprimer le câble' : 'Supprimer tous les câbles',
       disabled: cables.length === 0,
       onSelect: () => {
         for (const id of cables) net.disconnect(id);
@@ -130,7 +131,7 @@ export function cableMenu(session: Session, cableId: string): MenuEntry[] {
   return [
     {
       kind: 'action',
-      label: 'Supprimer le câble',
+      label: session.network.cable(cableId)?.wireless ? 'Déconnecter le Wi-Fi' : 'Supprimer le câble',
       danger: true,
       onSelect: () => {
         session.network.disconnect(cableId);

@@ -1,4 +1,5 @@
-import type { Host } from '../engine/devices/host';
+import { Host as HostClass, type Host } from '../engine/devices/host';
+import { exampleNetwork } from './example';
 import { ip, ping, routedNetwork, settle } from '../engine/testing';
 import { httpGet, type HttpResult } from '../engine/services/http';
 import { PROJECT_FORMAT } from './schema';
@@ -112,6 +113,53 @@ describe('Projet', () => {
     expect(parseProject(JSON.stringify(old)).notes[0]?.italic).toBe(false);
   });
 
+  test('le Wi-Fi est enregistré : SSID des switchs, carte Wi-Fi et connexions sans fil', () => {
+    const { net, a, s1 } = routedNetwork();
+    net.setSwitchSsid(s1.id, 'Salle 12');
+    net.setHostWifi(a.id, true);
+    net.joinWifi(a.id, 'Salle 12');
+    const project = toProject(net);
+    expect(project.cables).toContainEqual(expect.objectContaining({ a: a.id, b: s1.id, wireless: true }));
+    const loaded = parseProject(serializeProject(net));
+    expect(toProject(loaded)).toEqual(project);
+    expect(loaded.wifiAccessPoint(loaded.host(a.id))?.ssid).toBe('Salle 12');
+    loaded.start();
+    expect(ping(loaded, loaded.host(a.id), '192.168.2.10').kind).toBe('reply');
+  });
+
+  test('les projets enregistrés avant le Wi-Fi se rechargent (filaire, SSID par défaut)', () => {
+    const { net, a } = routedNetwork();
+    const project = toProject(net);
+    const old = {
+      ...project,
+      devices: project.devices.map((d) => {
+        if (d.kind === 'switch') return { ...d, ssid: undefined };
+        if (d.kind === 'router') return d;
+        return Object.fromEntries(Object.entries(d).filter(([key]) => key !== 'wifi'));
+      }),
+      cables: project.cables.map(({ wireless: _wireless, ...rest }) => rest),
+    };
+    const loaded = parseProject(JSON.stringify(old));
+    expect(loaded.host(a.id).wifi).toBe(false);
+    expect(loaded.switches.map((s) => s.ssid)).toEqual(['Wifi-1', 'Wifi-2']);
+    expect(loaded.cables.every((c) => !c.wireless)).toBe(true);
+  });
+
+  test('réseau d’exemple : le portable obtient son adresse en Wi-Fi et charge le site du collège', () => {
+    const net = exampleNetwork();
+    const laptop = net.devices.find((d) => d.name === 'Portable');
+    if (!(laptop instanceof HostClass)) throw new Error('portable attendu');
+    expect(laptop.wifi).toBe(true);
+    expect(laptop.wifiNetwork).toBe('Wifi-College');
+    net.start();
+    net.scheduler.runUntilIdle();
+    expect(laptop.addressing.ip).not.toBe(ip('0.0.0.0'));
+    const page = settle<HttpResult>(net, (done) => {
+      httpGet(laptop, 'http://www.college.fr/', done);
+    });
+    expect(page.kind === 'ok' && page.response.body).toContain('Collège Pasteur');
+  });
+
   test('un routeur dont on a ajouté puis retiré des interfaces se recharge à l’identique', () => {
     const { net, r } = routedNetwork();
     net.addRouterInterface(r.id);
@@ -205,6 +253,21 @@ describe('Projet', () => {
       ),
     ).toThrow(/interface inexistante/);
     expect(() => parseProject(mutate((p) => (host(p).fs = { 'a/b': 'x' })))).toThrow(/Nom invalide/);
+    expect(() =>
+      parseProject(
+        mutate((p) => {
+          for (const d of p.devices) if (d.kind === 'switch') d.ssid = 'Même';
+        }),
+      ),
+    ).toThrow(/déjà utilisé/);
+    expect(() =>
+      parseProject(
+        mutate((p) => {
+          const cable = p.cables[0];
+          if (cable) cable.wireless = true;
+        }),
+      ),
+    ).toThrow(/Wi-Fi/);
     expect(() => parseProject('x'.repeat(20_000_001))).toThrow(/volumineux/);
   });
 

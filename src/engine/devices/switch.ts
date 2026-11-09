@@ -18,7 +18,15 @@ export interface MacTableEntry {
 export class Switch extends Device {
   private readonly table = new Map<Mac, number>();
 
-  constructor(id: string, name: string, position: Position, ctx: SimContext, portCount = 4) {
+  constructor(
+    id: string,
+    name: string,
+    position: Position,
+    ctx: SimContext,
+    portCount = 4,
+    /** Name of its Wi-Fi network: like in Filius, every switch is also an access point. */
+    public ssid = 'Wifi',
+  ) {
     super(id, 'switch', name, position, ctx);
     for (let i = 0; i < portCount; i++) this.addPort();
   }

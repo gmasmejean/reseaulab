@@ -10,6 +10,7 @@ import {
 import { IP_ANY, formatIp } from '../../engine/core/ipv4';
 import type { Device, DeviceKind } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
+import { Switch } from '../../engine/devices/switch';
 import { useSession } from '../context';
 import type { Session } from '../session';
 import { DeviceIcon } from './DeviceIcon';
@@ -43,6 +44,10 @@ interface OpenMenu {
 }
 
 function subtitle(device: Device): string | null {
+  // A switch with Wi-Fi clients shows the name of its network.
+  if (device instanceof Switch) {
+    return device.ports.some((p) => p.cable?.wireless) ? `Wi-Fi « ${device.ssid} »` : null;
+  }
   if (!(device instanceof Host)) return null;
   const ip = device.addressing.ip;
   if (ip !== IP_ANY) return formatIp(ip);
@@ -325,7 +330,7 @@ export function Canvas() {
           return (
             <g
               key={c.id}
-              className={`cable ${active ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
+              className={`cable ${c.wireless ? 'wireless' : ''} ${active ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
               onPointerDown={(e) => {
                 e.stopPropagation();
                 if (!simulation) session.select({ kind: 'cable', id: c.id });
@@ -340,7 +345,7 @@ export function Canvas() {
               }}
               role="button"
               tabIndex={simulation ? -1 : 0}
-              aria-label={`Câble ${net.device(c.a)?.name ?? ''} – ${net.device(c.b)?.name ?? ''}`}
+              aria-label={`${c.wireless ? 'Wi-Fi' : 'Câble'} ${net.device(c.a)?.name ?? ''} – ${net.device(c.b)?.name ?? ''}`}
               aria-pressed={isSelected}
             >
               <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="cable-hit" />

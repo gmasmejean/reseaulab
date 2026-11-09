@@ -13,6 +13,7 @@
   --design: #2557d6;
   --sim: #1d7a46;
   --cable: #6b7684;
+  --wifi: #8a5cd6;
   --layer-link: #fde8d7;
   --layer-network: #e3eafc;
   --layer-transport: #e4f4e8;
@@ -328,6 +329,20 @@ code {
 .cable.selected .cable-line {
   stroke: var(--accent);
   stroke-dasharray: 8 4;
+}
+/* Wi-Fi link: dotted, like radio waves, in its own colour. */
+.cable.wireless .cable-line {
+  stroke: var(--wifi);
+  stroke-dasharray: 1 7;
+  stroke-width: 4;
+}
+.cable.wireless.active .cable-line {
+  stroke: #22a35a;
+  stroke-width: 5;
+}
+.cable.wireless.selected .cable-line {
+  stroke: var(--accent);
+  stroke-dasharray: 1 7;
 }
 .port-label {
   font-size: 11px;
@@ -1188,4 +1203,23 @@ input.narrow {
 .swatch:focus {
   outline: 2px solid var(--text);
   outline-offset: 1px;
+}
+
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+}
+.radio-group legend {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+}
+.radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

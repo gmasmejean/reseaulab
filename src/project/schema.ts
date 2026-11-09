@@ -59,6 +59,8 @@ const hostSchema = z.object({
   y: coordinate,
   mac,
   showIpAsName: z.boolean(),
+  // Added with Wi-Fi: older projects only have wired hosts.
+  wifi: z.boolean().default(false),
   config: z.object({ ip, mask, gateway: ip, dns: ip, useDhcp: z.boolean() }),
   installed: z.array(z.enum(APP_IDS)).max(APP_IDS.length),
   fs: fsJson,
@@ -101,6 +103,8 @@ const switchSchema = z.object({
   x: coordinate,
   y: coordinate,
   ports: z.number().int().min(1).max(256),
+  // Added with Wi-Fi; a default name is chosen when absent.
+  ssid: z.string().trim().min(1).max(32).optional(),
 });
 
 const routerSchema = z.object({
@@ -123,6 +127,7 @@ const cableSchema = z.object({
   portA: z.number().int().min(0).max(255),
   b: text(32),
   portB: z.number().int().min(0).max(255),
+  wireless: z.boolean().default(false),
 });
 
 const noteSchema = z.object({

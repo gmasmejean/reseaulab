@@ -7,7 +7,7 @@ import type { Network } from '../../engine/network';
 import { httpGet, type HttpResult } from '../../engine/services/http';
 import { ip, pingFor } from '../../engine/testing';
 import { makeZip } from '../../test/zip';
-import { ProjectError, parseProject, serializeProject } from '../serialize';
+import { ProjectError, parseProject, serializeProject, validateProject } from '../serialize';
 import { convertFilius } from './convert';
 import { JField, JObject, decodeXmlEncoder } from './decoder';
 import fixture from './fixtures/konfiguration.xml?raw';
@@ -408,6 +408,86 @@ describe('Import d’un projet Filius', () => {
         'Équipement inconnu ignoré : Inconnu.',
       ]),
     );
+  });
+
+  test('reprend le Wi-Fi de Filius 2.5 : SSID, cartes et connexions sans fil', () => {
+    const node = (cls: string, body: string) =>
+      `<void method="add"><object class="filius.gui.netzwerksicht.GUIKnotenItem">
+        <void property="knoten"><object class="filius.hardware.knoten.${cls}">${body}</object></void>
+      </object></void>`;
+    const host = (name: string, port: string, wireless: boolean) =>
+      node(
+        'Notebook',
+        `<void property="name"><string>${name}</string></void>
+         <void property="netzwerkInterfaces"><void index="0">
+           <void property="port"><object class="filius.hardware.Port" id="${port}"/></void>
+           ${wireless ? '<void property="wireless"><boolean>true</boolean></void>' : ''}
+         </void></void>`,
+      );
+    const sw = (name: string, ssid: string, port: string) =>
+      node(
+        'Switch',
+        `<void property="name"><string>${name}</string></void>
+         <void property="anschluesse"><void method="add"><object class="filius.hardware.Port" id="${port}"/></void>
+           <void method="add"><object class="filius.hardware.Port"/></void></void>
+         <void property="systemSoftware"><void property="SSID"><string>${ssid}</string></void></void>`,
+      );
+    const cable = (a: string, b: string, wireless: boolean) =>
+      `<void method="add"><object class="filius.gui.netzwerksicht.GUIKabelItem">
+        <void property="dasKabel"><object class="filius.hardware.Kabel">
+          <void property="anschluesse"><array class="filius.hardware.Port" length="2">
+            <void index="0"><object idref="${a}"/></void><void index="1"><object idref="${b}"/></void>
+          </array></void>
+          ${wireless ? '<void property="wireless"><boolean>true</boolean></void>' : ''}
+        </object></void>
+      </object></void>`;
+    const values = decodeXml(`
+      <object class="java.util.LinkedList">
+        ${sw('Borne CDI', 'CDI', 'S1')}
+        ${sw('Borne bis', 'CDI', 'S2')}
+        ${sw('Borne longue', 'x'.repeat(40), 'S3')}
+        ${host('Tablette', 'H1', true)}
+        ${host('Portable filaire', 'H2', true)}
+        ${host('Portable seul', 'H3', true)}
+        ${host('Autre', 'H4', false)}
+        ${host('Fixe', 'H5', true)}
+      </object>
+      <object class="java.util.LinkedList">
+        ${cable('H1', 'S1', true)}
+        ${cable('H2', 'S2', false)}
+        ${cable('H4', 'H5', true)}
+      </object>`);
+    const { project, warnings } = convertFilius(values);
+    const byName = (name: string) => project.devices.find((d) => d.name === name);
+    expect(
+      ['Borne CDI', 'Borne bis', 'Borne longue'].map((n) => {
+        const d = byName(n);
+        return d?.kind === 'switch' ? d.ssid : null;
+      }),
+    ).toEqual(['CDI', 'Wifi-1', 'x'.repeat(32)]);
+    const wifiOf = (name: string) => {
+      const d = byName(name);
+      return d?.kind === 'computer' || d?.kind === 'laptop' ? d.wifi : null;
+    };
+    // Connexion sans fil ; câble ordinaire ; sans lien (garde sa carte Wi-Fi) ; connexion invalide.
+    expect(['Tablette', 'Portable filaire', 'Portable seul', 'Autre', 'Fixe'].map(wifiOf)).toEqual([
+      true,
+      false,
+      true,
+      false,
+      false,
+    ]);
+    expect(project.cables.map((c) => c.wireless)).toEqual([true, false, false]);
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        'Borne bis : nom Wi-Fi « CDI » déjà utilisé, il a été changé.',
+        'Borne longue : nom Wi-Fi raccourci à 32 caractères.',
+        'Une connexion sans fil ne reliant pas un poste à un switch a été importée comme un câble.',
+      ]),
+    );
+    const network = validateProject(project);
+    const tablet = network.devices.find((d) => d.name === 'Tablette');
+    expect(tablet instanceof Host && network.wifiAccessPoint(tablet)?.ssid).toBe('CDI');
   });
 
   test('refuse les fichiers qui ne sont pas des projets Filius', async () => {

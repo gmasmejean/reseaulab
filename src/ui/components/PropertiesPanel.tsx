@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
   IP_ANY,
   formatIp,
@@ -11,7 +11,8 @@ import {
 import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from '../../engine/devices/router';
-import type { Network, Note } from '../../engine/network';
+import { Switch } from '../../engine/devices/switch';
+import type { CableEnds, Network, Note } from '../../engine/network';
 import { DEVICE_LABEL } from '../../i18n/fr';
 import { useSession } from '../context';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -22,6 +23,15 @@ function neighbour(net: Network, device: Device, port: number): string {
   const p = device.ports[port];
   const other = p?.cable?.other(p);
   return other ? (net.device(other.owner.id)?.name ?? '?') : 'non connecté';
+}
+
+/** Ends of a wireless link: the Wi-Fi host and its switch, whatever the order. */
+function wifiEnds(net: Network, cable: CableEnds) {
+  const [a, b] = [net.device(cable.a), net.device(cable.b)];
+  const sw = a instanceof Switch ? a : b instanceof Switch ? b : undefined;
+  const host = sw === a ? b : a;
+  const port = sw === a ? cable.portA : cable.portB;
+  return { host, sw, port };
 }
 
 function NameField({ device }: { device: Device }) {
@@ -37,6 +47,144 @@ function NameField({ device }: { device: Device }) {
         return null;
       }}
     />
+  );
+}
+
+/** Wired or Wi-Fi network card, and the Wi-Fi network (SSID) it joins, as in Filius. */
+function ConnectionSection({ host }: { host: Host }) {
+  const { network } = useSession();
+  const id = useId();
+  const [pendingMode, setPendingMode] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const cable = host.iface.port.cable;
+  const peer = cable ? neighbour(network, host, 0) : null;
+  const accessPoint = network.wifiAccessPoint(host);
+  const ssids = network.switches.map((s) => s.ssid).sort((a, b) => a.localeCompare(b, 'fr'));
+  const chooseMode = (wifi: boolean) => {
+    if (wifi === host.wifi) return;
+    setError(null);
+    if (cable) setPendingMode(wifi);
+    else network.setHostWifi(host.id, wifi);
+  };
+  let status: string;
+  if (host.wifi) {
+    if (accessPoint) status = `Connecté au réseau « ${accessPoint.ssid} » (switch « ${accessPoint.name} »).`;
+    else if (ssids.length === 0) status = 'Aucun réseau Wi-Fi : ajoutez un switch au plan.';
+    else status = 'Non connecté : choisissez un réseau.';
+  } else {
+    status = peer ? `Relié par câble à « ${peer} ».` : 'Aucun câble : reliez ce poste avec l’outil Câble.';
+  }
+  return (
+    <Section title="Connexion réseau">
+      <fieldset className="radio-group">
+        <legend className="label">Carte réseau</legend>
+        {(
+          [
+            [false, 'Filaire (LAN)'],
+            [true, 'Sans fil (Wi-Fi)'],
+          ] as const
+        ).map(([wifi, label]) => (
+          <label key={label}>
+            <input
+              type="radio"
+              name={`${id}-mode`}
+              checked={host.wifi === wifi}
+              onChange={() => {
+                chooseMode(wifi);
+              }}
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      {host.wifi && (
+        <div className="field">
+          <label htmlFor={`${id}-ssid`}>Réseau sans fil (SSID)</label>
+          <select
+            id={`${id}-ssid`}
+            value={accessPoint?.ssid ?? ''}
+            onChange={(e) => {
+              setError(null);
+              const ssid = e.target.value;
+              try {
+                if (ssid === '') {
+                  if (cable) network.disconnect(cable.id);
+                } else {
+                  network.joinWifi(host.id, ssid);
+                }
+              } catch (err) {
+                setError(err instanceof Error ? err.message : String(err));
+              }
+            }}
+          >
+            <option value="">— Choisir un réseau —</option>
+            {ssids.map((ssid) => (
+              <option key={ssid} value={ssid}>
+                {ssid}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      <p className="muted">{status}</p>
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
+      {pendingMode !== null && (
+        <ConfirmDialog
+          title={pendingMode ? 'Passer en Wi-Fi ?' : 'Passer en filaire ?'}
+          message={
+            pendingMode
+              ? `Le câble vers « ${peer ?? ''} » sera supprimé. Choisissez ensuite le réseau Wi-Fi du poste.`
+              : `La connexion au réseau Wi-Fi « ${accessPoint?.ssid ?? ''} » sera coupée. Reliez ensuite le poste avec l’outil Câble.`
+          }
+          confirmLabel="Changer"
+          onConfirm={() => {
+            network.setHostWifi(host.id, pendingMode);
+            setPendingMode(null);
+          }}
+          onCancel={() => {
+            setPendingMode(null);
+          }}
+        />
+      )}
+    </Section>
+  );
+}
+
+function SwitchProperties({ device }: { device: Switch }) {
+  const { network } = useSession();
+  const wifiClients = device.ports.filter((p) => p.cable?.wireless).length;
+  return (
+    <div className="properties-grid">
+      <Section title="Switch / Wi-Fi">
+        <NameField device={device} />
+        <p className="muted">
+          {device.ports.filter((p) => p.isConnected).length} port(s) utilisé(s). Un port est ajouté
+          automatiquement quand tous sont occupés.
+        </p>
+      </Section>
+      <Section title="Point d’accès Wi-Fi">
+        <TextField
+          label="Nom Wi-Fi (SSID)"
+          value={device.ssid}
+          hint="Les postes en Wi-Fi rejoignent ce switch en choisissant ce nom. Le changer les déconnecte."
+          onCommit={(value) => {
+            const problem = network.ssidProblem(value, device.id);
+            if (problem) return problem;
+            network.setSwitchSsid(device.id, value);
+            return null;
+          }}
+        />
+        <p className="muted">
+          {wifiClients === 0
+            ? 'Aucun poste connecté en Wi-Fi.'
+            : `${String(wifiClients)} poste(s) connecté(s) en Wi-Fi.`}
+        </p>
+      </Section>
+    </div>
   );
 }
 
@@ -67,6 +215,7 @@ function HostProperties({ host }: { host: Host }) {
           }}
         />
       </Section>
+      <ConnectionSection host={host} />
       <Section title="Configuration IP">
         <Checkbox
           label="Configuration automatique (DHCP)"
@@ -527,7 +676,7 @@ export function PropertiesPanel() {
     return (
       <div className="properties">
         <Section
-          title="Câble"
+          title={cable.wireless ? 'Connexion Wi-Fi' : 'Câble'}
           actions={
             <button
               type="button"
@@ -536,14 +685,26 @@ export function PropertiesPanel() {
                 session.deleteSelection();
               }}
             >
-              Supprimer le câble
+              {cable.wireless ? 'Déconnecter le Wi-Fi' : 'Supprimer le câble'}
             </button>
           }
         >
-          <p>
-            Relie <b>{net.device(cable.a)?.name}</b> (port {cable.portA}) à <b>{net.device(cable.b)?.name}</b>{' '}
-            (port {cable.portB}).
-          </p>
+          {cable.wireless ? (
+            (() => {
+              const { host, sw, port } = wifiEnds(net, cable);
+              return (
+                <p>
+                  <b>{host?.name}</b> est connecté sans fil au réseau <b>« {sw?.ssid} »</b> de{' '}
+                  <b>{sw?.name}</b> (port {port}).
+                </p>
+              );
+            })()
+          ) : (
+            <p>
+              Relie <b>{net.device(cable.a)?.name}</b> (port {cable.portA}) à{' '}
+              <b>{net.device(cable.b)?.name}</b> (port {cable.portB}).
+            </p>
+          )}
         </Section>
       </div>
     );
@@ -617,17 +778,7 @@ export function PropertiesPanel() {
       </div>
       {device instanceof Host && <HostProperties host={device} />}
       {device instanceof Router && <RouterProperties router={device} />}
-      {device.kind === 'switch' && (
-        <div className="properties-grid">
-          <Section title="Switch">
-            <NameField device={device} />
-            <p className="muted">
-              {device.ports.filter((p) => p.isConnected).length} port(s) utilisé(s). Un port est ajouté
-              automatiquement quand tous sont occupés.
-            </p>
-          </Section>
-        </div>
-      )}
+      {device instanceof Switch && <SwitchProperties device={device} />}
     </div>
   );
 }

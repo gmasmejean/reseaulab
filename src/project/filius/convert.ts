@@ -2,7 +2,7 @@ import { formatIp, isValidMask, networkOf, parseIp } from '../../engine/core/ipv
 import { MacAllocator, normalizeMac } from '../../engine/core/mac';
 import { isValidFileName, type FsJson } from '../../engine/fs/filesystem';
 import type { AppId } from '../../engine/services/catalog';
-import { Network } from '../../engine/network';
+import { MAX_SSID_LENGTH, Network } from '../../engine/network';
 import { toProject } from '../serialize';
 import type { FirewallJson, HostJson, NoteJson, ProjectFile, RouterJson, SwitchJson } from '../schema';
 import { JObject, type JValue } from './decoder';
@@ -96,6 +96,7 @@ class Converter {
   private readonly nodes = new Map<JObject, string>();
   private readonly macs = new MacAllocator(0x100000);
   private readonly usedMacs = new Set<string>();
+  private readonly ssids = new Set<string>();
   private readonly template = templates();
   private counter = 0;
 
@@ -238,6 +239,8 @@ class Converter {
       y: position.y,
       mac: this.mac(nic.string('mac')),
       showIpAsName: knoten.boolean('useIPAsName') ?? false,
+      // Filius 2.5: the network card is wireless (the link itself is checked with the cables).
+      wifi: nic.boolean('wireless') ?? false,
       config,
       fs,
     };
@@ -532,7 +535,24 @@ class Converter {
       x: position.x,
       y: position.y,
       ports: Math.min(256, Math.max(this.template.switch.ports, ports.length)),
+      ssid: this.ssid(knoten.child('systemSoftware'), name),
     });
+  }
+
+  /** SSID of a switch (Filius 2.5 picks a random one), unique and at most 32 characters. */
+  private ssid(firmware: JObject, name: string): string {
+    const raw = (firmware.string('SSID') ?? firmware.string('ssid') ?? '').trim();
+    let value = raw.slice(0, MAX_SSID_LENGTH);
+    if (raw.length > MAX_SSID_LENGTH)
+      this.warn(`${name} : nom Wi-Fi raccourci à ${MAX_SSID_LENGTH} caractères.`);
+    if (value === '' || this.ssids.has(value)) {
+      if (value !== '') this.warn(`${name} : nom Wi-Fi « ${value} » déjà utilisé, il a été changé.`);
+      let n = 1;
+      while (this.ssids.has(`Wifi-${String(n)}`)) n++;
+      value = `Wifi-${String(n)}`;
+    }
+    this.ssids.add(value);
+    return value;
   }
 
   /* ---------- cables and documentation ---------- */
@@ -552,7 +572,17 @@ class Converter {
       this.warn('Un câble incohérent (port déjà utilisé) a été ignoré.');
       return;
     }
-    this.cables.push({ id: this.id('c'), a: a.device, portA: a.port, b: b.device, portB: b.port });
+    const linked = [a.device, b.device].map((id) => this.devices.find((d) => d.id === id));
+    const hosts = linked.filter((d): d is HostJson => d?.kind === 'computer' || d?.kind === 'laptop');
+    const hostAndSwitch = hosts.length === 1 && linked.some((d) => d?.kind === 'switch');
+    let wireless = item.child('dasKabel').boolean('wireless') ?? false;
+    if (wireless && !hostAndSwitch) {
+      this.warn('Une connexion sans fil ne reliant pas un poste à un switch a été importée comme un câble.');
+      wireless = false;
+    }
+    // The network card follows its link: Wi-Fi for a wireless link, wired for a cable.
+    for (const host of hosts) host.wifi = wireless;
+    this.cables.push({ id: this.id('c'), a: a.device, portA: a.port, b: b.device, portB: b.port, wireless });
   }
 
   private docu(item: JObject): void {

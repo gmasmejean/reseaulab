@@ -27,7 +27,12 @@ export interface CableEnds {
   readonly b: string;
   readonly portA: number;
   readonly portB: number;
+  /** Wi-Fi link between a host and a switch (instead of a cable). */
+  readonly wireless: boolean;
 }
+
+/** Longest SSID allowed by Wi-Fi (802.11). */
+export const MAX_SSID_LENGTH = 32;
 
 export class ConnectError extends Error {}
 
@@ -116,6 +121,7 @@ export class Network {
       b: c.b.owner.id,
       portA: c.a.index,
       portB: c.b.index,
+      wireless: c.wireless,
     }));
   }
 
@@ -185,15 +191,83 @@ export class Network {
     return this.register(host);
   }
 
-  addSwitch(options: CreateOptions & { readonly ports?: number } = {}): Switch {
+  addSwitch(options: CreateOptions & { readonly ports?: number; readonly ssid?: string } = {}): Switch {
+    if (options.ssid !== undefined) {
+      const problem = this.ssidProblem(options.ssid);
+      if (problem) throw new Error(problem);
+    }
     const device = new Switch(
       this.newId(options.id),
       options.name ?? this.defaultName('switch'),
       options.position ?? { x: 0, y: 0 },
       this.ctx,
       options.ports,
+      options.ssid?.trim() ?? this.defaultSsid(),
     );
     return this.register(device);
+  }
+
+  get switches(): readonly Switch[] {
+    return this.devices.filter((d): d is Switch => d instanceof Switch);
+  }
+
+  switchBySsid(ssid: string): Switch | undefined {
+    return this.switches.find((s) => s.ssid === ssid);
+  }
+
+  /** Why `ssid` cannot name the Wi-Fi network of a switch (other than `switchId`), or null. */
+  ssidProblem(ssid: string, switchId?: string): string | null {
+    const value = ssid.trim();
+    if (value === '') return 'Le nom Wi-Fi ne peut pas être vide.';
+    if (value.length > MAX_SSID_LENGTH) return `${MAX_SSID_LENGTH} caractères maximum.`;
+    if (this.switches.some((s) => s.id !== switchId && s.ssid === value)) {
+      return `Le nom « ${value} » est déjà utilisé par un autre switch.`;
+    }
+    return null;
+  }
+
+  /** Renames the Wi-Fi network of a switch; its Wi-Fi clients are disconnected (as in Filius). */
+  setSwitchSsid(switchId: string, ssid: string): void {
+    const device = this.deviceMap.get(switchId);
+    if (!(device instanceof Switch)) throw new Error(`${switchId} n’est pas un switch`);
+    const problem = this.ssidProblem(ssid, switchId);
+    if (problem) throw new Error(problem);
+    const value = ssid.trim();
+    if (value === device.ssid) return;
+    for (const port of device.ports) if (port.cable?.wireless) this.disconnect(port.cable.id);
+    device.ssid = value;
+    this.touch();
+  }
+
+  /** Wired or Wi-Fi network card; the current link (cable or Wi-Fi) is removed. */
+  setHostWifi(hostId: string, wifi: boolean): void {
+    const host = this.host(hostId);
+    if (host.wifi === wifi) return;
+    const cable = host.iface.port.cable;
+    if (cable) this.disconnect(cable.id);
+    host.wifi = wifi;
+    this.touch();
+  }
+
+  /** Connects a Wi-Fi host to the switch whose network is `ssid`. */
+  joinWifi(hostId: string, ssid: string): Cable {
+    const host = this.host(hostId);
+    if (!host.wifi) throw new ConnectError(`« ${host.name} » n’a pas de carte Wi-Fi`);
+    const target = this.switchBySsid(ssid);
+    if (!target) throw new ConnectError(`Aucun réseau Wi-Fi ne s’appelle « ${ssid} »`);
+    const current = host.iface.port.cable;
+    if (current) {
+      if (current.other(host.iface.port).owner === target) return current;
+      this.disconnect(current.id);
+    }
+    return this.connect(host.id, target.id);
+  }
+
+  /** The switch a Wi-Fi host is connected to, or null. */
+  wifiAccessPoint(host: Host): Switch | null {
+    const cable = host.iface.port.cable;
+    const other = cable?.wireless ? cable.other(host.iface.port).owner : null;
+    return other instanceof Switch ? other : null;
   }
 
   addRouter(
@@ -245,12 +319,36 @@ export class Network {
   connect(
     aId: string,
     bId: string,
-    options: { readonly id?: string; readonly portA?: number; readonly portB?: number } = {},
+    options: {
+      readonly id?: string;
+      readonly portA?: number;
+      readonly portB?: number;
+      /** Expected kind of link (project loading); by default deduced from the devices. */
+      readonly wireless?: boolean;
+    } = {},
   ): Cable {
     const a = this.deviceMap.get(aId);
     const b = this.deviceMap.get(bId);
     if (!a || !b) throw new ConnectError('Équipement inconnu');
     if (a === b) throw new ConnectError('Un câble doit relier deux équipements différents');
+    // A host with a Wi-Fi card can only join a switch, through a wireless link.
+    const wifiHost = [a, b].find((d): d is Host => d instanceof Host && d.wifi);
+    if (wifiHost) {
+      const other = wifiHost === a ? b : a;
+      if (!(other instanceof Switch)) {
+        throw new ConnectError(
+          `Connexion sans fil impossible : « ${wifiHost.name} » est en Wi-Fi et ne peut se connecter qu’à un switch`,
+        );
+      }
+    }
+    const wireless = wifiHost !== undefined;
+    if (options.wireless !== undefined && options.wireless !== wireless) {
+      throw new ConnectError(
+        wireless
+          ? `« ${wifiHost.name} » est en Wi-Fi : il ne peut pas être relié par un câble`
+          : 'Une connexion Wi-Fi relie un poste en Wi-Fi à un switch',
+      );
+    }
     const pick = (device: Device, index: number | undefined) => {
       if (index === undefined) return device.freePort();
       const port = device.portAt(index);
@@ -262,7 +360,7 @@ export class Network {
     const portB = pick(b, options.portB);
     if (!portA) throw new ConnectError(`« ${a.name} » n’a plus de port libre`);
     if (!portB) throw new ConnectError(`« ${b.name} » n’a plus de port libre`);
-    const cable = new Cable(this.newId(options.id, 'c'), portA, portB, this.ctx);
+    const cable = new Cable(this.newId(options.id, 'c'), portA, portB, this.ctx, wireless);
     this.cableMap.set(cable.id, cable);
     this.touch();
     return cable;
@@ -351,6 +449,13 @@ export class Network {
       id = `${prefix}${++this.idCounter}`;
     } while (this.deviceMap.has(id) || this.cableMap.has(id) || this.noteMap.has(id));
     return id;
+  }
+
+  private defaultSsid(): string {
+    const taken = new Set(this.switches.map((s) => s.ssid));
+    let n = 1;
+    while (taken.has(`Wifi-${n}`)) n++;
+    return `Wifi-${n}`;
   }
 
   private defaultName(kind: Device['kind']): string {

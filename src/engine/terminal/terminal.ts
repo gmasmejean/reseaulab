@@ -255,6 +255,11 @@ export class Terminal {
       this.out.print(`  ${label.padEnd(22, '.')} : ${value}`);
     };
     this.out.print(`Configuration de ${h.name}`);
+    const ssid = h.wifiNetwork;
+    line(
+      'Carte réseau',
+      h.wifi ? (ssid === null ? 'Wi-Fi (non connectée)' : `Wi-Fi, réseau « ${ssid} »`) : 'Ethernet (câble)',
+    );
     line('Adresse physique (MAC)', h.mac);
     line('DHCP activé', h.config.useDhcp ? 'oui' : 'non');
     line('Adresse IPv4', a.ip === IP_ANY ? '(aucune)' : formatIp(a.ip));

@@ -1,6 +1,7 @@
 import { formatIp, parseIp, type Ipv4 } from '../engine/core/ipv4';
 import { Host } from '../engine/devices/host';
 import { Router } from '../engine/devices/router';
+import { Switch } from '../engine/devices/switch';
 import { Network } from '../engine/network';
 import type { Firewall } from '../engine/stack/firewall';
 import {
@@ -58,6 +59,7 @@ function hostToJson(host: Host): HostJson {
     y: host.position.y,
     mac: host.mac,
     showIpAsName: host.showIpAsName,
+    wifi: host.wifi,
     config: {
       ip: formatIp(c.ip),
       mask: formatIp(c.mask),
@@ -135,6 +137,7 @@ export function toProject(network: Network): ProjectFile {
       x: device.position.x,
       y: device.position.y,
       ports: device.ports.length,
+      ssid: device instanceof Switch ? device.ssid : undefined,
     };
   });
   return {
@@ -161,6 +164,7 @@ function loadHost(network: Network, json: HostJson): void {
     },
   });
   host.showIpAsName = json.showIpAsName;
+  host.wifi = json.wifi;
   host.setInstalled(json.installed);
   host.fs.load(json.fs);
   loadFirewall(host.firewall, json.firewall);
@@ -232,11 +236,16 @@ export function fromProject(project: ProjectFile): Network {
       macs.add(mac);
     }
     if (device.kind === 'switch') {
+      if (device.ssid !== undefined) {
+        const problem = network.ssidProblem(device.ssid);
+        if (problem) throw new ProjectError(`Switch « ${device.name} » : ${problem}`);
+      }
       network.addSwitch({
         id: device.id,
         name: device.name,
         position: { x: device.x, y: device.y },
         ports: device.ports,
+        ...(device.ssid === undefined ? {} : { ssid: device.ssid }),
       });
     } else if (device.kind === 'router') {
       loadRouter(network, device);
@@ -253,7 +262,12 @@ export function fromProject(project: ProjectFile): Network {
     if (ids.has(cable.id)) throw new ProjectError(`Identifiant en double : ${cable.id}`);
     ids.add(cable.id);
     try {
-      network.connect(cable.a, cable.b, { id: cable.id, portA: cable.portA, portB: cable.portB });
+      network.connect(cable.a, cable.b, {
+        id: cable.id,
+        portA: cable.portA,
+        portB: cable.portB,
+        wireless: cable.wireless,
+      });
     } catch (error) {
       throw new ProjectError(
         `Câble ${cable.id} invalide : ${error instanceof Error ? error.message : String(error)}`,

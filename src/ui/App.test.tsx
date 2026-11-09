@@ -354,6 +354,116 @@ describe('Clic droit (menus contextuels)', () => {
   });
 });
 
+describe('Wi-Fi', () => {
+  test('le switch a un nom Wi-Fi ; un portable le rejoint en le choisissant', () => {
+    const { session } = setup();
+    let sw = '';
+    let laptop = '';
+    act(() => {
+      sw = session.addDevice('switch');
+      laptop = session.addDevice('laptop');
+      session.select({ kind: 'device', id: sw });
+    });
+    expect(screen.getByRole('textbox', { name: 'Nom Wi-Fi (SSID)' })).toHaveValue('Wifi-1');
+    commit('Nom Wi-Fi (SSID)', '   ');
+    expect(screen.getByRole('alert')).toHaveTextContent('ne peut pas être vide');
+    commit('Nom Wi-Fi (SSID)', 'CDI');
+    expect(session.network.switches[0]?.ssid).toBe('CDI');
+    expect(screen.getByText('Aucun poste connecté en Wi-Fi.')).toBeInTheDocument();
+
+    act(() => {
+      session.select({ kind: 'device', id: laptop });
+    });
+    expect(screen.getByRole('radio', { name: 'Filaire (LAN)' })).toBeChecked();
+    expect(screen.getByText('Aucun câble : reliez ce poste avec l’outil Câble.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Sans fil (Wi-Fi)' }));
+    expect(session.network.host(laptop).wifi).toBe(true);
+    expect(screen.getByText('Non connecté : choisissez un réseau.')).toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: 'Réseau sans fil (SSID)' });
+    expect([...select.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      '— Choisir un réseau —',
+      'CDI',
+    ]);
+    fireEvent.change(select, { target: { value: 'CDI' } });
+    expect(screen.getByText('Connecté au réseau « CDI » (switch « Switch 1 »).')).toBeInTheDocument();
+    const link = screen.getByRole('button', { name: 'Wi-Fi Portable 1 – Switch 1' });
+    expect(link).toHaveClass('wireless');
+    expect(screen.getByRole('button', { name: 'Switch 1 (Wi-Fi « CDI »)' })).toBeInTheDocument();
+
+    // Panneau de la connexion sélectionnée, puis menu contextuel.
+    fireEvent.pointerDown(link);
+    expect(screen.getByText(/connecté sans fil/)).toHaveTextContent(
+      'Portable 1 est connecté sans fil au réseau « CDI » de Switch 1 (port 0).',
+    );
+    fireEvent.contextMenu(link);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Déconnecter le Wi-Fi' }));
+    expect(session.network.cables).toHaveLength(0);
+
+    // Choisir « — Choisir un réseau — » déconnecte aussi.
+    act(() => {
+      session.network.joinWifi(laptop, 'CDI');
+      session.select({ kind: 'device', id: laptop });
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Réseau sans fil (SSID)' }), {
+      target: { value: '' },
+    });
+    expect(session.network.cables).toHaveLength(0);
+  });
+
+  test('passer de filaire à Wi-Fi demande confirmation quand un câble est branché', () => {
+    const { session } = setup();
+    let pc = '';
+    act(() => {
+      const sw = session.addDevice('switch');
+      pc = session.addDevice('computer');
+      session.network.connect(pc, sw);
+    });
+    expect(screen.getByText('Relié par câble à « Switch 1 ».')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Sans fil (Wi-Fi)' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Passer en Wi-Fi ?' });
+    expect(dialog).toHaveTextContent('Le câble vers « Switch 1 » sera supprimé.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+    expect(session.network.host(pc).wifi).toBe(false);
+    fireEvent.click(screen.getByRole('radio', { name: 'Sans fil (Wi-Fi)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Changer' }));
+    expect(session.network.host(pc).wifi).toBe(true);
+    expect(session.network.cables).toHaveLength(0);
+
+    act(() => {
+      session.network.joinWifi(pc, 'Wifi-1');
+    });
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Ordinateur 1/ }));
+    expect(screen.getByRole('menuitem', { name: 'Déconnecter le Wi-Fi' })).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Filaire (LAN)' }));
+    expect(screen.getByRole('alertdialog', { name: 'Passer en filaire ?' })).toHaveTextContent(
+      'La connexion au réseau Wi-Fi « Wifi-1 » sera coupée.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Changer' }));
+    expect(session.network.host(pc).wifi).toBe(false);
+    expect(screen.getByRole('radio', { name: 'Filaire (LAN)' })).toBeChecked();
+  });
+
+  test('outil câble : un poste en Wi-Fi se connecte sans fil à un switch, pas à un routeur', () => {
+    const { session } = setup();
+    let laptop = '';
+    act(() => {
+      session.addDevice('switch');
+      session.addDevice('router');
+      laptop = session.addDevice('laptop');
+      session.network.setHostWifi(laptop, true);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Câble' }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: /^Portable 1/ }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: /^Routeur 1/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Connexion sans fil impossible');
+    fireEvent.pointerDown(screen.getByRole('button', { name: /^Portable 1/ }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: /^Switch 1/ }));
+    expect(session.network.cables).toEqual([expect.objectContaining({ wireless: true })]);
+    expect(session.network.wifiAccessPoint(session.network.host(laptop))?.ssid).toBe('Wifi-1');
+  });
+});
+
 describe('Remplacement du réseau', () => {
   test('demande confirmation avant de remplacer un réseau non vide', () => {
     const { session } = setup();

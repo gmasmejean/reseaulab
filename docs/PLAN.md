@@ -109,6 +109,13 @@ fichier (case cochée).
       Un ping routé dure ainsi 3,2 s, le premier chargement d'une page web de
       l'exemple environ 18 s (4 s à × 4). Les temps affichés par `ping`
       restent ceux du réseau simulé (quelques dizaines de millisecondes).
+- [x] **Étape 15 — Wi-Fi** (Filius 2.5) : chaque switch est un point d'accès
+      avec un SSID unique (32 caractères au plus, « Wifi-n » par défaut). Un
+      poste en « Sans fil (Wi-Fi) » rejoint un switch par son SSID ; la
+      connexion se comporte comme un câble et se dessine en pointillés.
+      Changer le SSID d'un switch déconnecte ses clients Wi-Fi, comme dans
+      Filius. Import `.fls` : SSID des switchs, cartes et liaisons sans fil.
+      Le portable du réseau d'exemple est en Wi-Fi.
 
 ## Écarts au plan
 

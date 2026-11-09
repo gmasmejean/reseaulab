@@ -15,6 +15,7 @@ import { Tcp } from '../stack/tcp';
 import { Udp } from '../stack/udp';
 import type { Position } from './device';
 import { NetworkNode } from './node';
+import { Switch } from './switch';
 
 export interface HostConfig {
   ip: Ipv4;
@@ -60,6 +61,8 @@ export class Host extends NetworkNode {
   readonly echoServer = new EchoServer(this);
   /** When true the name shown on the map is the IP address. */
   showIpAsName = false;
+  /** Wi-Fi network card: joins a switch by its SSID instead of a cable (use Network.setHostWifi). */
+  wifi = false;
   config: HostConfig;
   private runtimeDns: Ipv4 = IP_ANY;
   private readonly software = new Set<AppId>(DEFAULT_APPS);
@@ -86,6 +89,13 @@ export class Host extends NetworkNode {
 
   get mac(): Mac {
     return this.iface.port.mac;
+  }
+
+  /** SSID of the Wi-Fi network this host is connected to, or null. */
+  get wifiNetwork(): string | null {
+    const cable = this.iface.port.cable;
+    const peer = cable?.wireless ? cable.other(this.iface.port).owner : null;
+    return peer instanceof Switch ? peer.ssid : null;
   }
 
   /** DNS server currently in use (static config or DHCP). */

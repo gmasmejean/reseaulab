@@ -43,7 +43,7 @@ const MENU_PAGE = `<html>
  */
 export function exampleNetwork(): Network {
   const net = new Network();
-  const sw1 = net.addSwitch({ name: 'Switch salle', position: { x: 360, y: 300 } });
+  const sw1 = net.addSwitch({ name: 'Switch salle', position: { x: 360, y: 300 }, ssid: 'Wifi-College' });
   const router = net.addRouter({ name: 'Routeur', position: { x: 620, y: 300 } });
   const sw2 = net.addSwitch({ name: 'Switch serveurs', position: { x: 880, y: 300 } });
   router.setInterface(0, { ip: ip('192.168.1.1'), mask: MASK });
@@ -61,7 +61,13 @@ export function exampleNetwork(): Network {
     });
     host.install('browser');
     host.install('mailclient');
-    net.connect(host.id, sw1.id);
+    if (p.kind === 'laptop') {
+      // The laptop joins the Wi-Fi network of the classroom switch.
+      net.setHostWifi(host.id, true);
+      net.joinWifi(host.id, sw1.ssid);
+    } else {
+      net.connect(host.id, sw1.id);
+    }
     return host;
   });
 

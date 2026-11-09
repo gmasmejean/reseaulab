@@ -243,6 +243,10 @@ export function HelpWindow() {
           passerelle…).
         </li>
         <li>
+          <b>Wi-Fi</b> : chaque switch a un <b>nom Wi-Fi (SSID)</b>. Réglez un ordinateur ou un portable en{' '}
+          <b>Sans fil (Wi-Fi)</b> puis choisissez ce nom dans sa configuration pour le connecter.
+        </li>
+        <li>
           Comme dans Filius, le <b>clic droit</b> sur un équipement, un câble ou une annotation ouvre un menu
           : configurer, supprimer les câbles, supprimer ; taille, style et couleur d’un texte ; en simulation,
           bureau et échanges de données de chaque interface. Au clavier : touche Menu ou Maj+F10.

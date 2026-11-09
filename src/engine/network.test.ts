@@ -152,3 +152,90 @@ describe('Interfaces d’un routeur', () => {
     }).toThrow(/câble/);
   });
 });
+
+describe('Wi-Fi', () => {
+  function wifiLan() {
+    const net = new Network();
+    const sw = net.addSwitch({ name: 'Borne' });
+    const laptop = staticHost(net, 'Portable', '192.168.0.10');
+    const pc = staticHost(net, 'PC', '192.168.0.20');
+    net.connect(pc.id, sw.id);
+    return { net, sw, laptop, pc };
+  }
+
+  test('chaque switch a un nom Wi-Fi (SSID) unique, modifiable', () => {
+    const net = new Network();
+    const a = net.addSwitch();
+    const b = net.addSwitch();
+    expect([a.ssid, b.ssid]).toEqual(['Wifi-1', 'Wifi-2']);
+    expect(net.ssidProblem('  ')).toMatch(/vide/);
+    expect(net.ssidProblem('x'.repeat(33))).toMatch(/32/);
+    expect(net.ssidProblem('Wifi-1')).toMatch(/déjà utilisé/);
+    expect(net.ssidProblem('Wifi-1', a.id)).toBeNull();
+    expect(() => {
+      net.setSwitchSsid(b.id, 'Wifi-1');
+    }).toThrow(/déjà utilisé/);
+    expect(() => {
+      net.addSwitch({ ssid: 'Wifi-2' });
+    }).toThrow(/déjà utilisé/);
+    net.setSwitchSsid(b.id, '  CDI  ');
+    expect(b.ssid).toBe('CDI');
+    expect(net.switchBySsid('CDI')).toBe(b);
+    expect(net.addSwitch({ ssid: 'Salle 12' }).ssid).toBe('Salle 12');
+    expect(() => {
+      net.setSwitchSsid(net.addHost().id, 'X');
+    }).toThrow(/switch/);
+  });
+
+  test('un poste en Wi-Fi rejoint un switch par son SSID ; la connexion se comporte comme un câble', () => {
+    const { net, sw, laptop, pc } = wifiLan();
+    expect(() => net.joinWifi(laptop.id, sw.ssid)).toThrow(/pas de carte Wi-Fi/);
+    net.setHostWifi(laptop.id, true);
+    expect(() => net.joinWifi(laptop.id, 'Inconnu')).toThrow(/Aucun réseau Wi-Fi/);
+    const link = net.joinWifi(laptop.id, sw.ssid);
+    expect(link.wireless).toBe(true);
+    expect(net.joinWifi(laptop.id, sw.ssid)).toBe(link); // déjà connecté
+    expect(net.wifiAccessPoint(laptop)).toBe(sw);
+    expect(net.wifiAccessPoint(pc)).toBeNull();
+    expect(net.cables.filter((c) => c.wireless)).toEqual([
+      expect.objectContaining({ a: laptop.id, b: sw.id, wireless: true }),
+    ]);
+    net.start();
+    expect(ping(net, laptop, '192.168.0.20').kind).toBe('reply');
+  });
+
+  test('changer de réseau, de mode ou de SSID coupe la connexion Wi-Fi', () => {
+    const { net, sw, laptop } = wifiLan();
+    const other = net.addSwitch({ ssid: 'CDI' });
+    net.setHostWifi(laptop.id, true);
+    net.setHostWifi(laptop.id, true); // sans effet
+    net.joinWifi(laptop.id, sw.ssid);
+    net.joinWifi(laptop.id, 'CDI');
+    expect(net.wifiAccessPoint(laptop)).toBe(other);
+    expect(net.cables.filter((c) => c.wireless)).toHaveLength(1);
+
+    net.setSwitchSsid(other.id, 'CDI'); // même nom : rien ne change
+    expect(net.wifiAccessPoint(laptop)).toBe(other);
+    net.setSwitchSsid(other.id, 'CDI-2');
+    expect(net.wifiAccessPoint(laptop)).toBeNull();
+
+    net.joinWifi(laptop.id, sw.ssid);
+    net.setHostWifi(laptop.id, false);
+    expect(laptop.wifi).toBe(false);
+    expect(laptop.iface.port.cable).toBeNull();
+  });
+
+  test('un poste en Wi-Fi ne se relie qu’à un switch, sans câble', () => {
+    const { net, sw, laptop } = wifiLan();
+    const router = net.addRouter();
+    net.setHostWifi(laptop.id, true);
+    expect(() => net.connect(laptop.id, router.id)).toThrow(/Connexion sans fil impossible/);
+    expect(() => net.connect(laptop.id, sw.id, { wireless: false })).toThrow(
+      /ne peut pas être relié par un câble/,
+    );
+    const wired = staticHost(net, 'Fixe', '192.168.0.30');
+    expect(() => net.connect(wired.id, sw.id, { wireless: true })).toThrow(/poste en Wi-Fi à un switch/);
+    // L’outil câble vers un switch crée une connexion Wi-Fi, comme dans Filius.
+    expect(net.connect(laptop.id, sw.id).wireless).toBe(true);
+  });
+});

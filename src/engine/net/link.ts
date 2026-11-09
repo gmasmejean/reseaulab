@@ -45,7 +45,11 @@ export class Port {
   }
 }
 
-/** Full-duplex point-to-point link between two ports. Frames stay in order. */
+/**
+ * Full-duplex point-to-point link between two ports. Frames stay in order.
+ * A wireless link (a host in Wi-Fi joined to a switch, as in Filius) behaves
+ * exactly like a cable; only its drawing differs.
+ */
 export class Cable {
   private attached = true;
 
@@ -54,6 +58,7 @@ export class Cable {
     readonly a: Port,
     readonly b: Port,
     private readonly ctx: SimContext,
+    readonly wireless = false,
   ) {
     if (a.cable || b.cable) throw new Error('Port déjà connecté');
     if (a.owner === b.owner) throw new Error('Un câble doit relier deux équipements différents');
