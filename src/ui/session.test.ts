@@ -1,3 +1,4 @@
+import { IP_ANY } from '../engine/core/ipv4';
 import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { serializeProject } from '../project/serialize';
@@ -5,7 +6,7 @@ import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { makeZip } from '../test/zip';
-import { AUTOSAVE_KEY, Session } from './session';
+import { AUTOMATIC_PROTOCOLS, AUTOSAVE_KEY, HIDE_AUTOMATIC_KEY, Session } from './session';
 
 function lan(session: Session): { a: string; b: string } {
   const a = session.addDevice('computer');
@@ -102,6 +103,46 @@ describe('Session', () => {
     for (let i = 0; i < 60; i++) frames.step(100);
     expect(session.inFlight).toHaveLength(0);
     expect(results).toEqual(['reply']);
+  });
+
+  test('masque le trafic automatique (DHCP, RIP) : ni animé ni ralenti, mais bien échangé', () => {
+    const storage = new MemoryStorage();
+    const frames = new ManualFrames();
+    const session = new Session(storage, frames);
+    session.loadExample();
+    session.setHideAutomatic(true);
+    expect(storage.getItem(HIDE_AUTOMATIC_KEY)).toBe('oui');
+    session.setMode('simulation');
+    session.setSpeed(1);
+    frames.step(0);
+    const shown = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      frames.step(100);
+      for (const f of session.inFlight) shown.add(f.protocol);
+    }
+    expect(shown).toEqual(new Set());
+    // Pas de ralenti : 3 s réelles = 3 s simulées.
+    expect(session.network.scheduler.now).toBe(3000);
+    const laptopId = session.network.devices.find((d) => d.name === 'Portable')?.id ?? '';
+    const laptop = session.network.host(laptopId);
+    expect(laptop.stack.interfaces[0]?.ip).not.toBe(IP_ANY);
+    // Le trafic de l’élève reste animé.
+    laptop.stack.icmp.ping(ip('192.168.1.1'), {}, () => undefined);
+    expect(session.inFlight.length).toBeGreaterThan(0);
+    // Préférence mémorisée pour la prochaine visite.
+    expect(new Session(storage).hideAutomatic).toBe(true);
+  });
+
+  test('par défaut, le trafic automatique est animé ; le masquer efface les trames en vol', () => {
+    const frames = new ManualFrames();
+    const session = new Session(null, frames);
+    expect(session.hideAutomatic).toBe(false);
+    session.loadExample();
+    session.setMode('simulation');
+    frames.step(0);
+    expect(session.inFlight.some((f) => f.protocol === 'dhcp')).toBe(true);
+    session.setHideAutomatic(true);
+    expect(session.inFlight.some((f) => AUTOMATIC_PROTOCOLS.has(f.protocol))).toBe(false);
   });
 
   test('gère les fenêtres : unicité, premier plan, déplacement, fermeture', () => {

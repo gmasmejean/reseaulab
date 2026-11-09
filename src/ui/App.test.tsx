@@ -103,6 +103,27 @@ describe('App', () => {
   });
 });
 
+describe('Trafic automatique', () => {
+  test('la case « Masquer le trafic automatique » cache les trames DHCP du plan', () => {
+    const { session, frames } = setup();
+    act(() => {
+      session.loadExample();
+      session.setMode('simulation');
+    });
+    elapse(frames, 100);
+    const packets = () => document.querySelectorAll('.packet.dhcp').length;
+    expect(packets()).toBeGreaterThan(0);
+    const box = screen.getByRole('checkbox', { name: 'Masquer le trafic automatique' });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    expect(box).toBeChecked();
+    expect(session.hideAutomatic).toBe(true);
+    expect(packets()).toBe(0);
+    elapse(frames, 2000);
+    expect(packets()).toBe(0);
+  });
+});
+
 describe('Interfaces du routeur', () => {
   test('ajoute une interface puis la retire, avec confirmation quand elle est câblée', () => {
     const { session } = setup();

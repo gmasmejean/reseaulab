@@ -262,6 +262,12 @@ export function HelpWindow() {
           règle ce ralenti.
         </li>
         <li>
+          Des trames passent parfois sans que vous ayez rien lancé : les ordinateurs en DHCP demandent leur
+          adresse au démarrage et les routeurs en RIP s’échangent leurs routes toutes les 5 s. Cochez{' '}
+          <b>Masquer le trafic automatique</b> pour ne voir que vos propres échanges ; ces trames restent
+          listées dans les échanges de données.
+        </li>
+        <li>
           Enregistrez votre travail avec <b>Enregistrer</b> (fichier <code>.reseaulab.json</code>). Le réseau
           est aussi sauvegardé automatiquement dans ce navigateur.
         </li>

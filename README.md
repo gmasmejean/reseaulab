@@ -46,7 +46,10 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   installe et lance des logiciels. Les paquets sont animés sur les câbles, au
   ralenti pour qu'on puisse les suivre (0,4 s par câble à la vitesse par
   défaut) ; entre deux envois, le temps s'écoule normalement. Le
-  curseur **Vitesse** règle ce ralenti.
+  curseur **Vitesse** règle ce ralenti. La case **Masquer le trafic
+  automatique** cache les échanges que les équipements font seuls (adresses
+  DHCP, routes RIP) : ils ne sont plus animés ni ralentis, mais restent
+  listés dans les échanges de données.
 - **Exemple** : charge un réseau de collège complet (salle élèves en DHCP,
   routeur, serveurs DNS, web et messagerie) pour une démonstration immédiate.
 

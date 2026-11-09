@@ -149,7 +149,7 @@ code {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 8px 14px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -200,11 +200,31 @@ code {
   align-items: center;
   gap: 6px;
 }
+.speed input {
+  width: 84px;
+}
+/* Two short lines, so that the toolbar still fits on one row at 1280 px. */
+.hide-automatic {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.hide-automatic input {
+  flex: none;
+}
 .speed-value,
 .clock {
   font-variant-numeric: tabular-nums;
-  min-width: 4.5em;
   color: var(--muted);
+}
+.speed-value {
+  min-width: 3.2em;
+}
+.clock {
+  min-width: 3em;
 }
 .app.mode-design .sim-controls {
   opacity: 0.45;

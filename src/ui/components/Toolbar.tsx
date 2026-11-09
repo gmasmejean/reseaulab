@@ -100,7 +100,7 @@ export function Toolbar() {
           </button>
         ))}
       </div>
-      <div className="toolbar-group sim-controls" aria-hidden={!simulation}>
+      <div className="toolbar-group sim-controls">
         <button
           type="button"
           disabled={!simulation}
@@ -123,6 +123,22 @@ export function Toolbar() {
             aria-valuetext={`× ${session.speed}`}
           />
           <span className="speed-value">× {session.speed}</span>
+        </label>
+        <label
+          className="hide-automatic"
+          title="Les échanges automatiques (adresses DHCP, routes RIP) ne sont plus animés ; ils restent listés dans les échanges de données."
+        >
+          <input
+            type="checkbox"
+            checked={session.hideAutomatic}
+            onChange={(e) => {
+              session.setHideAutomatic(e.target.checked);
+            }}
+          />
+          <span>
+            Masquer le trafic <br />
+            automatique
+          </span>
         </label>
         <span className="clock" title="Temps simulé">
           {(session.network.scheduler.now / 1000).toFixed(1)} s

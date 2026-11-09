@@ -116,6 +116,10 @@ fichier (case cochée).
       Changer le SSID d'un switch déconnecte ses clients Wi-Fi, comme dans
       Filius. Import `.fls` : SSID des switchs, cartes et liaisons sans fil.
       Le portable du réseau d'exemple est en Wi-Fi.
+- [x] **Étape 16 — Masquer le trafic automatique** : une case de la barre
+      d'outils cache les trames DHCP et RIP (envoyées en diffusion, donc sans
+      ARP) : elles ne sont ni animées ni ralenties, mais toujours échangées et
+      capturées. Choix mémorisé dans le navigateur.
 
 ## Écarts au plan
 

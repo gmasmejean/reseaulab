@@ -52,6 +52,14 @@ export interface ImportReport {
 
 export const SPEEDS = [0.1, 0.25, 0.5, 1, 2, 4] as const;
 export const AUTOSAVE_KEY = 'reseaulab:autosave';
+export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
+
+/**
+ * Frames that devices send on their own, without any action of the pupil:
+ * address requests (DHCP) and route announcements (RIP). Both are broadcast,
+ * so they never trigger ARP requests.
+ */
+export const AUTOMATIC_PROTOCOLS: ReadonlySet<string> = new Set(['dhcp', 'rip']);
 
 export interface Storage {
   getItem(key: string): string | null;
@@ -96,6 +104,8 @@ export class Session {
   paused = false;
   inFlight: InFlight[] = [];
   importReport: ImportReport | null = null;
+  /** Do not animate (nor slow down for) the automatic traffic: DHCP, RIP. */
+  hideAutomatic = false;
   readonly clock: SimulationClock;
   private readonly emitter = new Emitter<{ change: undefined }>();
   private revision = 0;
@@ -109,6 +119,7 @@ export class Session {
     frames?: FrameSource,
   ) {
     this.network = this.restore() ?? new Network();
+    this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
     this.clock = new SimulationClock(
       () => this.network.scheduler,
       () => {
@@ -214,6 +225,23 @@ export class Session {
 
   setSpeed(speed: number): void {
     this.clock.speed = speed;
+    this.touch();
+  }
+
+  /**
+   * Hides the automatic traffic from the plan: those frames are still
+   * exchanged (and listed in the data exchanges) but neither drawn nor slowed
+   * down, so only the traffic started by the pupil is animated.
+   */
+  setHideAutomatic(hide: boolean): void {
+    if (hide === this.hideAutomatic) return;
+    this.hideAutomatic = hide;
+    if (hide) this.inFlight = this.inFlight.filter((f) => !AUTOMATIC_PROTOCOLS.has(f.protocol));
+    try {
+      this.storage?.setItem(HIDE_AUTOMATIC_KEY, hide ? 'oui' : 'non');
+    } catch {
+      /* preference not kept: harmless */
+    }
     this.touch();
   }
 
@@ -383,12 +411,14 @@ export class Session {
         this.touch();
       }),
       net.events.on('transmit', (event) => {
+        const protocol = protocolOf(event);
+        if (this.hideAutomatic && AUTOMATIC_PROTOCOLS.has(protocol)) return;
         this.inFlight.push({
           cableId: event.cableId,
           from: event.from,
           start: event.time,
           end: event.time + net.ctx.linkDelay,
-          protocol: protocolOf(event),
+          protocol,
         });
       }),
     ];
@@ -424,6 +454,14 @@ export class Session {
         };
         if (!taken.some((p) => Math.hypot(p.x - candidate.x, p.y - candidate.y) < 60)) return candidate;
       }
+    }
+  }
+
+  private readPreference(key: string): string | null {
+    try {
+      return this.storage?.getItem(key) ?? null;
+    } catch {
+      return null;
     }
   }
 
