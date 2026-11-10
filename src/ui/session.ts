@@ -52,6 +52,7 @@ export interface ImportReport {
 
 export const SPEEDS = [0.1, 0.25, 0.5, 1, 2, 4] as const;
 export const AUTOSAVE_KEY = 'reseaulab:autosave';
+export const AUTOSAVE_DATE_KEY = 'reseaulab:autosave-date';
 export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
 
 /**
@@ -60,6 +61,15 @@ export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
  * so they never trigger ARP requests.
  */
 export const AUTOMATIC_PROTOCOLS: ReadonlySet<string> = new Set(['dhcp', 'rip']);
+
+/**
+ * Work found in the browser at start-up. On a shared classroom computer it may
+ * belong to the previous pupil, hence the explicit question.
+ */
+export interface Resumed {
+  /** When it was saved (ms since the epoch), when known. */
+  readonly savedAt: number | null;
+}
 
 export interface Storage {
   getItem(key: string): string | null;
@@ -88,6 +98,27 @@ function protocolOf(event: TransmitEvent): string {
 
 const DEFAULT_POSITION_STEP = 140;
 
+export const PROJECT_EXTENSION = '.reseaulab.json';
+const DEFAULT_PROJECT_NAME = 'reseau';
+
+/**
+ * File name without its extension, cleaned from the characters that file
+ * systems refuse. Never empty.
+ */
+export function projectBaseName(name: string): string {
+  const base = name
+    .replace(/\.reseaulab\.json$/i, '')
+    .replace(/\.(json|fls)$/i, '')
+    // eslint-disable-next-line no-control-regex -- control characters are not allowed in file names
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '')
+    .slice(0, 80)
+    .trim();
+  return base === '' ? DEFAULT_PROJECT_NAME : base;
+}
+
 /**
  * Whole editor state, independent from React: current network, mode,
  * selection, windows, notices. The UI subscribes to `version`.
@@ -106,6 +137,10 @@ export class Session {
   importReport: ImportReport | null = null;
   /** Do not animate (nor slow down for) the automatic traffic: DHCP, RIP. */
   hideAutomatic = false;
+  /** Set while the pupil has not said what to do with the work found at start-up. */
+  resumed: Resumed | null = null;
+  /** Validates the text field being edited; false when its value is refused. */
+  private pendingEdit: (() => boolean) | null = null;
   readonly clock: SimulationClock;
   private readonly emitter = new Emitter<{ change: undefined }>();
   private revision = 0;
@@ -117,6 +152,8 @@ export class Session {
   constructor(
     private readonly storage: Storage | null = null,
     frames?: FrameSource,
+    /** Real time, for the date of the automatic save. */
+    private readonly now: () => number = () => Date.now(),
   ) {
     this.network = this.restore() ?? new Network();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
@@ -147,9 +184,11 @@ export class Session {
   /* ---------- project ---------- */
 
   replaceNetwork(network: Network, fileName?: string): void {
+    this.pendingEdit = null;
     this.setMode('design');
     this.detach();
     this.network = network;
+    this.resumed = null;
     this.selection = null;
     this.cableStart = null;
     this.windows = [];
@@ -203,11 +242,47 @@ export class Session {
     return serializeProject(this.network);
   }
 
+  /** Names the project file from what the pupil typed (without the extension). */
+  setProjectName(name: string): void {
+    this.fileName = `${projectBaseName(name)}${PROJECT_EXTENSION}`;
+    this.touch();
+  }
+
+  /** The pupil keeps the work found at start-up. */
+  keepResumedWork(): void {
+    this.resumed = null;
+    this.touch();
+  }
+
+  /* ---------- text field being edited ---------- */
+
+  /**
+   * A text field is only applied when it loses the focus. Clicking the plan
+   * changes the selection first, which removes the field from the page before
+   * it could be applied: the field registers here so that it is validated
+   * before anything replaces it.
+   */
+  setPendingEdit(commit: () => boolean): void {
+    this.pendingEdit = commit;
+  }
+
+  clearPendingEdit(commit: () => boolean): void {
+    if (this.pendingEdit === commit) this.pendingEdit = null;
+  }
+
+  /** Applies the field being edited; false when its value is invalid. */
+  commitEdit(): boolean {
+    return this.pendingEdit?.() ?? true;
+  }
+
   /* ---------- modes ---------- */
 
   setMode(mode: Mode): void {
     if (mode === this.mode) return;
+    this.commitEdit();
     this.mode = mode;
+    // Cables and notes cannot be selected in simulation mode.
+    if (mode === 'simulation' && this.selection?.kind !== 'device') this.selection = null;
     this.tool = 'select';
     this.cableStart = null;
     this.windows = this.windows.filter((w) => w.spec.type === 'help');
@@ -262,6 +337,7 @@ export class Session {
   }
 
   addDevice(kind: DeviceKind, position?: Position, interfaces = 2): string {
+    this.commitEdit();
     const pos = position ?? this.freePosition();
     const net = this.network;
     const device =
@@ -277,6 +353,7 @@ export class Session {
 
   /** Adds a text label or a coloured zone to the plan. */
   addNote(kind: 'text' | 'zone'): string {
+    this.commitEdit();
     const offset = (this.network.notes.length % 6) * 24;
     const note = this.network.addNote(
       kind === 'zone'
@@ -311,7 +388,8 @@ export class Session {
   }
 
   select(selection: Selection): void {
-    this.selection = selection;
+    // An invalid value keeps its field (and its error message) on screen.
+    if (this.commitEdit()) this.selection = selection;
     this.touch();
   }
 
@@ -468,7 +546,13 @@ export class Session {
   private restore(): Network | null {
     try {
       const saved = this.storage?.getItem(AUTOSAVE_KEY);
-      return saved ? parseProject(saved) : null;
+      if (!saved) return null;
+      const network = parseProject(saved);
+      if (network.devices.length > 0 || network.notes.length > 0) {
+        const date = Number(this.storage?.getItem(AUTOSAVE_DATE_KEY) ?? NaN);
+        this.resumed = { savedAt: Number.isFinite(date) && date > 0 ? date : null };
+      }
+      return network;
     } catch {
       return null;
     }
@@ -485,6 +569,7 @@ export class Session {
   saveNow(): void {
     try {
       this.storage?.setItem(AUTOSAVE_KEY, this.serialize());
+      this.storage?.setItem(AUTOSAVE_DATE_KEY, String(this.now()));
     } catch {
       /* storage full or unavailable: autosave is a convenience only */
     }

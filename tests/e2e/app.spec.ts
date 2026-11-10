@@ -203,6 +203,51 @@ test('le projet est sauvegardé automatiquement et rechargé', async ({ page }) 
   await page.waitForTimeout(1500);
   await page.reload();
   await expect(page.locator('.device')).toHaveCount(10);
+  // Sur un poste partagé, ce travail peut être celui de l'élève précédent : on le demande.
+  const banner = page.getByRole('region', { name: 'Travail retrouvé' });
+  await expect(banner).toContainText('Un travail a été retrouvé sur ce poste (enregistré le');
+  await shot(page, '21-reprise');
+  await banner.getByRole('button', { name: 'Continuer ce travail' }).click();
+  await expect(banner).toHaveCount(0);
+  await expect(page.locator('.device')).toHaveCount(10);
+
+  await page.waitForTimeout(1500);
+  await page.reload();
+  await page.getByRole('button', { name: 'Nouveau réseau' }).click();
+  await expect(page.getByText('Le plan est vide.')).toBeVisible();
+});
+
+test('saisie : une adresse tapée est gardée quand on clique sur le plan, le masque est proposé', async ({
+  page,
+}) => {
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  const plan = page.getByRole('application', { name: 'Plan du réseau' });
+  const address = page.getByRole('textbox', { name: 'Adresse IP', exact: true });
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await address.click();
+  await page.keyboard.type('192.168.0.1');
+  // Geste naturel pour « valider » : cliquer ailleurs, sur le plan vide.
+  await plan.click({ position: { x: 700, y: 300 } });
+  await expect(page.locator('[aria-label="Ordinateur 1 (192.168.0.1)"]')).toBeVisible();
+
+  await page.locator('[aria-label^="Ordinateur 1"]').click();
+  await expect(page.getByRole('textbox', { name: 'Masque', exact: true })).toHaveValue('255.255.255.0');
+  await address.fill('192.168.0.300');
+  await plan.click({ position: { x: 700, y: 300 } });
+  await expect(page.getByRole('alert')).toContainText('Adresse invalide');
+  await expect(address).toHaveValue('192.168.0.300');
+  await shot(page, '22-saisie-invalide');
+  await address.fill('192.168.0.2');
+  await plan.click({ position: { x: 700, y: 300 } });
+  await expect(page.locator('[aria-label="Ordinateur 1 (192.168.0.2)"]')).toBeVisible();
+
+  // Enregistrer demande un nom de fichier.
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Enregistrer le projet' });
+  await dialog.getByRole('textbox', { name: 'Nom du fichier' }).fill('Dupont - activité 1');
+  const download = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  expect((await download).suggestedFilename()).toBe('Dupont - activité 1.reseaulab.json');
 });
 
 test('fonctionne ouvert directement depuis le fichier, sans serveur', async ({ page }) => {

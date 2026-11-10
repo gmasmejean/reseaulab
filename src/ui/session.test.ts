@@ -6,7 +6,14 @@ import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { makeZip } from '../test/zip';
-import { AUTOMATIC_PROTOCOLS, AUTOSAVE_KEY, HIDE_AUTOMATIC_KEY, Session } from './session';
+import {
+  AUTOMATIC_PROTOCOLS,
+  AUTOSAVE_DATE_KEY,
+  AUTOSAVE_KEY,
+  HIDE_AUTOMATIC_KEY,
+  Session,
+  projectBaseName,
+} from './session';
 
 function lan(session: Session): { a: string; b: string } {
   const a = session.addDevice('computer');
@@ -220,6 +227,100 @@ describe('Session', () => {
     expect(listener).toHaveBeenCalled();
     expect(session.getVersion()).toBeGreaterThan(before);
     off();
+  });
+});
+
+describe('Session : saisie, reprise et nom du projet', () => {
+  test('un champ en cours de saisie est appliqué avant de changer de sélection', () => {
+    const session = new Session();
+    const id = session.addDevice('computer');
+    let accepted = true;
+    const commit = vi.fn(() => accepted);
+    session.setPendingEdit(commit);
+    session.select(null);
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(session.selection).toBeNull();
+
+    // Valeur refusée : la sélection ne change pas, le champ reste à l'écran.
+    session.select({ kind: 'device', id });
+    accepted = false;
+    session.select(null);
+    expect(session.selection).toEqual({ kind: 'device', id });
+
+    // Le champ qui a perdu le focus ne compte plus ; un autre ne le désinscrit pas.
+    session.clearPendingEdit(() => true);
+    expect(session.commitEdit()).toBe(false);
+    session.clearPendingEdit(commit);
+    expect(session.commitEdit()).toBe(true);
+    session.select(null);
+    expect(session.selection).toBeNull();
+  });
+
+  test('le champ en cours est appliqué avant un ajout et un changement de mode, oublié au remplacement', () => {
+    const session = new Session(null, new ManualFrames());
+    const commit = vi.fn(() => true);
+    session.setPendingEdit(commit);
+    session.addDevice('computer');
+    session.addNote('text');
+    session.setMode('simulation');
+    expect(commit).toHaveBeenCalledTimes(3);
+    session.newProject();
+    expect(session.commitEdit()).toBe(true);
+    expect(commit).toHaveBeenCalledTimes(3);
+  });
+
+  test('en simulation, seul un équipement reste sélectionné', () => {
+    const session = new Session(null, new ManualFrames());
+    const { a } = lan(session);
+    expect(session.selection?.kind).toBe('cable');
+    session.setMode('simulation');
+    expect(session.selection).toBeNull();
+    session.setMode('design');
+    session.select({ kind: 'device', id: a });
+    session.setMode('simulation');
+    expect(session.selection).toEqual({ kind: 'device', id: a });
+  });
+
+  test('signale le travail retrouvé au démarrage, avec sa date quand elle est connue', () => {
+    const storage = new MemoryStorage();
+    const session = new Session(storage, undefined, () => 1_700_000_000_000);
+    expect(session.resumed).toBeNull();
+    session.addNote('text');
+    session.saveNow();
+    expect(storage.getItem(AUTOSAVE_DATE_KEY)).toBe('1700000000000');
+
+    const second = new Session(storage);
+    expect(second.resumed).toEqual({ savedAt: 1_700_000_000_000 });
+    second.keepResumedWork();
+    expect(second.resumed).toBeNull();
+    expect(second.network.notes).toHaveLength(1);
+
+    // Sauvegarde d'une ancienne version : pas de date.
+    storage.data.delete(AUTOSAVE_DATE_KEY);
+    const third = new Session(storage);
+    expect(third.resumed).toEqual({ savedAt: null });
+    third.loadExample();
+    expect(third.resumed).toBeNull();
+  });
+
+  test('un plan vide retrouvé au démarrage n’est pas signalé', () => {
+    const storage = new MemoryStorage();
+    new Session(storage).saveNow();
+    expect(new Session(storage).resumed).toBeNull();
+  });
+
+  test('nettoie le nom du fichier de projet', () => {
+    expect(projectBaseName('cours.reseaulab.json')).toBe('cours');
+    expect(projectBaseName('Salle 101.FLS')).toBe('Salle 101');
+    expect(projectBaseName('  a/b\\c:d*e?f"g<h>i|j  ')).toBe('a b c d e f g h i j');
+    expect(projectBaseName('..caché')).toBe('caché');
+    expect(projectBaseName('   ')).toBe('reseau');
+    expect(projectBaseName('x'.repeat(200))).toHaveLength(80);
+    const session = new Session();
+    session.setProjectName('Dupont – activité 1');
+    expect(session.fileName).toBe('Dupont – activité 1.reseaulab.json');
+    session.setProjectName('');
+    expect(session.fileName).toBe('reseau.reseaulab.json');
   });
 });
 

@@ -1,10 +1,15 @@
 import type { DeviceKind } from '../../engine/devices/device';
-import { DEVICE_LABEL } from '../../i18n/fr';
+import { DEVICE_ALIAS, DEVICE_LABEL } from '../../i18n/fr';
 import { useSession } from '../context';
 import { DEVICE_DRAG_TYPE } from './Canvas';
 import { DeviceIcon } from './DeviceIcon';
 
 const KINDS: readonly DeviceKind[] = ['computer', 'laptop', 'switch', 'router'];
+
+function alias(kind: DeviceKind): string {
+  const other = DEVICE_ALIAS[kind];
+  return other ? `, aussi appelé ${other}` : '';
+}
 
 export function Palette() {
   const session = useSession();
@@ -19,7 +24,7 @@ export function Palette() {
           className="palette-item"
           draggable={!disabled}
           disabled={disabled}
-          title={`Ajouter : ${DEVICE_LABEL[kind]} (cliquer ou glisser sur le plan)`}
+          title={`Ajouter : ${DEVICE_LABEL[kind]}${alias(kind)} (cliquer ou glisser sur le plan)`}
           onDragStart={(e) => {
             e.dataTransfer.setData(DEVICE_DRAG_TYPE, kind);
             e.dataTransfer.effectAllowed = 'copy';

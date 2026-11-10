@@ -4,6 +4,7 @@ import type { Router } from '../../engine/devices/router';
 import type { Switch } from '../../engine/devices/switch';
 import type { NetworkNode } from '../../engine/devices/node';
 import { LAYER_LABEL, describeFrame, summarizeFrame } from '../../engine/net/describe';
+import { decimal } from '../../i18n/fr';
 import { useSession } from '../context';
 import { Section } from '../components/Fields';
 
@@ -82,7 +83,7 @@ export function CaptureWindow({
                   }}
                 >
                   <td>{e.no}</td>
-                  <td>{(e.time / 1000).toFixed(3)}</td>
+                  <td>{decimal(e.time / 1000, 3)}</td>
                   <td>{e.direction === 'in' ? '← reçu' : '→ envoyé'}</td>
                   <td>{top.source}</td>
                   <td>{top.destination}</td>
@@ -243,8 +244,9 @@ export function HelpWindow() {
           passerelle…).
         </li>
         <li>
-          <b>Wi-Fi</b> : chaque switch a un <b>nom Wi-Fi (SSID)</b>. Réglez un ordinateur ou un portable en{' '}
-          <b>Sans fil (Wi-Fi)</b> puis choisissez ce nom dans sa configuration pour le connecter.
+          <b>Wi-Fi</b> : chaque switch (aussi appelé commutateur) a un <b>nom Wi-Fi (SSID)</b>. Réglez un
+          ordinateur ou un portable en <b>Sans fil (Wi-Fi)</b> puis choisissez ce nom dans sa configuration
+          pour le connecter.
         </li>
         <li>
           Comme dans Filius, le <b>clic droit</b> sur un équipement, un câble ou une annotation ouvre un menu
@@ -257,9 +259,9 @@ export function HelpWindow() {
           <code>traceroute</code>…).
         </li>
         <li>
-          Les paquets circulent sur les câbles. La fenêtre <b>Échanges de données</b> montre chaque trame,
-          couche par couche. Les trames sont montrées au ralenti sur les câbles ; le curseur <b>Vitesse</b>{' '}
-          règle ce ralenti.
+          Les trames circulent sur les câbles, au ralenti pour qu’on puisse les suivre ; le curseur{' '}
+          <b>Vitesse</b> règle ce ralenti. La fenêtre <b>Échanges de données</b> montre chaque trame, couche
+          par couche.
         </li>
         <li>
           Des trames passent parfois sans que vous ayez rien lancé : les ordinateurs en DHCP demandent leur
@@ -268,8 +270,9 @@ export function HelpWindow() {
           listées dans les échanges de données.
         </li>
         <li>
-          Enregistrez votre travail avec <b>Enregistrer</b> (fichier <code>.reseaulab.json</code>). Le réseau
-          est aussi sauvegardé automatiquement dans ce navigateur.
+          Enregistrez votre travail avec <b>Enregistrer</b> : donnez un nom au fichier (
+          <code>.reseaulab.json</code>), il est placé dans les téléchargements. Le réseau est aussi sauvegardé
+          automatiquement dans ce navigateur ; à l’ouverture, RéseauLab demande s’il faut le reprendre.
         </li>
         <li>
           <b>Ouvrir…</b> accepte aussi les projets Filius (<code>.fls</code>) : équipements, configuration,

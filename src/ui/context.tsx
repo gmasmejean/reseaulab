@@ -15,6 +15,14 @@ export function useSession(): Session {
   return session;
 }
 
+/**
+ * The session, without re-rendering when it changes; null outside a provider
+ * (a form control rendered alone in a test).
+ */
+export function useSessionHandle(): Session | null {
+  return useContext(SessionContext);
+}
+
 /** Value that follows `value` but only after it stayed stable for `delay` ms. */
 export function useDebounced<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);

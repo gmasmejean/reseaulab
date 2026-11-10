@@ -684,9 +684,10 @@ input.narrow {
   min-height: 0;
 }
 
+/* Inside the stage, so that it never covers the settings panel. */
 .notice {
-  position: fixed;
-  bottom: 20px;
+  position: absolute;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -698,7 +699,7 @@ input.narrow {
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 80vw;
+  max-width: 90%;
 }
 .notice.error {
   background: var(--danger);
@@ -707,6 +708,40 @@ input.narrow {
   background: transparent;
   border: 0;
   color: inherit;
+}
+
+.resume-banner {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  width: fit-content;
+  margin-inline: auto;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.resume-banner p {
+  margin: 0;
+}
+.resume-banner button {
+  white-space: nowrap;
+}
+
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.file-name input {
+  flex: 1;
+  min-width: 0;
 }
 
 /* desktop */

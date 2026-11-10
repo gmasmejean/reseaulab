@@ -6,7 +6,9 @@ import {
   isValidMask,
   networkOf,
   parseIp,
+  prefixToMask,
   sameNetwork,
+  type Ipv4,
 } from '../../engine/core/ipv4';
 import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
@@ -18,6 +20,14 @@ import { useSession } from '../context';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Checkbox, IpField, Section, TextField } from './Fields';
 import { FirewallEditor } from './FirewallEditor';
+
+/** Mask proposed with a first address, as in Filius: 255.255.255.0. */
+const DEFAULT_MASK = prefixToMask(24);
+
+/** Mask to keep with `ip`: the current one, or the usual one when none was given yet. */
+function maskFor(ip: Ipv4, mask: Ipv4): Ipv4 {
+  return mask === IP_ANY && ip !== IP_ANY ? DEFAULT_MASK : mask;
+}
 
 function neighbour(net: Network, device: Device, port: number): string {
   const p = device.ports[port];
@@ -159,7 +169,7 @@ function SwitchProperties({ device }: { device: Switch }) {
   const wifiClients = device.ports.filter((p) => p.cable?.wireless).length;
   return (
     <div className="properties-grid">
-      <Section title="Switch / Wi-Fi">
+      <Section title="Switch (commutateur)">
         <NameField device={device} />
         <p className="muted">
           {device.ports.filter((p) => p.isConnected).length} port(s) utilisé(s). Un port est ajouté
@@ -230,7 +240,7 @@ function HostProperties({ host }: { host: Host }) {
             value={c.ip}
             disabled={c.useDhcp}
             onChange={(ip) => {
-              host.updateConfig({ ip });
+              host.updateConfig({ ip, mask: maskFor(ip, c.mask) });
             }}
           />
           <IpField
@@ -434,7 +444,7 @@ function RouterProperties({ router }: { router: Router }) {
                         label={`IP eth${i}`}
                         value={iface.ip}
                         onChange={(ip) => {
-                          router.setInterface(i, { ip, mask: iface.mask });
+                          router.setInterface(i, { ip, mask: maskFor(ip, iface.mask) });
                         }}
                       />
                     </td>
@@ -724,7 +734,7 @@ export function PropertiesPanel() {
                   session.openWindow({ type: 'desktop', deviceId: device.id });
                 }}
               >
-                Ouvrir le bureau
+                Afficher le bureau
               </button>
             )}
             {device instanceof Router && (
@@ -735,7 +745,7 @@ export function PropertiesPanel() {
                   session.openWindow({ type: 'router', deviceId: device.id });
                 }}
               >
-                Tables du routeur
+                Afficher les tables du routeur
               </button>
             )}
             {device.kind === 'switch' ? (
@@ -746,7 +756,7 @@ export function PropertiesPanel() {
                   session.openWindow({ type: 'switch', deviceId: device.id });
                 }}
               >
-                Table des adresses MAC
+                Afficher la table des adresses MAC
               </button>
             ) : (
               <button
@@ -755,7 +765,7 @@ export function PropertiesPanel() {
                   session.openWindow({ type: 'capture', deviceId: device.id });
                 }}
               >
-                Échanges de données
+                Afficher les échanges de données
               </button>
             )}
           </div>

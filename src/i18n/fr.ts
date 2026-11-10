@@ -55,8 +55,8 @@ export const APP_INFO: Record<AppId, AppInfo> = {
     color: '#db2777',
   },
   echoclient: {
-    name: 'Client simple',
-    description: 'Envoie des lignes à un serveur TCP',
+    name: 'Client écho',
+    description: 'Envoie des lignes de texte à un serveur écho',
     badge: 'Cli',
     color: '#4b5563',
   },
@@ -99,3 +99,23 @@ export const APP_INFO: Record<AppId, AppInfo> = {
 };
 
 export const MODE_LABEL = { design: 'Conception', simulation: 'Simulation' } as const;
+
+/** Other name of an equipment, for the tooltips: the curriculum says « commutateur ». */
+export const DEVICE_ALIAS: Partial<Record<DeviceKind, string>> = { switch: 'commutateur' };
+
+/** Number with a fixed count of decimals and the French decimal comma: 0,25. */
+export function decimal(value: number, digits: number): string {
+  return value.toFixed(digits).replace('.', ',');
+}
+
+/** Simulation speed as shown to the pupil: « × 0,25 ». */
+export function speedLabel(speed: number): string {
+  return `× ${String(speed).replace('.', ',')}`;
+}
+
+/** Day and time of a save: « le 10/11 à 09:42 ». */
+export function savedAtLabel(time: number): string {
+  const date = new Date(time);
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `le ${two(date.getDate())}/${two(date.getMonth() + 1)} à ${two(date.getHours())}:${two(date.getMinutes())}`;
+}

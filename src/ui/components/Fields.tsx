@@ -1,5 +1,7 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useState, type ReactNode } from 'react';
 import { IP_ANY, formatIp, isValidMask, parseIp, type Ipv4 } from '../../engine/core/ipv4';
+import { decimal } from '../../i18n/fr';
+import { useSessionHandle } from '../context';
 
 interface TextFieldProps {
   readonly label: string;
@@ -23,8 +25,10 @@ export function TextField({
   type = 'text',
 }: TextFieldProps) {
   const id = useId();
+  const session = useSessionHandle();
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   // Follow external changes of `value` (React's "adjust state during render" pattern).
   const [shown, setShown] = useState(value);
   if (shown !== value) {
@@ -32,13 +36,25 @@ export function TextField({
     setDraft(value);
     setError(null);
   }
-  const commit = () => {
+  /** Applies the typed value; false when it is refused. */
+  const commit = (): boolean => {
     if (draft === value) {
       setError(null);
-      return;
+      return true;
     }
-    setError(onCommit(draft));
+    const problem = onCommit(draft);
+    setError(problem);
+    return problem === null;
   };
+  // While it has the focus, the field can be applied by the session: a click on
+  // the plan changes the selection, which would remove this field before `blur`.
+  useLayoutEffect(() => {
+    if (!focused || !session) return;
+    session.setPendingEdit(commit);
+    return () => {
+      session.clearPendingEdit(commit);
+    };
+  });
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
@@ -53,7 +69,13 @@ export function TextField({
         onChange={(e) => {
           setDraft(e.target.value);
         }}
-        onBlur={commit}
+        onFocus={() => {
+          setFocused(true);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          commit();
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') {
@@ -89,7 +111,8 @@ export function IpField({ label, value, onChange, disabled, mask, allowEmpty = t
       label={label}
       value={value === IP_ANY && allowEmpty ? '' : formatIp(value)}
       disabled={disabled}
-      placeholder={mask ? '255.255.255.0' : allowEmpty ? '(aucune)' : '192.168.0.1'}
+      // Never a bare value: a greyed "255.255.255.0" looks like a filled field.
+      placeholder={mask ? 'ex. 255.255.255.0' : allowEmpty ? '(aucune)' : 'ex. 192.168.0.1'}
       hint={hint}
       onCommit={(text) => {
         if (text.trim() === '' && allowEmpty) {
@@ -189,7 +212,7 @@ export function LogView({ entries }: { entries: readonly { time: number; text: s
       ) : (
         entries.map((e, i) => (
           <div key={i}>
-            <span className="muted">{(e.time / 1000).toFixed(2)} s</span> {e.text}
+            <span className="muted">{decimal(e.time / 1000, 2)} s</span> {e.text}
           </div>
         ))
       )}

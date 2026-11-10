@@ -1,17 +1,20 @@
 import { useRef, useState } from 'react';
-import { MODE_LABEL } from '../../i18n/fr';
+import { MODE_LABEL, decimal, speedLabel } from '../../i18n/fr';
 import { useSession } from '../context';
 import { downloadText } from '../files';
 import { SPEEDS } from '../session';
 import { ConfirmDialog } from './ConfirmDialog';
+import { SaveDialog } from './SaveDialog';
 
 export function Toolbar() {
   const session = useSession();
   const fileInput = useRef<HTMLInputElement>(null);
   /** Action waiting for the user to accept losing the current network. */
   const [pendingReplace, setPendingReplace] = useState<(() => void) | null>(null);
+  const [saving, setSaving] = useState(false);
   const replaceNetwork = (action: () => void) => {
-    if (session.network.devices.length === 0) action();
+    const { devices, notes } = session.network;
+    if (devices.length === 0 && notes.length === 0) action();
     else setPendingReplace(() => action);
   };
   const simulation = session.mode === 'simulation';
@@ -55,19 +58,21 @@ export function Toolbar() {
             const file = e.target.files?.[0];
             e.target.value = '';
             if (!file) return;
-            const open = file.name.toLowerCase().endsWith('.fls')
-              ? file.arrayBuffer().then((buffer) => session.openFilius(new Uint8Array(buffer), file.name))
-              : file.text().then((text) => session.openProject(text, file.name));
-            open.catch(() => {
-              session.notify('Lecture du fichier impossible.', 'error');
+            replaceNetwork(() => {
+              const open = file.name.toLowerCase().endsWith('.fls')
+                ? file.arrayBuffer().then((buffer) => session.openFilius(new Uint8Array(buffer), file.name))
+                : file.text().then((text) => session.openProject(text, file.name));
+              open.catch(() => {
+                session.notify('Lecture du fichier impossible.', 'error');
+              });
             });
           }}
         />
         <button
           type="button"
           onClick={() => {
-            downloadText(session.fileName, session.serialize());
-            session.notify(`Projet enregistré dans vos téléchargements : ${session.fileName}`);
+            session.commitEdit();
+            setSaving(true);
           }}
         >
           Enregistrer
@@ -120,9 +125,9 @@ export function Toolbar() {
             onChange={(e) => {
               session.setSpeed(SPEEDS[Number(e.target.value)] ?? 1);
             }}
-            aria-valuetext={`× ${session.speed}`}
+            aria-valuetext={speedLabel(session.speed)}
           />
-          <span className="speed-value">× {session.speed}</span>
+          <span className="speed-value">{speedLabel(session.speed)}</span>
         </label>
         <label
           className="hide-automatic"
@@ -141,7 +146,7 @@ export function Toolbar() {
           </span>
         </label>
         <span className="clock" title="Temps simulé">
-          {(session.network.scheduler.now / 1000).toFixed(1)} s
+          {decimal(session.network.scheduler.now / 1000, 1)} s
         </span>
       </div>
       <button
@@ -153,6 +158,20 @@ export function Toolbar() {
       >
         Aide
       </button>
+      {saving && (
+        <SaveDialog
+          fileName={session.fileName}
+          onSave={(name) => {
+            setSaving(false);
+            session.setProjectName(name);
+            downloadText(session.fileName, session.serialize());
+            session.notify(`Projet enregistré dans vos téléchargements : ${session.fileName}`);
+          }}
+          onCancel={() => {
+            setSaving(false);
+          }}
+        />
+      )}
       {pendingReplace && (
         <ConfirmDialog
           title="Remplacer le réseau ?"

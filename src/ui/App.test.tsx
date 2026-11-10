@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
-import { ManualFrames } from '../test/doubles';
-import { App } from './App';
+import { serializeProject } from '../project/serialize';
+import { ManualFrames, MemoryStorage } from '../test/doubles';
+import { App, INFO_NOTICE_MS } from './App';
 import { Session } from './session';
 
 function setup() {
@@ -71,7 +73,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Simulation/ }));
     expect(screen.getByRole('button', { name: 'Ordinateur' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le bureau' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher le bureau' }));
     const desktop = screen.getByRole('dialog', { name: 'Bureau de Ordinateur 1' });
     fireEvent.click(within(desktop).getByRole('button', { name: 'Ligne de commande' }));
     const terminal = screen.getByRole('dialog', { name: 'Ligne de commande — Ordinateur 1' });
@@ -561,5 +563,189 @@ describe('Annotations et import', () => {
     expect(dialog).toHaveTextContent('Modem ignoré.');
     fireEvent.click(screen.getByRole('button', { name: 'Compris' }));
     expect(screen.queryByRole('dialog', { name: 'Projet Filius importé' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Saisie et finitions', () => {
+  function addComputer() {
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: /Ordinateur/ }));
+  }
+
+  /** Types in a field without leaving it, as a pupil who has not pressed Enter yet. */
+  function type(label: string, value: string) {
+    const input = screen.getByRole('textbox', { name: label });
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value } });
+  }
+
+  test('une adresse tapée est appliquée quand on clique sur le plan vide', () => {
+    const { session } = setup();
+    addComputer();
+    const host = session.network.host(session.network.devices[0]?.id ?? '');
+    type('Adresse IP', '192.168.1.10');
+    fireEvent.pointerDown(screen.getByRole('application', { name: 'Plan du réseau' }));
+    expect(host.config.ip).toBe(ip('192.168.1.10'));
+    expect(session.selection).toBeNull();
+  });
+
+  test('une adresse invalide garde le poste sélectionné et affiche l’erreur', () => {
+    const { session } = setup();
+    addComputer();
+    const id = session.network.devices[0]?.id ?? '';
+    type('Adresse IP', '192.168.1.300');
+    fireEvent.pointerDown(screen.getByRole('application', { name: 'Plan du réseau' }));
+    expect(session.selection).toEqual({ kind: 'device', id });
+    expect(screen.getByRole('alert')).toHaveTextContent('Adresse invalide');
+    expect(session.network.host(id).config.ip).toBe(0);
+  });
+
+  test('une adresse tapée est appliquée avant d’ajouter un autre équipement', () => {
+    const { session } = setup();
+    addComputer();
+    const first = session.network.host(session.network.devices[0]?.id ?? '');
+    type('Adresse IP', '10.0.0.1');
+    act(() => {
+      session.addDevice('switch');
+    });
+    expect(first.config.ip).toBe(ip('10.0.0.1'));
+  });
+
+  test('le masque 255.255.255.0 est proposé avec la première adresse, sans écraser un masque choisi', () => {
+    const { session } = setup();
+    addComputer();
+    const host = session.network.host(session.network.devices[0]?.id ?? '');
+    const mask = screen.getByRole('textbox', { name: 'Masque' });
+    expect(mask).toHaveValue('');
+    expect(mask).toHaveAttribute('placeholder', 'ex. 255.255.255.0');
+    commit('Adresse IP', '192.168.1.10');
+    expect(mask).toHaveValue('255.255.255.0');
+    commit('Masque', '255.255.0.0');
+    commit('Adresse IP', '192.168.1.11');
+    expect(host.config.mask).toBe(ip('255.255.0.0'));
+  });
+
+  test('le masque est aussi proposé pour une interface de routeur', () => {
+    const { session } = setup();
+    let id = '';
+    act(() => {
+      id = session.addDevice('router');
+    });
+    commit('IP eth0', '10.0.1.1');
+    expect(session.network.router(id).interfaces[0]?.mask).toBe(MASK_24);
+  });
+
+  test('« Ouvrir… » demande confirmation avant de remplacer un réseau non vide', async () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('computer');
+    });
+    const other = new Network();
+    other.addSwitch({ name: 'Cœur' });
+    const json = serializeProject(other);
+    // jsdom's File has no text(): provide it, as browsers do.
+    const file = Object.assign(new File([json], 'cours.reseaulab.json', { type: 'application/json' }), {
+      text: () => Promise.resolve(json),
+    });
+    fireEvent.change(screen.getByTestId('open-project'), { target: { files: [file] } });
+    const dialog = screen.getByRole('alertdialog', { name: 'Remplacer le réseau ?' });
+    expect(session.network.devices[0]?.name).toBe('Ordinateur 1');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+    expect(session.network.devices[0]?.name).toBe('Ordinateur 1');
+
+    fireEvent.change(screen.getByTestId('open-project'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remplacer' }));
+    expect(await screen.findByRole('button', { name: /^Cœur/ })).toBeInTheDocument();
+    expect(session.fileName).toBe('cours.reseaulab.json');
+  });
+
+  test('« Enregistrer » demande le nom du fichier et le nettoie', () => {
+    const createObjectURL = vi.fn(() => 'blob:test');
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    try {
+      const { session } = setup();
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+      const dialog = screen.getByRole('dialog', { name: 'Enregistrer le projet' });
+      const name = within(dialog).getByRole('textbox', { name: 'Nom du fichier' });
+      expect(name).toHaveValue('reseau');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+      expect(click).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Nom du fichier' }), {
+        target: { value: ' Dupont : salle/1 ' },
+      });
+      fireEvent.click(
+        within(screen.getByRole('dialog', { name: 'Enregistrer le projet' })).getByRole('button', {
+          name: 'Enregistrer',
+        }),
+      );
+      expect(session.fileName).toBe('Dupont salle 1.reseaulab.json');
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('status')).toHaveTextContent('Dupont salle 1.reseaulab.json');
+      expect(screen.queryByRole('dialog', { name: 'Enregistrer le projet' })).not.toBeInTheDocument();
+    } finally {
+      click.mockRestore();
+    }
+  });
+
+  test('un message d’erreur reste affiché ; une information s’efface seule', () => {
+    vi.useFakeTimers();
+    try {
+      const { session } = setup();
+      act(() => {
+        session.notify('Câble impossible', 'error');
+      });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(screen.getByRole('alert')).toHaveTextContent('Câble impossible');
+      act(() => {
+        session.notify('Projet ouvert');
+      });
+      act(() => {
+        vi.advanceTimersByTime(INFO_NOTICE_MS - 1);
+      });
+      expect(screen.getByRole('status')).toHaveTextContent('Projet ouvert');
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('un travail retrouvé sur le poste est proposé : continuer ou repartir de zéro', () => {
+    const storage = new MemoryStorage();
+    const first = new Session(storage, new ManualFrames(), () => new Date(2026, 10, 10, 9, 5).getTime());
+    first.addDevice('computer');
+    first.saveNow();
+
+    const kept = new Session(storage, new ManualFrames());
+    const view = render(<App session={kept} />);
+    const banner = screen.getByRole('region', { name: 'Travail retrouvé' });
+    expect(banner).toHaveTextContent('enregistré le 10/11 à 09:05');
+    fireEvent.click(within(banner).getByRole('button', { name: 'Continuer ce travail' }));
+    expect(screen.queryByRole('region', { name: 'Travail retrouvé' })).not.toBeInTheDocument();
+    expect(kept.network.devices).toHaveLength(1);
+    view.unmount();
+
+    const fresh = new Session(storage, new ManualFrames());
+    render(<App session={fresh} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau réseau' }));
+    expect(fresh.network.devices).toHaveLength(0);
+    expect(screen.queryByRole('region', { name: 'Travail retrouvé' })).not.toBeInTheDocument();
+  });
+
+  test('les nombres s’écrivent avec une virgule', () => {
+    const { session } = setup();
+    act(() => {
+      session.setSpeed(0.25);
+    });
+    expect(screen.getByText('× 0,25')).toBeInTheDocument();
+    expect(screen.getByTitle('Temps simulé')).toHaveTextContent('0,0 s');
   });
 });

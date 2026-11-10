@@ -6,7 +6,7 @@ const MAX_LINES = 1000;
 
 export function TerminalApp({ host }: { host: Host }) {
   const [lines, setLines] = useState<string[]>(() => [
-    `${host.name} — tapez « help » pour la liste des commandes.`,
+    `${host.name} — tapez « help » pour la liste des commandes. Flèche ↑ : rappeler la commande précédente.`,
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);

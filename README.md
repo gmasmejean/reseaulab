@@ -20,8 +20,12 @@ annotations (textes, zones colorées) sont repris. Ce qui ne peut pas l'être
 (modem, logiciel pair à pair…) est listé dans un rapport à l'ouverture.
 
 Le travail en cours est sauvegardé automatiquement dans le navigateur du poste.
-Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
-`.reseaulab.json` est téléchargé, qu'on rouvre ensuite avec **Ouvrir…**.
+À l'ouverture, RéseauLab signale le travail retrouvé (avec sa date) et propose
+de le continuer ou de repartir de zéro : sur un poste partagé, c'est peut-être
+celui de l'élève précédent. Pour garder ou rendre son travail, l'élève utilise
+**Enregistrer**, donne un nom au fichier (son nom, celui de l'activité) et
+obtient un fichier `.reseaulab.json` dans les téléchargements, qu'on rouvre
+ensuite avec **Ouvrir…**.
 
 ## Prise en main
 
@@ -29,7 +33,9 @@ Pour le garder ou le rendre, les élèves utilisent **Enregistrer** : un fichier
   l'ajouter ; choisir l'outil **Câble** puis cliquer sur deux équipements pour
   les relier ; sélectionner un équipement pour le configurer dans le panneau du
   bas (adresse IP, masque, passerelle, DNS, DHCP, interfaces et routes du
-  routeur, pare-feu). Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
+  routeur, pare-feu). Une valeur tapée est prise en compte dès qu'on quitte le
+  champ (Entrée, Tab ou clic ailleurs) ; le masque `255.255.255.0` est proposé
+  avec la première adresse. Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
   retire dans son onglet « Interfaces ». Les outils **Texte** et **Zone** ajoutent des annotations
   sur le plan. Touche Suppr pour effacer la sélection.
 - **Wi-Fi**, comme dans Filius : chaque switch est aussi un point d'accès avec
@@ -88,7 +94,7 @@ pnpm run e2e        # scénarios de bout en bout (Chrome installé requis)
 pnpm run build      # produit le fichier unique dist/index.html
 ```
 
-- Architecture, étapes et écarts : [`docs/PLAN.md`](docs/PLAN.md).
+- Architecture, étapes, feuille de route et écarts : [`docs/PLAN.md`](docs/PLAN.md).
 - Règles de développement suivies : [`docs/REGLES.md`](docs/REGLES.md).
 
 En bref : `src/engine` contient le moteur de simulation (TypeScript pur,

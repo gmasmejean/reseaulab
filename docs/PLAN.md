@@ -7,7 +7,7 @@ fonctionnalités pédagogiques que le logiciel Filius.
 ## Objectifs
 
 1. **Aucune installation** : l'application se construit en un seul fichier
-   `reseaulab.html` utilisable hors-ligne (clé USB, ENT, mail) et peut aussi
+   `dist/index.html` utilisable hors-ligne (clé USB, ENT, mail) et peut aussi
    être hébergée comme site statique.
 2. **Fidélité pédagogique** : les protocoles simulés (Ethernet, ARP, IPv4,
    ICMP, UDP, TCP, DHCP, DNS, HTTP, SMTP, POP3, RIP) suivent leur
@@ -121,6 +121,61 @@ fichier (case cochée).
       ARP) : elles ne sont ni animées ni ralenties, mais toujours échangées et
       capturées. Choix mémorisé dans le navigateur.
 
+- [x] **Étape 17 — Correctifs de saisie et finitions** (premier lot de la
+      feuille de route ci-dessous, issue d'un essai de l'application en
+      1366 × 768). Un champ de texte est appliqué avant tout changement de
+      sélection : taper une adresse puis cliquer sur le plan vide ne la perd
+      plus ; une valeur invalide garde le champ et son message à l'écran. Le
+      masque `255.255.255.0` est proposé avec la première adresse (poste et
+      interface de routeur), comme dans Filius. `Ouvrir…` demande confirmation
+      avant de remplacer un réseau, et un plan qui ne contient que des
+      annotations compte comme non vide. `Enregistrer` demande le nom du
+      fichier. Au démarrage, un bandeau signale le travail retrouvé dans le
+      navigateur (avec sa date) et propose de le continuer ou de repartir de
+      zéro. Les messages d'erreur restent jusqu'à leur fermeture et
+      s'affichent sur le plan, plus sur le panneau. Nombres avec virgule ;
+      « Client écho » ; mêmes libellés dans le panneau et le menu de
+      simulation ; « commutateur » rappelé pour le switch.
+
+## Feuille de route : de simulateur à outil d'apprentissage
+
+Les étapes 0 à 16 donnent un simulateur équivalent à Filius. Les suivantes en
+font un support d'apprentissage et de référence pour la Technologie au collège
+(4e, 3e), sur les PC de salle info.
+
+- [ ] **Étape 18 — Plan lisible** : zoom (Ctrl + molette, boutons, « Ajuster ») ;
+      fenêtres placées à droite, bornées à la zone, fermées par Échap,
+      « Ranger » et « Tout fermer » ; palette masquée et panneau réduit en
+      simulation ; Annuler / Rétablir (Ctrl+Z, Ctrl+Y).
+- [ ] **Étape 19 — Observabilité du moteur** : événement `drop` (raison de
+      l'abandon d'un paquet), verdict sur les entrées de capture, événements du
+      terminal, copie d'un réseau.
+- [ ] **Étape 20 — Diagnostic** : « Vérifier mon réseau » (contrôles statiques,
+      repères sur le plan) et « Pourquoi ça ne marche pas ? » après un `ping`
+      raté, rejoué sur une copie du réseau.
+- [ ] **Étape 21 — Lisibilité de la simulation** : étiquette et légende des
+      trames, marque à l'endroit d'un abandon, pas-à-pas ; capture filtrable,
+      trames ignorées signalées, vue « dialogue » ; tables d'un poste sans
+      terminal ; animation découplée du reste de l'interface.
+- [ ] **Étape 22 — Connaissances** : fiches et lexique intégrés (pack par
+      défaut calé sur le programme de cycle 4, modifiable par un fichier),
+      libellés cliquables, fenêtre « Aide et connaissances ».
+- [ ] **Étape 23 — Profils par niveau** : préréglages 5e / 4e / 3e / complet qui
+      masquent équipements, onglets, logiciels, commandes et couches.
+- [ ] **Étape 24 — Box et objets connectés** : équipement « Box » (routeur,
+      switch, Wi-Fi, DHCP) ; serveur, imprimante, caméra IP, smartphone,
+      tablette.
+- [ ] **Étape 25 — Activités guidées** : consignes et objectifs dans le fichier,
+      vérifiés automatiquement (état du réseau, sondes sur une copie, journal) ;
+      panneau élève, indices, verrous ; activités d'exemple.
+- [ ] **Étape 26 — Trace et compte rendu** : nom et classe, journal, compte
+      rendu imprimable (plan, table d'adressage, objectifs, réponses), fichier
+      rendu.
+- [ ] **Étape 27 — Quiz** : questions par notion et par niveau, bilan renvoyant
+      aux fiches.
+- [ ] **Étape 28 — Éditeur d'activités** : objectifs proposés depuis le réseau
+      solution, réseau de départ, export et import du pack pédagogique.
+
 ## Écarts au plan
 
 - **pnpm au lieu de npm** : npm 10.9 plante (`Cannot read properties of null
@@ -149,6 +204,13 @@ fichier (case cochée).
   ne pouvait donc rien envoyer à travers un pare-feu (test ajouté).
 - **Confirmations** : boîte de dialogue intégrée à la page au lieu de
   `window.confirm`/`window.prompt`, parfois bloqués sur les postes gérés.
+- **Libellés courts dans les formulaires** (étape 17) : « Masque » et
+  « Passerelle » restent tels quels dans le panneau ; `ipconfig` garde les
+  formes longues de Windows (« Masque de sous-réseau », « Passerelle par
+  défaut »). Le lexique de l'étape 22 fera le lien.
+- **Fenêtres fermées au changement de mode** (étape 17) : le texte non
+  enregistré de l'éditeur est toujours perdu en quittant la simulation ; à
+  traiter avec la gestion des fenêtres de l'étape 18.
 
 ## Hors périmètre (documenté)
 
@@ -157,5 +219,7 @@ fichier (case cochée).
 - **Assistant de création de logiciels** (compilation Java à la volée).
 - **Pair-à-pair (Gnutella)** : envisageable plus tard.
 - **Dans les fichiers `.fls`** (signalé dans le rapport d'import) : modems,
-  logiciel pair à pair, comptes du client de messagerie, hôtes virtuels du
-  serveur web, cartes réseau supplémentaires d'un ordinateur.
+  logiciel pair à pair, comptes du client de messagerie, cartes réseau
+  supplémentaires d'un ordinateur. Les hôtes virtuels du serveur web et le
+  contenu des boîtes aux lettres ne sont pas repris non plus, sans
+  avertissement pour l'instant.
