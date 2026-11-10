@@ -289,8 +289,20 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       compte rendu figure sur la page. Ces informations sont aussi dans le
       fichier rendu (champ `work` : élève, conclusion, objectifs et heures,
       indices, commandes), avec ou sans activité.
-- [ ] **Étape 27 — Quiz** : questions par notion et par niveau, bilan renvoyant
-      aux fiches.
+- [x] **Étape 27 — Quiz** : auto-évaluation sans note. Le pack pédagogique
+      contient 32 questions (9 en 5e, 9 en 4e, 14 en 3e), au moins une par
+      fiche : choix simple ou multiple, liste à remettre dans l'ordre,
+      réponse courte, et une question calculée « ces deux adresses sont-elles
+      dans le même réseau ? » dont les adresses changent à chaque tirage. Un
+      quiz tire huit questions du niveau, en variant les notions avant d'en
+      répéter une ; les choix sont mélangés. Chaque réponse est corrigée
+      aussitôt, avec la réponse attendue, une explication et un lien vers la
+      fiche. Le **bilan par notion** (acquis, en cours, à revoir) renvoie aux
+      fiches à revoir. On lance un quiz depuis « Aide et connaissances », ou
+      sur une seule notion depuis sa fiche. Les scores figurent sur le compte
+      rendu et dans le fichier rendu. Les questions font partie du pack : un
+      fichier de pack peut en ajouter, en remplacer ou en masquer. Le tirage
+      est déterministe (la graine vient de l'interface), donc testable.
 - [ ] **Étape 28 — Éditeur d'activités** : objectifs proposés depuis le réseau
       solution, réseau de départ, export et import du pack pédagogique.
 - [ ] **Étape 29 — Box Internet** : un seul équipement réunissant routeur,
@@ -336,6 +348,10 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Types de questions réduits** (étape 27) : pas de question
+  d'association ni de « clique sur l'équipement qui… » sur le plan, prévues
+  au départ. Le bilan par notion repose sur un seul quiz ; il n'y a pas de
+  suivi dans la durée, faute de compte élève.
 - **Trace déclarative, pas un journal complet** (étape 26) : le fichier
   garde ce qui sert au compte rendu (objectifs et heures, indices,
   commandes distinctes par poste), pas la suite de toutes les actions.

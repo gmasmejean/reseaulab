@@ -99,8 +99,17 @@ parcourir le lexique. Dans les panneaux de configuration, un **?** à côté
 d'un champ rappelle sa définition et mène à la fiche ; les explications du
 diagnostic renvoient aussi à la fiche concernée.
 
-Le contenu fourni est une proposition : le découpage par niveau et les textes
-sont à adapter à votre progression (voir « Pack pédagogique » plus bas).
+Depuis cette fenêtre, **Quiz d'entraînement** pose huit questions du niveau
+(choix, liste à ordonner, réponse courte, « même réseau ? » avec des adresses
+tirées au hasard). Chaque réponse est corrigée tout de suite avec une
+explication ; le bilan indique, notion par notion, ce qui est acquis et ce
+qui est à revoir, avec un lien vers la fiche. Une fiche propose aussi
+**S'entraîner sur cette notion**. Rien n'est noté ; les scores apparaissent
+sur le compte rendu.
+
+Le contenu fourni est une proposition : le découpage par niveau, les textes
+et les questions sont à adapter à votre progression (voir « Pack
+pédagogique » plus bas).
 
 ### Activités guidées
 
@@ -214,7 +223,24 @@ fiches, en masquer, et reformuler des messages, sans toucher au code :
 }
 ```
 
-Une fiche dont l'identifiant existe déjà remplace celle fournie. L'import et
+Une fiche dont l'identifiant existe déjà remplace celle fournie. Le pack peut
+aussi contenir des questions de quiz (`questions`), par exemple :
+
+```json
+{
+  "id": "passerelle-maison",
+  "notion": "passerelle",
+  "level": "3e",
+  "type": "mcq",
+  "prompt": "À la maison, quelle est la passerelle des appareils ?",
+  "choices": ["La box", "Le téléphone", "L'imprimante"],
+  "correct": [0],
+  "explanation": "La box est le routeur de la maison."
+}
+```
+
+Les autres types sont `order` (`items` dans le bon ordre), `short`
+(`accepted` : réponses admises) et `same-network` (question calculée). L'import et
 l'export depuis l'interface sont prévus (étape 28 du plan).
 
 ## Licence

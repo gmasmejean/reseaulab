@@ -10,6 +10,7 @@ import { useSession } from '../context';
 import { ActivitiesWindow } from '../learn/ActivitiesWindow';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import { KnowledgeWindow } from '../learn/KnowledgeWindow';
+import { QuizWindow } from '../learn/QuizWindow';
 import { ReportWindow } from '../learn/ReportWindow';
 import { SettingsWindow } from '../learn/SettingsWindow';
 import type { OpenWindow } from '../session';
@@ -80,6 +81,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
     return (
       <Window window={w} title="Activités">
         <ActivitiesWindow />
+      </Window>
+    );
+  }
+  if (spec.type === 'quiz') {
+    return (
+      <Window window={w} title="Quiz">
+        <QuizWindow key={`${spec.notion ?? ''}@${spec.at ?? 0}`} notion={spec.notion} />
       </Window>
     );
   }

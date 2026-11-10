@@ -26,7 +26,8 @@ export type WindowKind =
         | 'diagnose'
         | 'settings'
         | 'activities'
-        | 'report';
+        | 'report'
+        | 'quiz';
     }
   | { readonly type: 'app'; readonly app: AppId | 'software' };
 
@@ -51,6 +52,7 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   settings: { width: 520, height: 420 },
   activities: { width: 560, height: 460 },
   report: { width: 760, height: 560 },
+  quiz: { width: 560, height: 520 },
 };
 
 const MIN_WIDTH = 320;

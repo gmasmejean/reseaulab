@@ -133,6 +133,16 @@ export function Report({ printedAt }: { printedAt: number }) {
         </section>
       )}
 
+      {work.quizzes.length > 0 && (
+        <section>
+          <h2>Quiz d’entraînement</h2>
+          <p className="report-facts">
+            {work.quizzes.length === 1 ? 'Un quiz fait' : `${work.quizzes.length} quiz faits`} :{' '}
+            {work.quizzes.map((q) => `${q.right} sur ${q.total}`).join(', ')}.
+          </p>
+        </section>
+      )}
+
       <section>
         <h2>Ce que j’ai appris</h2>
         {work.conclusion.trim() === '' ? (

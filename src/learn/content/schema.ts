@@ -42,6 +42,38 @@ const notion = z.object({
   related: z.array(id).max(20).default([]),
 });
 
+const questionBase = {
+  id,
+  notion: id,
+  level: z.enum(LEVELS),
+  prompt: z.string().trim().min(1).max(500),
+  explanation: z.string().max(800).default(''),
+};
+
+const question = z.discriminatedUnion('type', [
+  z
+    .object({
+      ...questionBase,
+      type: z.literal('mcq'),
+      choices: z.array(z.string().trim().min(1).max(200)).min(2).max(8),
+      correct: z.array(z.number().int().min(0).max(7)).min(1).max(8),
+    })
+    .refine((q) => q.correct.every((index) => index < q.choices.length), {
+      message: 'Une bonne réponse désigne un choix qui n’existe pas',
+    }),
+  z.object({
+    ...questionBase,
+    type: z.literal('order'),
+    items: z.array(z.string().trim().min(1).max(200)).min(2).max(8),
+  }),
+  z.object({
+    ...questionBase,
+    type: z.literal('short'),
+    accepted: z.array(z.string().trim().min(1).max(80)).min(1).max(10),
+  }),
+  z.object({ ...questionBase, type: z.literal('same-network') }),
+]);
+
 const message = z
   .object({
     title: z.string().max(300),
@@ -55,6 +87,7 @@ export const packFileSchema = z.object({
   format: z.literal(PACK_FORMAT),
   version: z.literal(PACK_VERSION),
   notions: z.array(notion).max(500).default([]),
+  questions: z.array(question).max(1000).default([]),
   messages: z.partialRecord(z.enum([...LINT_CODES, ...TRACE_CODES]), message).default({}),
   hidden: z.array(id).max(500).default([]),
 });
@@ -76,10 +109,12 @@ export function parsePack(text: string): PackOverride {
     const path = issue?.path.join('.') ?? '';
     throw new PackError(`Pack invalide${path ? ` (${path})` : ''} : ${issue?.message ?? 'format inconnu'}`);
   }
-  const { notions, messages, hidden } = result.data;
+  const { notions, questions, messages, hidden } = result.data;
   const duplicate = notions.find((n, i) => notions.findIndex((o) => o.id === n.id) !== i);
   if (duplicate) throw new PackError(`Pack invalide : la fiche « ${duplicate.id} » est définie deux fois.`);
-  return { notions, messages, hidden };
+  const twice = questions.find((q, i) => questions.findIndex((o) => o.id === q.id) !== i);
+  if (twice) throw new PackError(`Pack invalide : la question « ${twice.id} » est définie deux fois.`);
+  return { notions, questions, messages, hidden };
 }
 
 /** Writes a pack file from what a teacher wants to add, change or hide. */
@@ -89,6 +124,7 @@ export function serializePack(override: PackOverride): string {
       format: PACK_FORMAT,
       version: PACK_VERSION,
       notions: override.notions ?? [],
+      questions: override.questions ?? [],
       messages: override.messages ?? {},
       hidden: override.hidden ?? [],
     },

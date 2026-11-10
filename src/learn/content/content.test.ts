@@ -3,7 +3,8 @@ import { linkedNotions, parseInline, parseRich, plainText } from '../richtext';
 import { DEFAULT_PACK } from './default-pack';
 import { fold, lexicon, mergePacks, searchNotions } from './merge';
 import { PackError, parsePack, serializePack } from './schema';
-import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Notion } from './types';
+import type { Question } from '../quiz/types';
+import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Notion, type Pack } from './types';
 
 function card(id: string, extra: Partial<Notion> = {}): Notion {
   return {
@@ -148,8 +149,18 @@ describe('Pack pédagogique par défaut', () => {
 });
 
 describe('Personnalisation par l’enseignant', () => {
-  const base = {
+  const question = (id: string, notion: string): Question => ({
+    id,
+    notion,
+    level: '4e',
+    type: 'short',
+    prompt: `Question ${id}`,
+    accepted: ['oui'],
+    explanation: '',
+  });
+  const base: Pack = {
     notions: [card('a', { related: ['b'] }), card('b', { related: ['a', 'c'] }), card('c')],
+    questions: [question('qa', 'a'), question('qc', 'c')],
     messages: {},
   };
 
@@ -170,6 +181,40 @@ describe('Personnalisation par l’enseignant', () => {
     // Le pack de départ n'est pas modifié.
     expect(base.notions.map((n) => n.id)).toEqual(['a', 'b', 'c']);
     expect(mergePacks(base)).toEqual(base);
+  });
+
+  test('remplace, ajoute et masque des questions ; celles d’une fiche masquée disparaissent', () => {
+    const merged = mergePacks(base, {
+      questions: [
+        { ...question('qa', 'a'), prompt: 'Reformulée' },
+        question('qb', 'b'),
+        question('qz', 'inconnue'),
+      ],
+      hidden: ['c'],
+    });
+    expect(merged.questions.map((q) => `${q.id}:${q.prompt}`)).toEqual(['qa:Reformulée', 'qb:Question qb']);
+    expect(mergePacks(base, { hidden: ['qa'] }).questions.map((q) => q.id)).toEqual(['qc']);
+  });
+
+  test('lit des questions dans un fichier de pack et refuse celles qui sont incohérentes', () => {
+    const file = (questions: object[]) => JSON.stringify({ format: 'reseaulab-pack', version: 1, questions });
+    const mcq = {
+      id: 'q1',
+      notion: 'masque',
+      level: '4e',
+      type: 'mcq',
+      prompt: 'Vrai ?',
+      choices: ['Oui', 'Non'],
+      correct: [0],
+    };
+    expect(parsePack(file([mcq])).questions).toEqual([{ ...mcq, explanation: '' }]);
+    expect(() => parsePack(file([{ ...mcq, correct: [2] }]))).toThrow('désigne un choix qui n’existe pas');
+    expect(() => parsePack(file([{ ...mcq, choices: ['Seul'] }]))).toThrow('questions.0.choices');
+    expect(() => parsePack(file([{ ...mcq, type: 'essai' }]))).toThrow('questions.0.type');
+    expect(() => parsePack(file([mcq, mcq]))).toThrow('la question « q1 » est définie deux fois');
+    expect(parsePack(serializePack({ questions: DEFAULT_PACK.questions })).questions).toEqual(
+      DEFAULT_PACK.questions.map((q) => ({ ...q })),
+    );
   });
 
   test('reformule un message du diagnostic, en plusieurs fois', () => {
@@ -205,11 +250,13 @@ describe('Personnalisation par l’enseignant', () => {
       notions: [
         card('vlan', { title: 'VLAN', level: '3e', category: 'materiel', short: 'Un réseau virtuel.' }),
       ],
+      questions: [],
       hidden: ['box'],
       messages: { 'ip-missing': { title: 'Sans adresse' } },
     });
     expect(parsePack('{"format":"reseaulab-pack","version":1}')).toEqual({
       notions: [],
+      questions: [],
       hidden: [],
       messages: {},
     });

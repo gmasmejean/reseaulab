@@ -1,22 +1,29 @@
 import type { Notion, Pack, PackOverride } from './types';
 
 /**
- * Applies overrides to a pack, in order: a card with a known identifier
- * replaces the existing one (and keeps its place), a new one is added at the
- * end, hidden ones disappear. Links to a card that no longer exists are
- * removed from the « see also » lists.
+ * Applies overrides to a pack, in order: a card or a question with a known
+ * identifier replaces the existing one (and keeps its place), a new one is
+ * added at the end, hidden ones disappear. Links to a card that no longer
+ * exists are removed from the « see also » lists, and its questions with it.
  */
 export function mergePacks(base: Pack, ...overrides: readonly PackOverride[]): Pack {
   let notions: Notion[] = [...base.notions];
+  let questions = [...base.questions];
   let messages: Pack['messages'] = { ...base.messages };
-  for (const override of overrides) {
-    for (const notion of override.notions ?? []) {
-      const index = notions.findIndex((n) => n.id === notion.id);
-      if (index >= 0) notions[index] = notion;
-      else notions.push(notion);
+  /** Replaces the items with a known identifier, adds the others at the end. */
+  const overlay = <T extends { readonly id: string }>(items: T[], added: readonly T[] = []) => {
+    for (const item of added) {
+      const index = items.findIndex((existing) => existing.id === item.id);
+      if (index >= 0) items[index] = item;
+      else items.push(item);
     }
+  };
+  for (const override of overrides) {
+    overlay(notions, override.notions);
+    overlay(questions, override.questions);
     const hidden = new Set(override.hidden ?? []);
     notions = notions.filter((n) => !hidden.has(n.id));
+    questions = questions.filter((q) => !hidden.has(q.id));
     for (const [code, text] of Object.entries(override.messages ?? {})) {
       const key = code as keyof Pack['messages'];
       messages = { ...messages, [key]: { ...messages[key], ...text } };
@@ -25,6 +32,8 @@ export function mergePacks(base: Pack, ...overrides: readonly PackOverride[]): P
   const known = new Set(notions.map((n) => n.id));
   return {
     notions: notions.map((n) => ({ ...n, related: n.related.filter((id) => known.has(id) && id !== n.id) })),
+    // A question about a card that no longer exists has nowhere to send the pupil back to.
+    questions: questions.filter((q) => known.has(q.notion)),
     messages,
   };
 }

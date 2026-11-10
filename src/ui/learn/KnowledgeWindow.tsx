@@ -79,6 +79,18 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
           ))}
         </p>
       )}
+      {session.pack.questions.some((q) => q.notion === notion.id) && (
+        <p>
+          <button
+            type="button"
+            onClick={() => {
+              session.openQuiz(notion.id);
+            }}
+          >
+            S’entraîner sur cette notion
+          </button>
+        </p>
+      )}
       {notion.curriculum !== undefined && <p className="muted small">Programme : {notion.curriculum}</p>}
     </article>
   );
@@ -146,6 +158,16 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             setQuery(e.target.value);
           }}
         />
+        <button
+          type="button"
+          className="primary"
+          title="Quelques questions corrigées tout de suite, avec un bilan par notion"
+          onClick={() => {
+            session.openQuiz();
+          }}
+        >
+          Quiz d’entraînement
+        </button>
         <div className="knowledge-filters">
           <select
             aria-label="Niveau"

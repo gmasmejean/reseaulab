@@ -148,6 +148,11 @@ export const workSchema = z.object({
   /** Real time (ms since the epoch) when the work began and when each objective was first reached. */
   startedAt: z.number().min(0).optional(),
   reachedAt: z.record(id, z.number().min(0)).default({}),
+  /** Scores of the quizzes done, oldest first. */
+  quizzes: z
+    .array(z.object({ right: z.number().int().min(0), total: z.number().int().min(1) }))
+    .max(50)
+    .default([]),
   /** Objectives reached, by identifier. */
   done: z.array(id).max(600).default([]),
   /** Hints shown, per step. */
@@ -169,6 +174,7 @@ export const EMPTY_WORK: Work = {
   student: { name: '', className: '' },
   conclusion: '',
   reachedAt: {},
+  quizzes: [],
   done: [],
   hints: {},
   commands: [],

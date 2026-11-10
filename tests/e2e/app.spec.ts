@@ -732,3 +732,30 @@ test('compte rendu : le travail de l’élève s’imprime seul sur la page', as
   await page.emulateMedia({ media: 'screen' });
   await expect(page.getByRole('banner')).toBeVisible();
 });
+
+test('quiz : une question corrigée tout de suite, un bilan par notion', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Aide', exact: true }).click();
+  const help = page.getByRole('dialog', { name: 'Aide et connaissances' });
+  await help
+    .getByRole('navigation', { name: 'Fiches' })
+    .getByRole('button', { name: 'Switch (commutateur)' })
+    .click();
+  await help.getByRole('button', { name: 'S’entraîner sur cette notion' }).click();
+  const quiz = page.getByRole('dialog', { name: 'Quiz' });
+  await quiz.getByRole('button', { name: 'Commencer (1 question)' }).click();
+  await expect(quiz).toContainText('À quoi sert un switch (commutateur) ?');
+  await quiz.getByRole('radio', { name: 'À relier deux réseaux différents' }).check();
+  await quiz.getByRole('button', { name: 'Valider' }).click();
+  await expect(quiz).toContainText('Ce n’est pas ça.');
+  await expect(quiz).toContainText('Réponse attendue : À relier les équipements d’un même réseau local');
+  await shot(page, '42-quiz');
+  await quiz.getByRole('button', { name: 'Voir le bilan' }).click();
+  await expect(quiz.getByRole('row', { name: /Switch/ })).toContainText('à revoir');
+  await shot(page, '43-quiz-bilan');
+
+  // Le quiz général : huit questions du niveau.
+  await quiz.getByRole('button', { name: /Fermer/ }).click();
+  await help.getByRole('button', { name: 'Quiz d’entraînement' }).click();
+  await expect(quiz.getByRole('button', { name: 'Commencer (8 questions)' })).toBeVisible();
+});

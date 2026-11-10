@@ -1,5 +1,6 @@
 import type { FindingCode } from '../diagnose/findings';
 import type { MessageOverride } from '../diagnose/messages.fr';
+import type { Question } from '../quiz/types';
 
 /* The pedagogical pack: what RéseauLab teaches, as data. The application
  * ships a default pack; a teacher can replace or complete any part of it with
@@ -49,6 +50,8 @@ export interface Notion {
 
 export interface Pack {
   readonly notions: readonly Notion[];
+  /** Questions of the self-assessment quiz. */
+  readonly questions: readonly Question[];
   /** Rewording of the messages of the diagnosis. */
   readonly messages: Partial<Record<FindingCode, MessageOverride>>;
 }
@@ -56,7 +59,8 @@ export interface Pack {
 /** A file written by a teacher: what it adds to, changes in or removes from a pack. */
 export interface PackOverride {
   readonly notions?: readonly Notion[];
+  readonly questions?: readonly Question[];
   readonly messages?: Pack['messages'];
-  /** Identifiers of the cards of the base pack to hide. */
+  /** Identifiers of the cards and questions of the base pack to hide. */
   readonly hidden?: readonly string[];
 }

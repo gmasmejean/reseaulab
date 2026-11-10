@@ -58,6 +58,8 @@ export type WindowSpec =
   | { readonly type: 'settings' }
   /** Report of the pupil's work, to print or hand in. */
   | { readonly type: 'report' }
+  /** Self-assessment quiz, about one knowledge card when `notion` is given. */
+  | { readonly type: 'quiz'; readonly notion?: string; readonly at?: number }
   /** Activities shipped with RéseauLab. */
   | { readonly type: 'activities' };
 
@@ -151,6 +153,7 @@ function windowKey(spec: WindowSpec): string {
     case 'settings':
     case 'activities':
     case 'report':
+    case 'quiz':
       return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
@@ -395,7 +398,8 @@ export class Session {
     this.noteProgress();
     // Without an activity, the work is only what the pupil wrote about themselves.
     const { student, conclusion } = this.work;
-    const signed = student.name !== '' || student.className !== '' || conclusion !== '';
+    const signed =
+      student.name !== '' || student.className !== '' || conclusion !== '' || this.work.quizzes.length > 0;
     const work = this.activity || signed ? { ...this.work, done: [...this.objectivesDone()] } : null;
     return serializeLearnFile(this.network, { activity: this.activity, work });
   }
@@ -567,6 +571,19 @@ export class Session {
   /** Opens « Aide et connaissances », on a card when one is given. */
   openKnowledge(notion?: string): void {
     this.openWindow({ type: 'help', ...(notion === undefined ? {} : { notion, at: this.revision }) });
+  }
+
+  /** Opens the quiz, about one knowledge card when it is given. */
+  openQuiz(notion?: string): void {
+    this.openWindow({ type: 'quiz', ...(notion === undefined ? {} : { notion }), at: this.revision });
+  }
+
+  /** Keeps the score of a finished quiz, for the report. */
+  recordQuiz(right: number, total: number): void {
+    if (total < 1) return;
+    this.work = { ...this.work, quizzes: [...this.work.quizzes, { right, total }].slice(-50) };
+    this.scheduleSave();
+    this.touch();
   }
 
   /** The default pack, completed by the pack kept in this browser when it is valid. */

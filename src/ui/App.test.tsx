@@ -1660,3 +1660,130 @@ describe('Compte rendu', () => {
     }
   });
 });
+
+describe('Quiz', () => {
+  /** Answers the question on screen, rightly or not, and returns to the next one. */
+  function answer(quiz: HTMLElement, right: boolean) {
+    const prompt = quiz.querySelector('.quiz-prompt')?.textContent ?? '';
+    if (prompt.startsWith('De combien de nombres')) {
+      fireEvent.change(within(quiz).getByRole('textbox'), { target: { value: right ? ' Quatre ' : 'six' } });
+    } else if (prompt.startsWith('Laquelle de ces écritures')) {
+      fireEvent.click(within(quiz).getByRole('radio', { name: right ? '192.168.1.25' : '192.168.1.300' }));
+    } else {
+      fireEvent.click(
+        within(quiz).getByRole('radio', {
+          name: right ? /^Non : une adresse doit être unique/ : 'Oui, s’ils sont de la même marque',
+        }),
+      );
+    }
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Valider' }));
+  }
+
+  test('depuis une fiche : questions corrigées une à une, puis bilan qui renvoie à la fiche', () => {
+    const { session } = setup();
+    act(() => {
+      session.openKnowledge('adresse-ip');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'S’entraîner sur cette notion' }));
+    const quiz = screen.getByRole('dialog', { name: 'Quiz' });
+    expect(within(quiz).getByRole('heading', { name: 'Quiz : Adresse IP' })).toBeInTheDocument();
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Commencer (3 questions)' }));
+
+    expect(quiz).toHaveTextContent('Question 1 sur 3');
+    expect(within(quiz).getByRole('button', { name: 'Valider' })).toBeDisabled();
+    answer(quiz, true);
+    expect(quiz).toHaveTextContent('✔ Bonne réponse !');
+    expect(within(quiz).queryByRole('button', { name: 'Valider' })).not.toBeInTheDocument();
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Question suivante' }));
+
+    expect(quiz).toHaveTextContent('Question 2 sur 3');
+    answer(quiz, false);
+    expect(quiz).toHaveTextContent('✘ Ce n’est pas ça.');
+    expect(quiz).toHaveTextContent('Réponse attendue :');
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Question suivante' }));
+    answer(quiz, true);
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Voir le bilan' }));
+
+    expect(
+      within(quiz).getByRole('heading', { name: 'Bilan : 2 bonnes réponses sur 3' }),
+    ).toBeInTheDocument();
+    const row = within(quiz).getByRole('row', { name: /Adresse IP/ });
+    expect(row).toHaveTextContent('2 sur 3');
+    expect(row).toHaveTextContent('en cours');
+    expect(session.work.quizzes).toEqual([{ right: 2, total: 3 }]);
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoir la fiche' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Aide et connaissances' })).getByRole('article', {
+        name: 'Adresse IP',
+      }),
+    ).toBeInTheDocument();
+
+    // On peut recommencer : nouveau tirage, nouveau score noté.
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Recommencer avec d’autres questions' }));
+    expect(quiz).toHaveTextContent('Question 1 sur 3');
+  });
+
+  test('quiz général : au niveau de la classe, huit questions, choix multiples et listes à ordonner', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PROFILE_KEY, JSON.stringify({ base: '5e' }));
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz d’entraînement' }));
+    const quiz = screen.getByRole('dialog', { name: 'Quiz' });
+    expect(within(quiz).getByRole('combobox', { name: 'Questions' })).toHaveValue('5e');
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Commencer (8 questions)' }));
+    // Répondre à tout en cochant le premier choix : le quiz va jusqu'au bilan.
+    for (let i = 0; i < 8; i++) {
+      const boxes = within(quiz).queryAllByRole('checkbox');
+      const first = boxes[0] ?? within(quiz).getAllByRole('radio')[0];
+      if (first) fireEvent.click(first);
+      fireEvent.click(within(quiz).getByRole('button', { name: 'Valider' }));
+      fireEvent.click(
+        within(quiz).getByRole('button', { name: i === 7 ? 'Voir le bilan' : 'Question suivante' }),
+      );
+    }
+    expect(
+      within(quiz).getByRole('heading', { name: /^Bilan : \d bonnes? réponses? sur 8$/ }),
+    ).toBeInTheDocument();
+    expect(session.work.quizzes).toHaveLength(1);
+  });
+
+  test('une liste à remettre dans l’ordre se manipule avec les flèches', () => {
+    const { session } = setup();
+    act(() => {
+      session.openQuiz('couches');
+    });
+    const quiz = screen.getByRole('dialog', { name: 'Quiz' });
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Commencer (1 question)' }));
+    const wanted = ['Application', 'Transport', 'Réseau', 'Liaison'];
+    const current = () =>
+      within(quiz)
+        .getAllByRole('listitem')
+        .map((li) => li.querySelector('span')?.textContent ?? '');
+    expect(current()).not.toEqual(wanted);
+    // Tri par sélection, comme le ferait un élève : amener chaque élément à sa place.
+    wanted.forEach((entry, target) => {
+      for (let position = current().indexOf(entry); position > target; position--) {
+        fireEvent.click(within(quiz).getByRole('button', { name: `Monter : ${entry}` }));
+      }
+    });
+    expect(current()).toEqual(wanted);
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Valider' }));
+    expect(quiz).toHaveTextContent('✔ Bonne réponse !');
+    fireEvent.click(within(quiz).getByRole('button', { name: 'Voir le bilan' }));
+    expect(within(quiz).getByRole('row', { name: /Les couches/ })).toHaveTextContent('acquis');
+  });
+
+  test('les quiz faits figurent sur le compte rendu', () => {
+    const { session } = setup();
+    act(() => {
+      session.recordQuiz(6, 8);
+      session.recordQuiz(8, 8);
+      session.openWindow({ type: 'report' });
+    });
+    expect(
+      within(screen.getByRole('dialog', { name: 'Compte rendu' })).getByLabelText('Aperçu du compte rendu'),
+    ).toHaveTextContent('2 quiz faits : 6 sur 8, 8 sur 8.');
+  });
+});

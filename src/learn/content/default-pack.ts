@@ -1,3 +1,4 @@
+import { DEFAULT_QUESTIONS } from './default-questions';
 import type { Notion, Pack } from './types';
 
 /* Default knowledge cards, written for pupils of 13 to 15 (French collège,
@@ -653,4 +654,8 @@ Aucun équipement ne connaît le chemin complet : chaque routeur ne décide que 
   },
 ];
 
-export const DEFAULT_PACK: Pack = { notions: [...GUIDES, ...NOTIONS], messages: {} };
+export const DEFAULT_PACK: Pack = {
+  notions: [...GUIDES, ...NOTIONS],
+  questions: DEFAULT_QUESTIONS,
+  messages: {},
+};
