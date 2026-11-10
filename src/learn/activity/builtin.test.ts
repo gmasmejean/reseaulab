@@ -31,6 +31,14 @@ const SOLUTIONS: Record<string, (network: Network) => Work> = {
       commands: [journalEntry(find(network, 'Ordinateur 1').id, 'ping')],
     };
   },
+  'reseau-maison': (network) => {
+    const box = find(network, 'Box');
+    const pc = network.addHost('computer', { config: { useDhcp: true } });
+    const phone = network.addHost('smartphone', { config: { useDhcp: true } });
+    network.connect(pc.id, box.id);
+    network.joinWifi(phone.id, 'Maison');
+    return { ...EMPTY_WORK, simulated: true, commands: [journalEntry(pc.id, 'ipconfig')] };
+  },
   'deux-reseaux': (network) => {
     const router = network.router(find(network, 'Routeur').id);
     network.connect(router.id, find(network, 'Switch salle A').id);

@@ -132,7 +132,7 @@ const DEFAULT_INDEX = `<html>
 const NOT_FOUND = '<html><head><title>404</title></head><body><h1>404 – Page introuvable</h1></body></html>';
 
 /** Serves the files stored under /webserver on TCP port 80. */
-export class WebServer extends ServerApp {
+export class WebServer extends ServerApp<Host> {
   private stopListening: (() => void) | null = null;
 
   /** Creates the web root and a default home page if missing. */

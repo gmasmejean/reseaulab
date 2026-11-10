@@ -1,7 +1,6 @@
 /* Helpers shared by engine tests. Not used by the application itself. */
 import { parseIp, prefixToMask, type Ipv4 } from './core/ipv4';
-import type { Host } from './devices/host';
-import type { Router } from './devices/router';
+import type { NetworkNode } from './devices/node';
 import { Network } from './network';
 import type { PingResult } from './stack/icmp';
 
@@ -56,7 +55,7 @@ export function routedNetwork() {
   return { net, a, b, r, s1, s2 };
 }
 
-export function ping(net: Network, from: Host | Router, dst: string, ttl?: number): PingResult {
+export function ping(net: Network, from: NetworkNode, dst: string, ttl?: number): PingResult {
   const results: PingResult[] = [];
   from.stack.icmp.ping(ip(dst), ttl === undefined ? {} : { ttl }, (r) => results.push(r));
   net.scheduler.runUntilIdle();
@@ -66,12 +65,7 @@ export function ping(net: Network, from: Host | Router, dst: string, ttl?: numbe
 }
 
 /** Like ping() but for networks with periodic traffic (RIP): runs the clock for `duration` ms. */
-export function pingFor(
-  net: Network,
-  from: Host | Router,
-  dst: string,
-  duration = 10_000,
-): PingResult | null {
+export function pingFor(net: Network, from: NetworkNode, dst: string, duration = 10_000): PingResult | null {
   let result: PingResult | null = null;
   from.stack.icmp.ping(ip(dst), {}, (r) => {
     result ??= r;

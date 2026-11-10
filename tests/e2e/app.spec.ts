@@ -372,6 +372,49 @@ test('Wi-Fi : un portable rejoint le réseau sans fil d’un switch puis répond
   await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
 });
 
+test('box Internet : un ordinateur et un smartphone reçoivent leur adresse et communiquent', async ({
+  page,
+}) => {
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: 'Box Internet' }).click();
+  await expect(page.locator('[aria-label="Box 1 (192.168.1.1)"]')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Adresse IP de la box' })).toHaveValue('192.168.1.1');
+  await expect(page.getByRole('checkbox', { name: 'Distribuer les adresses (serveur DHCP)' })).toBeChecked();
+
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await page.getByRole('checkbox', { name: 'Configuration automatique (DHCP)' }).check();
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Ordinateur 1', 'Box 1']) await page.locator(`[aria-label^="${name}"]`).click();
+  await palette.getByRole('button', { name: 'Câble' }).click();
+
+  await palette.getByRole('button', { name: 'Smartphone' }).click();
+  await page.getByRole('checkbox', { name: 'Configuration automatique (DHCP)' }).check();
+  await page.getByRole('combobox', { name: 'Réseau sans fil (SSID)' }).selectOption('Box-1');
+  await expect(page.getByText('Connecté au réseau « Box-1 » (box « Box 1 »).')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Points à vérifier' })).toHaveCount(0);
+  await shot(page, '29-box-conception');
+
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5'); // vitesse maximale
+  // The box hands out its first two addresses.
+  await expect(page.locator('[aria-label^="Ordinateur 1 (192.168.1.1"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[aria-label^="Smartphone 1 (192.168.1.1"]')).toBeVisible({ timeout: 20_000 });
+
+  await page.locator('[aria-label^="Box 1"]').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Afficher les tables de la box' }).click();
+  const tables = page.getByRole('dialog', { name: 'Box — Box 1' });
+  await expect(tables.getByText('Adresses distribuées (DHCP)')).toBeVisible();
+  await expect(tables.getByText('attribuée')).toHaveCount(2);
+  await shot(page, '29-box-tables');
+  await page.keyboard.press('Escape');
+
+  const terminal = await openTerminal(page, 'Ordinateur 1');
+  await terminal.getByRole('textbox', { name: 'Commande', exact: true }).fill('ping -n 1 192.168.1.1');
+  await terminal.getByRole('textbox', { name: 'Commande', exact: true }).press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
+  await shot(page, '29-box-ping');
+});
+
 test('plan lisible : zoom ajusté, fenêtres à côté de l’équipement, annulation', async ({ page }) => {
   // Écran courant d'une salle informatique.
   await page.setViewportSize({ width: 1366, height: 768 });

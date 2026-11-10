@@ -46,11 +46,20 @@ ensuite avec **Ouvrir…**.
   l'objet connecté affichent leur état sur une page web (tapez leur adresse
   dans le navigateur d'un poste) ; le smartphone et la tablette sont en
   Wi-Fi.
-- **Wi-Fi**, comme dans Filius : chaque switch est aussi un point d'accès avec
-  un **nom Wi-Fi (SSID)** modifiable. Un ordinateur ou un portable réglé en
-  **Sans fil (Wi-Fi)** rejoint un switch en choisissant ce nom dans sa
-  configuration (ou avec l'outil Câble vers un switch). La connexion est
-  dessinée en pointillés et `ipconfig` indique le réseau rejoint.
+- **Box Internet** : un seul équipement qui fait routeur, switch, point
+  d'accès Wi-Fi et serveur DHCP, comme à la maison. Elle est déjà réglée
+  (adresse `192.168.1.1`, Wi-Fi « Box-1 ») : reliez-y un terminal par câble
+  ou en Wi-Fi, cochez sa **Configuration automatique (DHCP)**, et il reçoit
+  son adresse au lancement de la simulation. Sa **prise Internet** se relie
+  à un routeur et se règle dans « Côté Internet ». Simplification : la box ne
+  traduit pas les adresses (pas de NAT) ; pour sortir vers Internet, le
+  routeur d'en face doit avoir une route vers le réseau de la maison (ou RIP
+  coché des deux côtés).
+- **Wi-Fi**, comme dans Filius : la box et chaque switch sont aussi des
+  points d'accès avec un **nom Wi-Fi (SSID)** modifiable. Un terminal réglé
+  en **Sans fil (Wi-Fi)** les rejoint en choisissant ce nom dans sa
+  configuration (ou avec l'outil Câble). La connexion est dessinée en
+  pointillés et `ipconfig` indique le réseau rejoint.
 - **Clic droit**, comme dans Filius : sur un équipement (Configurer, Supprimer
   le câble / tous les câbles, Supprimer), un câble (Supprimer le câble), un
   texte (taille, style, couleur) ou une zone (couleur). En simulation : Afficher
@@ -113,9 +122,10 @@ pédagogique » plus bas).
 
 ### Activités guidées
 
-Le bouton **Activités** propose quatre activités prêtes à l'emploi : « Mon
-premier réseau » et « Ajouter un objet connecté » (4e), « Relier deux
-réseaux » et « Dépannage : le site du collège ne s'affiche plus » (3e).
+Le bouton **Activités** propose cinq activités prêtes à l'emploi : « Mon
+premier réseau », « Ajouter un objet connecté » et « Le réseau de la maison »
+(4e), « Relier deux réseaux » et « Dépannage : le site du collège ne
+s'affiche plus » (3e).
 Chacune ouvre un réseau de départ et un **panneau d'activité** à droite du
 plan : la consigne, des étapes, et des objectifs qui **se cochent tout seuls**
 quand ils sont atteints. Certains se lisent sur le plan (équipements reliés,

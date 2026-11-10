@@ -9,7 +9,7 @@ import { CRLF, LineBuffer } from './text-stream';
 export const DEFAULT_ECHO_PORT = 55555;
 
 /** Sends back every line it receives. */
-export class EchoServer extends ServerApp {
+export class EchoServer extends ServerApp<Host> {
   private portNumber = DEFAULT_ECHO_PORT;
   private stopListening: (() => void) | null = null;
 

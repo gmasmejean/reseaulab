@@ -1,3 +1,4 @@
+import { Box } from '../../engine/devices/box';
 import { Host } from '../../engine/devices/host';
 import { Router } from '../../engine/devices/router';
 import type { DropEvent } from '../../engine/net/drop';
@@ -64,7 +65,7 @@ export function prepareProbe(network: Network): Probe {
   sim.events.on('transmit', (t) => transmits.push(t));
   sim.start();
   const settles = sim.devices.some(
-    (d) => (d instanceof Host && d.config.useDhcp) || (d instanceof Router && d.rip),
+    (d) => (d instanceof Host && d.config.useDhcp) || ((d instanceof Router || d instanceof Box) && d.rip),
   );
   const status = settles ? runBounded(sim, () => false, WARM_UP_MS) : 'done';
   drops.length = 0;

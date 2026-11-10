@@ -1,4 +1,5 @@
-import type { Host, HostService } from '../devices/host';
+import type { HostService } from '../devices/host';
+import type { IpStack } from '../stack/ip-stack';
 
 export interface LogEntry {
   readonly time: number;
@@ -7,16 +8,24 @@ export interface LogEntry {
 
 const LOG_LIMIT = 500;
 
+/** What a server needs from the device it runs on (a terminal, or a box for DHCP). */
+export interface ServiceHost {
+  readonly stack: IpStack;
+  readonly simulating: boolean;
+  changed(): void;
+  addService(service: HostService): void;
+}
+
 /**
  * Base class of server applications. `active` is persistent (saved with the
  * project): an active server starts listening as soon as the simulation runs.
  */
-export abstract class ServerApp implements HostService {
+export abstract class ServerApp<H extends ServiceHost = ServiceHost> implements HostService {
   private activeFlag = false;
   private listening = false;
   private entries: LogEntry[] = [];
 
-  constructor(protected readonly host: Host) {
+  constructor(protected readonly host: H) {
     host.addService(this);
   }
 

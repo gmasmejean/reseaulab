@@ -1,15 +1,26 @@
 import { IP_ANY, IP_BROADCAST, networkOf, type Ipv4 } from '../core/ipv4';
 import type { TimerId } from '../core/scheduler';
-import type { Router } from '../devices/router';
 import type { RipMessage, RipRoute } from '../net/messages';
 import { isConfigured } from '../stack/interface';
+import type { IpStack } from '../stack/ip-stack';
 import type { Route } from '../stack/routing';
+import type { Udp } from '../stack/udp';
 
 export const RIP_PORT = 520;
 export const RIP_INTERVAL = 5000;
 export const RIP_TIMEOUT = 3 * RIP_INTERVAL;
 export const RIP_INFINITY = 16;
 const TRIGGER_DELAY = 50;
+
+/** What RIP needs from the device it runs on (a router or a box). */
+export interface RipHost {
+  rip: boolean;
+  readonly stack: IpStack;
+  readonly udp: Udp;
+  readonly simulating: boolean;
+  changed(): void;
+  addService(service: { start(): void; stop(): void }): void;
+}
 
 interface LearnedRoute {
   readonly route: Route;
@@ -29,7 +40,7 @@ export class Rip {
   private periodic: TimerId | null = null;
   private triggered: TimerId | null = null;
 
-  constructor(private readonly router: Router) {
+  constructor(private readonly router: RipHost) {
     router.addService(this);
   }
 

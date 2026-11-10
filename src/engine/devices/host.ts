@@ -15,7 +15,6 @@ import { Tcp } from '../stack/tcp';
 import { Udp } from '../stack/udp';
 import type { HostKind, Position } from './device';
 import { NetworkNode } from './node';
-import { Switch } from './switch';
 
 export interface HostConfig {
   ip: Ipv4;
@@ -124,7 +123,7 @@ export class Host extends NetworkNode {
   get wifiNetwork(): string | null {
     const cable = this.iface.port.cable;
     const peer = cable?.wireless ? cable.other(this.iface.port).owner : null;
-    return peer instanceof Switch ? peer.ssid : null;
+    return peer && 'ssid' in peer && typeof peer.ssid === 'string' ? peer.ssid : null;
   }
 
   /** DNS server currently in use (static config or DHCP). */

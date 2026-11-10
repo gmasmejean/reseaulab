@@ -322,8 +322,26 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       d'activité peut emporter le pack de l'enseignant, que l'élève reçoit
       alors sur n'importe quel poste. Un test garde le fichier unique sous
       900 Ko (718 Ko à cette étape).
-- [ ] **Étape 29 — Box Internet** : un seul équipement réunissant routeur,
-      switch, point d'accès Wi-Fi et serveur DHCP, comme à la maison.
+- [x] **Étape 29 — Box Internet** : un seul équipement réunissant routeur,
+      switch, point d'accès Wi-Fi et serveur DHCP, comme à la maison. Posée
+      sur le plan, la box est déjà réglée (192.168.1.1, adresses distribuées
+      de 192.168.1.10 à 192.168.1.50, Wi-Fi « Box-1 ») : un terminal relié
+      par câble ou en Wi-Fi, en configuration automatique, reçoit son adresse
+      dès le lancement de la simulation. Ses prises « maison » se comportent
+      comme un switch (une prise s'ajoute quand toutes sont prises) ; sa
+      **prise Internet** se relie à un routeur (ou à une autre box) et se
+      règle à part : adresse, masque, passerelle vers Internet, RIP en
+      option. En simulation, ses tables montrent les adresses distribuées et
+      les adresses MAC vues sur ses prises (dès la 4e), puis la table de
+      routage et la table ARP (3e) ; ses échanges de données se lisent côté
+      « Internet » ou côté « Maison ». « Vérifier » la connaît : elle compte
+      comme serveur DHCP de la maison, ses deux côtés doivent être dans des
+      réseaux différents, et une **plage d'adresses hors du réseau** du
+      serveur est signalée (pour un ordinateur serveur DHCP aussi). Table
+      d'adressage du compte rendu, objectifs proposés à l'enseignant,
+      format de fichier (anciens fichiers inchangés) et fiche « Box
+      Internet » sont à jour. Nouvelle activité fournie : **« Le réseau de la
+      maison »** (4e).
 
 ## Écarts au plan
 
@@ -397,14 +415,27 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   un fichier d'activité est un texte lisible. Aucune solution n'y figure,
   mais les objectifs oui. Ce qui prouve le travail, c'est le réseau rendu,
   que l'on peut revérifier.
-- **Box reportée à l'étape 29** (étape 24) : une box est un équipement
-  composite — un routeur, un switch interne, un point d'accès et un serveur
-  DHCP qui, aujourd'hui, ne peut tourner que sur un poste. La réaliser
-  touche le Wi-Fi (réservé aux switchs), le choix des ports au câblage, le
-  format de fichier et l'analyse de topologie du diagnostic. Elle est donc
-  sortie de l'étape 24 et placée après les étapes pédagogiques (25 à 28),
-  qui n'en dépendent pas. D'ici là, une box se reproduit avec un routeur, un
-  switch et un poste serveur DHCP ; la fiche « Box Internet » l'explique.
+- **Box réalisée à l'étape 29 et non à l'étape 24** : une box est un
+  équipement composite — un routeur, un switch interne, un point d'accès et
+  un serveur DHCP. La réaliser touchait le Wi-Fi (réservé jusque-là aux
+  switchs), le choix des ports au câblage, le format de fichier et l'analyse
+  de topologie du diagnostic. Elle a donc été sortie de l'étape 24 et placée
+  après les étapes pédagogiques (25 à 28), qui n'en dépendaient pas.
+- **La box ne traduit pas les adresses** (étape 29) : une vraie box remplace
+  l'adresse des appareils de la maison par la sienne quand un message sort
+  vers Internet (NAT). Celle de RéseauLab relaie les messages tels quels,
+  comme un routeur. Dans la maison, rien ne change. Vers Internet, le
+  routeur d'en face doit connaître le chemin du retour : une route vers le
+  réseau de la maison, ou RIP coché des deux côtés — sinon « Pourquoi ça ne
+  marche pas ? » le dit. Conséquence : deux maisons d'un même plan doivent
+  avoir des réseaux différents (192.168.1.0 et 192.168.2.0 par exemple),
+  alors que dans la réalité toutes peuvent utiliser le même. La fiche « Box
+  Internet » le signale.
+- **Box volontairement simple** (étape 29) : pas de pare-feu, pas de routes
+  statiques, pas d'adresses réservées dans son serveur DHCP, pas de relais
+  DNS (elle distribue l'adresse du serveur DNS qu'on lui indique). Pour ces
+  réglages, un routeur et un ordinateur serveur restent disponibles. Deux
+  box reliées directement le sont par leurs prises Internet.
 - **Répartition par niveau à valider** (étape 23) : comme pour les fiches,
   le niveau attribué à chaque élément de l'interface est une proposition
   (5e : composants et web ; 4e : adressage, DHCP, `ping`, échanges de

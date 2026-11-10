@@ -228,7 +228,7 @@ Un terminal en Wi-Fi rejoint un réseau en choisissant son SSID (et, en vrai, en
       'Le point d’accès relie les équipements sans fil au reste du réseau.',
     ],
     inApp:
-      'Chaque switch est aussi un point d’accès avec un nom Wi-Fi (SSID). Réglez un poste en « Sans fil (Wi-Fi) » puis choisissez ce nom.',
+      'La box et chaque switch sont aussi des points d’accès avec un nom Wi-Fi (SSID). Réglez un poste en « Sans fil (Wi-Fi) » puis choisissez ce nom.',
     related: ['liaison', 'box', 'switch'],
   },
   {
@@ -246,7 +246,7 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
       'Elle sépare le réseau local de la maison et Internet.',
     ],
     inApp:
-      'Pour reproduire une box : un routeur, un switch (qui fournit le Wi-Fi) et un ordinateur avec le logiciel « Serveur DHCP ».',
+      'L’équipement « Box Internet » de la palette fait tout cela : reliez-y des terminaux (câble ou Wi-Fi), cochez « Configuration automatique (DHCP) » sur chacun, et la box leur donne une adresse. Sa prise Internet se relie à un routeur. Simplification : la box de RéseauLab ne modifie pas les adresses des messages ; pour sortir vers Internet, le routeur d’en face doit connaître le chemin du réseau de la maison.',
     related: ['routeur', 'switch', 'wifi', 'dhcp', 'reseau-local-internet'],
   },
   {

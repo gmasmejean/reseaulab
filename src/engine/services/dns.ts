@@ -121,7 +121,7 @@ export interface DnsServerConfig {
  * forwards queries for delegated zones (NS records, "." meaning every name)
  * to the delegated server and relays the answer.
  */
-export class DnsServer extends ServerApp {
+export class DnsServer extends ServerApp<Host> {
   config: DnsServerConfig = { records: [], recursion: true };
   private release: (() => void) | null = null;
   private readonly inFlight = new Set<string>();

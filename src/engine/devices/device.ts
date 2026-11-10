@@ -16,7 +16,7 @@ export const HOST_KINDS = [
 ] as const;
 export type HostKind = (typeof HOST_KINDS)[number];
 
-export type DeviceKind = HostKind | 'switch' | 'router';
+export type DeviceKind = HostKind | 'switch' | 'router' | 'box';
 
 export function isHostKind(kind: string): kind is HostKind {
   return (HOST_KINDS as readonly string[]).includes(kind);

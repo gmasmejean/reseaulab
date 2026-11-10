@@ -65,6 +65,7 @@ export const CAPABILITY_LEVEL: Record<Capability, ProfileLevel> = {
   'device:object': '4e',
   'device:switch': '5e',
   'device:router': '3e',
+  'device:box': '5e',
 
   'app:terminal': '4e',
   'app:browser': '5e',
@@ -162,6 +163,7 @@ const FINDING_NEEDS: Partial<Record<FindingCode, Capability>> = {
   'dns-no-server': 'feature:dns-field',
   'dhcp-no-server': 'feature:dhcp-client',
   'dhcp-server-dynamic': 'feature:dhcp-client',
+  'dhcp-range-outside': 'feature:dhcp-client',
   'wifi-not-joined': 'feature:wifi',
   'router-iface-unconfigured': 'device:router',
   'router-ifaces-same-network': 'device:router',

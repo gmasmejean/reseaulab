@@ -20,6 +20,7 @@ export const LINT_CODES = [
   'server-not-started',
   'dhcp-no-server',
   'dhcp-server-dynamic',
+  'dhcp-range-outside',
   'router-iface-unconfigured',
   'router-ifaces-same-network',
   'switch-loop',

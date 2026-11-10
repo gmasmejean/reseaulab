@@ -8,6 +8,7 @@ import {
   prefixToMask,
   type Ipv4,
 } from '../../engine/core/ipv4';
+import { BOX_WAN, Box } from '../../engine/devices/box';
 import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from '../../engine/devices/router';
@@ -36,10 +37,17 @@ function neighbour(net: Network, device: Device, port: number): string {
   return other ? (net.device(other.owner.id)?.name ?? '?') : 'non connecté';
 }
 
-/** Ends of a wireless link: the Wi-Fi host and its switch, whatever the order. */
+/** « port 2 », or the socket of a box. */
+function portName(device: Device | undefined, port: number): string {
+  if (!(device instanceof Box)) return `port ${port}`;
+  return port === BOX_WAN ? 'prise Internet' : `prise ${port}`;
+}
+
+/** Ends of a wireless link: the Wi-Fi host and its access point, whatever the order. */
 function wifiEnds(net: Network, cable: CableEnds) {
   const [a, b] = [net.device(cable.a), net.device(cable.b)];
-  const sw = a instanceof Switch ? a : b instanceof Switch ? b : undefined;
+  const accessPoint = (d: Device | undefined) => (d instanceof Switch || d instanceof Box ? d : undefined);
+  const sw = accessPoint(a) ?? accessPoint(b);
   const host = sw === a ? b : a;
   const port = sw === a ? cable.portA : cable.portB;
   return { host, sw, port };
@@ -73,7 +81,7 @@ function ConnectionSection({ host }: { host: Host }) {
   const cable = host.iface.port.cable;
   const peer = cable ? neighbour(network, host, 0) : null;
   const accessPoint = network.wifiAccessPoint(host);
-  const ssids = network.switches.map((s) => s.ssid).sort((a, b) => a.localeCompare(b, 'fr'));
+  const ssids = network.accessPoints.map((s) => s.ssid).sort((a, b) => a.localeCompare(b, 'fr'));
   const chooseMode = (wifi: boolean) => {
     if (wifi === host.wifi) return;
     setError(null);
@@ -82,8 +90,10 @@ function ConnectionSection({ host }: { host: Host }) {
   };
   let status: string;
   if (host.wifi) {
-    if (accessPoint) status = `Connecté au réseau « ${accessPoint.ssid} » (switch « ${accessPoint.name} »).`;
-    else if (ssids.length === 0) status = 'Aucun réseau Wi-Fi : ajoutez un switch au plan.';
+    if (accessPoint) {
+      const what = accessPoint instanceof Box ? 'box' : 'switch';
+      status = `Connecté au réseau « ${accessPoint.ssid} » (${what} « ${accessPoint.name} »).`;
+    } else if (ssids.length === 0) status = 'Aucun réseau Wi-Fi : ajoutez une box ou un switch au plan.';
     else status = 'Non connecté : choisissez un réseau.';
   } else {
     status = peer ? `Relié par câble à « ${peer} ».` : 'Aucun câble : reliez ce poste avec l’outil Câble.';
@@ -193,7 +203,7 @@ function SwitchProperties({ device }: { device: Switch }) {
             onCommit={(value) => {
               const problem = network.ssidProblem(value, device.id);
               if (problem) return problem;
-              network.setSwitchSsid(device.id, value);
+              network.setSsid(device.id, value);
               return null;
             }}
           />
@@ -202,6 +212,155 @@ function SwitchProperties({ device }: { device: Switch }) {
               ? 'Aucun poste connecté en Wi-Fi.'
               : `${String(wifiClients)} poste(s) connecté(s) en Wi-Fi.`}
           </p>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+/** A box: its Wi-Fi network, its home side (address, DHCP) and its Internet side. */
+function BoxProperties({ box }: { box: Box }) {
+  const session = useSession();
+  const { network } = session;
+  const { wan, lan } = box;
+  const dhcp = box.dhcp.config;
+  const wifiClients = box.homePorts.filter((p) => p.cable?.wireless).length;
+  const plugged = box.homePorts.filter((p) => p.isConnected).length;
+  const dhcpOffered = session.can('feature:dhcp-client');
+  const internetOffered =
+    session.can('feature:gateway') || box.wanPort.isConnected || wan.ip !== IP_ANY || box.gateway !== IP_ANY;
+  return (
+    <div className="properties-grid">
+      <Section title="Box Internet">
+        <NameField device={box} />
+        <p className="muted">
+          Une box réunit un routeur, un switch, un point d’accès Wi-Fi et un serveur DHCP.{' '}
+          <TermHelp term="box" label="Box" />
+        </p>
+        <p className="muted">
+          {plugged} terminal(aux) relié(s) côté maison, dont {wifiClients} en Wi-Fi.
+        </p>
+        {(session.can('feature:wifi') || wifiClients > 0) && (
+          <TextField
+            label="Nom Wi-Fi (SSID)"
+            term="wifi"
+            value={box.ssid}
+            hint="Les terminaux en Wi-Fi rejoignent la box en choisissant ce nom. Le changer les déconnecte."
+            onCommit={(value) => {
+              const problem = network.ssidProblem(value, box.id);
+              if (problem) return problem;
+              network.setSsid(box.id, value);
+              return null;
+            }}
+          />
+        )}
+      </Section>
+      <Section title="Côté maison (réseau local)">
+        <div className="field-row">
+          <IpField
+            label="Adresse IP de la box"
+            term="adresse-ip"
+            value={lan.ip}
+            hint="C’est la passerelle des terminaux de la maison."
+            onChange={(ip) => {
+              box.setLan({ ip, mask: maskFor(ip, lan.mask) });
+            }}
+          />
+          <IpField
+            label="Masque"
+            term="masque"
+            mask
+            value={lan.mask}
+            onChange={(mask) => {
+              box.setLan({ ip: lan.ip, mask });
+            }}
+          />
+        </div>
+        {dhcpOffered && (
+          <>
+            <Checkbox
+              label="Distribuer les adresses (serveur DHCP)"
+              term="dhcp"
+              checked={box.dhcp.active}
+              onChange={(active) => {
+                box.dhcp.setActive(active);
+              }}
+            />
+            <div className="field-row">
+              <IpField
+                label="Première adresse distribuée"
+                value={dhcp.rangeStart}
+                disabled={!box.dhcp.active}
+                onChange={(rangeStart) => {
+                  box.dhcp.updateConfig({ rangeStart });
+                }}
+              />
+              <IpField
+                label="Dernière adresse distribuée"
+                value={dhcp.rangeEnd}
+                disabled={!box.dhcp.active}
+                onChange={(rangeEnd) => {
+                  box.dhcp.updateConfig({ rangeEnd });
+                }}
+              />
+            </div>
+            {(session.can('feature:dns-field') || dhcp.dns !== IP_ANY) && (
+              <IpField
+                label="Serveur DNS distribué"
+                term="dns"
+                value={dhcp.dns}
+                disabled={!box.dhcp.active}
+                onChange={(dns) => {
+                  box.dhcp.updateConfig({ dns });
+                }}
+              />
+            )}
+          </>
+        )}
+      </Section>
+      {internetOffered && (
+        <Section title="Côté Internet">
+          <p className="muted">
+            Prise Internet :{' '}
+            {box.wanPort.isConnected ? `reliée à « ${neighbour(network, box, BOX_WAN)} »` : 'non reliée'}.
+          </p>
+          <div className="field-row">
+            <IpField
+              label="Adresse IP côté Internet"
+              term="adresse-ip"
+              value={wan.ip}
+              onChange={(ip) => {
+                box.setWan({ ip, mask: maskFor(ip, wan.mask) });
+              }}
+            />
+            <IpField
+              label="Masque côté Internet"
+              term="masque"
+              mask
+              value={wan.mask}
+              onChange={(mask) => {
+                box.setWan({ ip: wan.ip, mask });
+              }}
+            />
+          </div>
+          <IpField
+            label="Passerelle vers Internet"
+            term="passerelle"
+            value={box.gateway}
+            hint="L’adresse du routeur du fournisseur d’accès."
+            onChange={(gateway) => {
+              box.setGateway(gateway);
+            }}
+          />
+          {(session.can('feature:rip') || box.rip) && (
+            <Checkbox
+              label="Routage automatique (RIP)"
+              checked={box.rip}
+              onChange={(enabled) => {
+                box.ripService.setEnabled(enabled);
+              }}
+            />
+          )}
         </Section>
       )}
     </div>
@@ -731,7 +890,9 @@ function SimulationBar({ device }: { device: Device | null }) {
               Afficher le bureau
             </button>
           )}
-          {device instanceof Router && session.can('feature:tables') && (
+          {((device instanceof Router && session.can('feature:tables')) ||
+            (device instanceof Box &&
+              (session.can('feature:tables') || session.can('feature:mac-table')))) && (
             <button
               type="button"
               className="primary"
@@ -739,7 +900,7 @@ function SimulationBar({ device }: { device: Device | null }) {
                 session.openWindow({ type: 'router', deviceId: device.id });
               }}
             >
-              Afficher les tables du routeur
+              {device instanceof Box ? 'Afficher les tables de la box' : 'Afficher les tables du routeur'}
             </button>
           )}
           {device.kind === 'switch' && session.can('feature:mac-table') && (
@@ -853,14 +1014,14 @@ export function PropertiesPanel() {
               return (
                 <p>
                   <b>{host?.name}</b> est connecté sans fil au réseau <b>« {sw?.ssid} »</b> de{' '}
-                  <b>{sw?.name}</b> (port {port}).
+                  <b>{sw?.name}</b> ({portName(sw, port)}).
                 </p>
               );
             })()
           ) : (
             <p>
-              Relie <b>{net.device(cable.a)?.name}</b> (port {cable.portA}) à{' '}
-              <b>{net.device(cable.b)?.name}</b> (port {cable.portB}).
+              Relie <b>{net.device(cable.a)?.name}</b> ({portName(net.device(cable.a), cable.portA)}) à{' '}
+              <b>{net.device(cable.b)?.name}</b> ({portName(net.device(cable.b), cable.portB)}).
             </p>
           )}
         </Section>
@@ -885,6 +1046,7 @@ export function PropertiesPanel() {
       {device instanceof Host && <HostProperties host={device} />}
       {device instanceof Router && <RouterProperties router={device} />}
       {device instanceof Switch && <SwitchProperties device={device} />}
+      {device instanceof Box && <BoxProperties box={device} />}
       <DeviceFindings deviceId={device.id} />
     </div>
   );

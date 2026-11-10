@@ -69,6 +69,18 @@ export function DeviceIcon({ kind, size = 56 }: { kind: DeviceKind; size?: numbe
           <path d="M14 27 h14 m-4 -3 l4 3 l-4 3 M50 27 h-14 m4 -3 l-4 3 l4 3" className="arrows" />
         </g>
       )}
+      {kind === 'box' && (
+        <g>
+          <path d="M21 20 a15 15 0 0 1 22 0 M26 26 a8 8 0 0 1 12 0" className="arrows" />
+          <rect x="6" y="32" width="52" height="20" rx="6" className="body" />
+          {[14, 21, 28].map((x) => (
+            <circle key={x} cx={x} cy="42" r="1.8" className="light" />
+          ))}
+          {[40, 49].map((x) => (
+            <rect key={x} x={x - 3} y="40" width="6" height="5" className="port" />
+          ))}
+        </g>
+      )}
       {kind === 'router' && (
         <g>
           <ellipse cx="32" cy="22" rx="26" ry="9" className="body" />

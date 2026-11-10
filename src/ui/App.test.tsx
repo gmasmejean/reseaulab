@@ -1272,7 +1272,8 @@ describe('Aide et connaissances', () => {
     // La fiche masquée n'est plus proposée, ni en lien ni dans « Voir aussi ».
     expect(within(card).queryByRole('button', { name: 'box' })).not.toBeInTheDocument();
     expect(card).toHaveTextContent('Voir aussi : Routeur');
-    expect(screen.queryByRole('button', { name: 'Box Internet' })).not.toBeInTheDocument();
+    const knowledge = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(knowledge).queryByRole('button', { name: 'Box Internet' })).not.toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Points à vérifier' })).toHaveTextContent(
       'Ordinateur 1 : adresse à compléter',
     );
@@ -1438,6 +1439,156 @@ describe('Terminaux variés', () => {
     const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
     expect(within(palette).getByRole('button', { name: 'Imprimante' })).toBeInTheDocument();
     expect(within(palette).queryByRole('button', { name: 'Objet connecté' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Box Internet', () => {
+  test('se pose depuis la palette, déjà réglée comme à la maison', () => {
+    const { session } = setup();
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: 'Box Internet' }));
+    expect(screen.getByRole('button', { name: 'Box 1 (192.168.1.1)' })).toBeInTheDocument();
+    const box = session.network.box(session.network.devices[0]?.id ?? '');
+    expect(screen.getByRole('textbox', { name: 'Nom Wi-Fi (SSID)' })).toHaveValue('Box-1');
+    expect(screen.getByRole('textbox', { name: 'Adresse IP de la box' })).toHaveValue('192.168.1.1');
+    expect(screen.getByRole('checkbox', { name: 'Distribuer les adresses (serveur DHCP)' })).toBeChecked();
+    expect(screen.getByRole('textbox', { name: 'Première adresse distribuée' })).toHaveValue('192.168.1.10');
+    expect(screen.getByText('Prise Internet : non reliée.')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Points à vérifier' })).not.toBeInTheDocument();
+
+    // Changer l'adresse de la box déplace la plage distribuée avec elle.
+    commit('Adresse IP de la box', '192.168.50.1');
+    expect(screen.getByRole('textbox', { name: 'Première adresse distribuée' })).toHaveValue('192.168.50.10');
+    expect(screen.getByRole('button', { name: 'Box 1 (192.168.50.1)' })).toBeInTheDocument();
+    // Une plage choisie hors du réseau est signalée.
+    commit('Dernière adresse distribuée', '10.0.0.9');
+    expect(screen.getByRole('list', { name: 'Points à vérifier' })).toHaveTextContent(
+      'Box 1 distribue des adresses (192.168.50.10 à 10.0.0.9) qui ne sont pas dans son réseau',
+    );
+    commit('Dernière adresse distribuée', '192.168.50.50');
+
+    commit('Nom Wi-Fi (SSID)', 'Maison');
+    expect(box.ssid).toBe('Maison');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Distribuer les adresses (serveur DHCP)' }));
+    expect(box.dhcp.active).toBe(false);
+    expect(screen.getByRole('textbox', { name: 'Première adresse distribuée' })).toBeDisabled();
+
+    commit('Adresse IP côté Internet', '10.0.0.2');
+    expect(screen.getByRole('textbox', { name: 'Masque côté Internet' })).toHaveValue('255.255.255.0');
+    commit('Passerelle vers Internet', '10.0.0.1');
+    expect(box.gateway).toBe(ip('10.0.0.1'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Routage automatique (RIP)' }));
+    expect(box.rip).toBe(true);
+  });
+
+  test('un routeur se branche sur sa prise Internet, un terminal côté maison', () => {
+    const { session } = setup();
+    let box = '';
+    act(() => {
+      box = session.addDevice('box');
+      const router = session.addDevice('router');
+      const pc = session.addDevice('computer');
+      session.network.connect(box, router);
+      const cable = session.network.connect(pc, box);
+      session.select({ kind: 'cable', id: cable.id });
+    });
+    expect(screen.getByText(/Relie/)).toHaveTextContent('Relie Ordinateur 1 (port 0) à Box 1 (prise 1)');
+    // Sur le plan, la prise Internet est nommée au bout du câble, comme les interfaces du routeur.
+    const plan = screen.getByRole('application');
+    expect([...plan.querySelectorAll('.port-label')].map((l) => l.textContent)).toEqual(['Internet', 'eth0']);
+    act(() => {
+      session.select({ kind: 'device', id: box });
+    });
+    expect(screen.getByText('Prise Internet : reliée à « Routeur 1 ».')).toBeInTheDocument();
+    expect(screen.getByText('1 terminal(aux) relié(s) côté maison, dont 0 en Wi-Fi.')).toBeInTheDocument();
+  });
+
+  test('un smartphone rejoint son Wi-Fi et reçoit une adresse en simulation', () => {
+    const { session, frames } = setup();
+    let box = '';
+    let phone = '';
+    act(() => {
+      box = session.addDevice('box');
+      phone = session.addDevice('smartphone');
+      session.network.host(phone).updateConfig({ useDhcp: true });
+      session.select({ kind: 'device', id: phone });
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Réseau sans fil (SSID)' }), {
+      target: { value: 'Box-1' },
+    });
+    expect(screen.getByText('Connecté au réseau « Box-1 » (box « Box 1 »).')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Points à vérifier' })).not.toBeInTheDocument();
+    act(() => {
+      session.setMode('simulation');
+    });
+    elapse(frames, 20_000);
+    expect(screen.getByRole('button', { name: 'Smartphone 1 (192.168.1.10)' })).toBeInTheDocument();
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Box 1/ }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Afficher les tables de la box',
+      'Afficher les échanges de données (Internet – sans adresse)',
+      'Afficher les échanges de données (Maison – 192.168.1.1)',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Afficher les tables de la box' }));
+    const tables = screen.getByRole('dialog', { name: 'Box — Box 1' });
+    const mac = session.network.host(phone).mac;
+    expect(within(tables).getByText('Adresses distribuées (DHCP)')).toBeInTheDocument();
+    expect(within(tables).getAllByText(mac)).toHaveLength(2);
+    expect(within(tables).getByText('attribuée')).toBeInTheDocument();
+    expect(within(tables).getByText(/Le switch de la box apprend/)).toBeInTheDocument();
+    // Les routes : son réseau de la maison, relié directement.
+    expect(within(tables).getAllByText('Maison').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher les échanges de données' }));
+    const capture = screen.getByRole('dialog', { name: 'Échanges de données — Box 1' });
+    const options = within(capture).getByRole('combobox', { name: 'Interface' }).querySelectorAll('option');
+    expect([...options].map((o) => o.textContent)).toEqual(['Toutes les interfaces', 'Internet', 'Maison']);
+    expect(session.network.box(box).dhcp.leases).toHaveLength(1);
+  });
+
+  test('en 5e, la box est proposée sans ses réglages de DHCP ni son côté Internet', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PROFILE_KEY, JSON.stringify({ base: '5e' }));
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: 'Box Internet' }));
+    expect(screen.getByRole('textbox', { name: 'Adresse IP de la box' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Nom Wi-Fi (SSID)' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /serveur DHCP/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Passerelle vers Internet' })).not.toBeInTheDocument();
+    // Un côté Internet déjà utilisé reste visible.
+    act(() => {
+      session.network.connect(session.network.devices[0]?.id ?? '', session.network.addRouter().id);
+    });
+    expect(screen.getByRole('textbox', { name: 'Passerelle vers Internet' })).toBeInTheDocument();
+    act(() => {
+      session.setMode('simulation');
+    });
+    expect(screen.queryByRole('button', { name: 'Afficher les tables de la box' })).not.toBeInTheDocument();
+  });
+
+  test('en 4e, ses tables montrent les adresses distribuées, pas encore le routage', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PROFILE_KEY, JSON.stringify({ base: '4e' }));
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    act(() => {
+      session.addDevice('box');
+      session.setMode('simulation');
+    });
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Box 1/ }));
+    expect(screen.getByRole('menuitem', { name: 'Afficher les tables de la box' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher les tables de la box' }));
+    const tables = screen.getByRole('dialog', { name: 'Box — Box 1' });
+    expect(within(tables).getByText('Aucune adresse distribuée pour l’instant.')).toBeInTheDocument();
+    expect(within(tables).queryByText('Table de routage')).not.toBeInTheDocument();
+    act(() => {
+      session.network.box(session.network.devices[0]?.id ?? '').dhcp.setActive(false);
+    });
+    expect(within(tables).getByText('Le serveur DHCP de la box est arrêté.')).toBeInTheDocument();
   });
 });
 

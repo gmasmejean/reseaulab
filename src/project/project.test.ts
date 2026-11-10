@@ -116,7 +116,7 @@ describe('Projet', () => {
 
   test('le Wi-Fi est enregistré : SSID des switchs, carte Wi-Fi et connexions sans fil', () => {
     const { net, a, s1 } = routedNetwork();
-    net.setSwitchSsid(s1.id, 'Salle 12');
+    net.setSsid(s1.id, 'Salle 12');
     net.setHostWifi(a.id, true);
     net.joinWifi(a.id, 'Salle 12');
     const project = toProject(net);

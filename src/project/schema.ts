@@ -123,6 +123,22 @@ const routerSchema = z.object({
   firewall,
 });
 
+// Added with the Internet box: older files have none.
+const boxSchema = z.object({
+  id: text(32),
+  kind: z.literal('box'),
+  name,
+  x: coordinate,
+  y: coordinate,
+  ssid: z.string().trim().min(1).max(32),
+  /** Internet side. */
+  wan: z.object({ mac, ip, mask, gateway: ip }),
+  /** Home side. */
+  lan: z.object({ mac, ip, mask }),
+  dhcp: z.object({ active: z.boolean(), rangeStart: ip, rangeEnd: ip, dns: ip }),
+  rip: z.boolean().default(false),
+});
+
 const cableSchema = z.object({
   id: text(32),
   a: text(32),
@@ -150,7 +166,9 @@ const noteSchema = z.object({
 export const projectSchema = z.object({
   format: z.literal(PROJECT_FORMAT),
   version: z.literal(PROJECT_VERSION),
-  devices: z.array(z.discriminatedUnion('kind', [hostSchema, switchSchema, routerSchema])).max(500),
+  devices: z
+    .array(z.discriminatedUnion('kind', [hostSchema, switchSchema, routerSchema, boxSchema]))
+    .max(500),
   cables: z.array(cableSchema).max(2000),
   /** Added after the first release: optional, so older files stay valid. */
   notes: z.array(noteSchema).max(2000).default([]),
@@ -159,6 +177,7 @@ export const projectSchema = z.object({
 export type ProjectFile = z.infer<typeof projectSchema>;
 export type HostJson = z.infer<typeof hostSchema>;
 export type RouterJson = z.infer<typeof routerSchema>;
+export type BoxJson = z.infer<typeof boxSchema>;
 export type FirewallJson = z.infer<typeof firewall>;
 export type SwitchJson = z.infer<typeof switchSchema>;
 export type NoteJson = z.infer<typeof noteSchema>;

@@ -1,5 +1,6 @@
 import { IP_ANY, formatCidr, formatIp, networkOf } from '../../engine/core/ipv4';
 import type { Device } from '../../engine/devices/device';
+import { Box } from '../../engine/devices/box';
 import { Host } from '../../engine/devices/host';
 import { Router } from '../../engine/devices/router';
 import { Switch } from '../../engine/devices/switch';
@@ -222,6 +223,10 @@ export function startingNetwork(network: Network, mode: StartMode): Network {
         device.interfaces.forEach((_, index) => {
           device.setInterface(index, { ip: IP_ANY, mask: IP_ANY });
         });
+      } else if (device instanceof Box) {
+        // The home side keeps the addressing a box has out of its carton.
+        device.setWan({ ip: IP_ANY, mask: IP_ANY });
+        device.setGateway(IP_ANY);
       }
     }
   }

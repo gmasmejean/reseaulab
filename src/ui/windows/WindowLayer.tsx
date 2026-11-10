@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Box } from '../../engine/devices/box';
 import { Host } from '../../engine/devices/host';
 import { NetworkNode } from '../../engine/devices/node';
 import { Router } from '../../engine/devices/router';
@@ -155,7 +156,10 @@ function WindowContent({ w }: { w: OpenWindow }) {
       ) : null;
     case 'router':
       return device instanceof NetworkNode ? (
-        <Window window={w} title={`${device instanceof Router ? 'Routeur' : 'Tables'} — ${device.name}`}>
+        <Window
+          window={w}
+          title={`${device instanceof Router ? 'Routeur' : device instanceof Box ? 'Box' : 'Tables'} — ${device.name}`}
+        >
           <TablesWindow node={device} />
         </Window>
       ) : null;

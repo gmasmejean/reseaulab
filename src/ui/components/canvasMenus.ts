@@ -3,6 +3,7 @@ import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { NetworkNode } from '../../engine/devices/node';
 import type { Note } from '../../engine/network';
+import { interfaceLabel } from '../../i18n/fr';
 import type { Session } from '../session';
 import type { MenuEntry } from './ContextMenu';
 
@@ -102,17 +103,21 @@ function simulationMenu(session: Session, device: Device): MenuEntry[] {
         label: 'Afficher la table des adresses MAC',
         onSelect: open({ type: 'switch', deviceId: device.id }),
       });
-  } else if (session.can('feature:tables')) {
+  } else if (
+    session.can('feature:tables') ||
+    // The addresses a box hands out are of interest before routing tables are.
+    (device.kind === 'box' && session.can('feature:mac-table'))
+  ) {
     entries.push({
       kind: 'action',
-      label: 'Afficher les tables du routeur',
+      label: device.kind === 'box' ? 'Afficher les tables de la box' : 'Afficher les tables du routeur',
       onSelect: open({ type: 'router', deviceId: device.id }),
     });
   }
   if (device instanceof NetworkNode && session.can('feature:capture')) {
     device.stack.interfaces.forEach((iface, index) => {
       const address = iface.ip === IP_ANY ? 'sans adresse' : formatIp(iface.ip);
-      const name = device instanceof Host ? address : `eth${index} – ${address}`;
+      const name = device instanceof Host ? address : `${interfaceLabel(device.kind, index)} – ${address}`;
       entries.push({
         kind: 'action',
         label: `Afficher les échanges de données (${name})`,

@@ -10,9 +10,11 @@ import {
   type PointerEvent,
 } from 'react';
 import { IP_ANY, formatIp } from '../../engine/core/ipv4';
+import { BOX_WAN, Box } from '../../engine/devices/box';
 import type { Device, DeviceKind } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { Switch } from '../../engine/devices/switch';
+import { interfaceLabel } from '../../i18n/fr';
 import { worstFor, type Finding } from '../../learn/diagnose/findings';
 import { DROP_LABEL } from '../../learn/diagnose/messages.fr';
 import { useFrame, useSession } from '../context';
@@ -52,6 +54,8 @@ export function subtitle(device: Device): string | null {
   if (device instanceof Switch) {
     return device.ports.some((p) => p.cable?.wireless) ? `Wi-Fi « ${device.ssid} »` : null;
   }
+  // A box shows its address at home: the gateway of the terminals around it.
+  if (device instanceof Box) return device.lan.ip === IP_ANY ? 'sans adresse' : formatIp(device.lan.ip);
   if (!(device instanceof Host)) return null;
   const ip = device.addressing.ip;
   if (ip !== IP_ANY) return formatIp(ip);
@@ -69,6 +73,12 @@ function portLabelPosition(
     x: Math.round(from.x + ((to.x - from.x) / length) * distance),
     y: Math.round(from.y + ((to.y - from.y) / length) * distance - 6),
   };
+}
+
+/** Name written at the end of a cable: the interface of a router, the Internet socket of a box. */
+function portLabel(device: Device | undefined, port: number): string | null {
+  if (device?.kind === 'router') return interfaceLabel('router', port);
+  return device?.kind === 'box' && port === BOX_WAN ? interfaceLabel('box', port) : null;
 }
 
 function openDevice(session: Session, device: Device): void {
@@ -397,11 +407,11 @@ export function Canvas() {
             from: { x: number; y: number },
             to: { x: number; y: number },
           ) =>
-            net.device(deviceId)?.kind === 'router' ? (
+            portLabel(net.device(deviceId), port) === null ? null : (
               <text {...portLabelPosition(from, to)} className="port-label">
-                {`eth${port}`}
+                {portLabel(net.device(deviceId), port)}
               </text>
-            ) : null;
+            );
           return (
             <g
               key={c.id}

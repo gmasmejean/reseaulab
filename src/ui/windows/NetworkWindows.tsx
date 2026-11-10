@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { IP_ANY, formatIp } from '../../engine/core/ipv4';
+import { Box } from '../../engine/devices/box';
 import type { Switch } from '../../engine/devices/switch';
 import type { NetworkNode } from '../../engine/devices/node';
 import type { CaptureEntry } from '../../engine/net/capture';
 import { LAYER_LABEL, describeFrame, summarizeFrame } from '../../engine/net/describe';
-import { decimal } from '../../i18n/fr';
+import { decimal, interfaceLabel } from '../../i18n/fr';
 import { VERDICT_LABEL } from '../../learn/diagnose/messages.fr';
 import { useSession } from '../context';
 import { Section } from '../components/Fields';
@@ -47,7 +48,7 @@ export function CaptureWindow({
   return (
     <div className="capture">
       <div className="editor-bar">
-        {node.ports.length > 1 && (
+        {node.stack.interfaces.length > 1 && (
           <select
             aria-label="Interface"
             value={iface}
@@ -56,9 +57,9 @@ export function CaptureWindow({
             }}
           >
             <option value="all">Toutes les interfaces</option>
-            {node.ports.map((p) => (
-              <option key={p.index} value={p.index}>
-                eth{p.index}
+            {node.stack.interfaces.map((_, index) => (
+              <option key={index} value={index}>
+                {interfaceLabel(node.kind, index)}
               </option>
             ))}
           </select>
@@ -191,7 +192,7 @@ function direction(entry: CaptureEntry): string {
   return entry.verdict ? `← ${VERDICT_LABEL[entry.verdict]}` : '← reçue';
 }
 
-export function SwitchWindow({ device }: { device: Switch }) {
+export function SwitchWindow({ device }: { device: Switch | Box }) {
   const { network } = useSession();
   const neighbour = (port: number) => {
     const p = device.ports[port];
@@ -201,8 +202,8 @@ export function SwitchWindow({ device }: { device: Switch }) {
   return (
     <div>
       <p className="muted small">
-        Le switch apprend sur quel port se trouve chaque adresse MAC en lisant l’adresse source des trames
-        reçues.
+        {device instanceof Box ? 'Le switch de la box' : 'Le switch'} apprend sur quel port se trouve chaque
+        adresse MAC en lisant l’adresse source des trames reçues.
       </p>
       <table className="table">
         <thead>
@@ -238,11 +239,20 @@ export function SwitchWindow({ device }: { device: Switch }) {
 /** Routing and ARP tables of a router or of a computer. */
 export function TablesWindow({ node }: { node: NetworkNode }) {
   const session = useSession();
-  const several = node.ports.length > 1;
-  const port = (index: number) => (several ? `eth${index}` : 'carte réseau');
+  const several = node.stack.interfaces.length > 1;
+  const port = (index: number) => (several ? interfaceLabel(node.kind, index) : 'carte réseau');
   const arp = node.stack.arp.entries;
+  // Below the level of routing tables, a box only shows what it hands out and switches.
+  if (node instanceof Box && !session.can('feature:tables')) {
+    return (
+      <div>
+        <BoxTables box={node} />
+      </div>
+    );
+  }
   return (
     <div>
+      {node instanceof Box && <BoxTables box={node} />}
       <Section
         title="Table de routage"
         actions={
@@ -329,5 +339,45 @@ export function TablesWindow({ node }: { node: NetworkNode }) {
         </table>
       </Section>
     </div>
+  );
+}
+
+/** What only a box has among routers: the addresses it handed out and its built-in switch. */
+function BoxTables({ box }: { box: Box }) {
+  const leases = box.dhcp.leases;
+  return (
+    <>
+      <Section title="Adresses distribuées (DHCP)">
+        {!box.dhcp.active ? (
+          <p className="muted">Le serveur DHCP de la box est arrêté.</p>
+        ) : leases.length === 0 ? (
+          <p className="muted">Aucune adresse distribuée pour l’instant.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Adresse MAC du terminal</th>
+                <th>Adresse IP</th>
+                <th>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leases.map((l) => (
+                <tr key={l.mac}>
+                  <td>
+                    <code>{l.mac}</code>
+                  </td>
+                  <td>{formatIp(l.ip)}</td>
+                  <td>{l.confirmed ? 'attribuée' : 'proposée'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Section>
+      <Section title="Table des adresses MAC (prises et Wi-Fi de la maison)">
+        <SwitchWindow device={box} />
+      </Section>
+    </>
   );
 }

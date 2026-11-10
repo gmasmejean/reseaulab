@@ -130,6 +130,13 @@ export const MESSAGES: Record<FindingCode, MessageText> = {
     fix: 'Décochez sa configuration automatique et donnez-lui une adresse IP fixe.',
     notion: 'dhcp',
   },
+  'dhcp-range-outside': {
+    title: '{device} distribue des adresses ({start} à {end}) qui ne sont pas dans son réseau ({network})',
+    explain:
+      'Un serveur DHCP distribue des adresses du réseau où il se trouve. Avec des adresses d’un autre réseau, les terminaux ne pourraient parler ni au serveur ni entre voisins.',
+    fix: 'Choisissez une plage d’adresses du réseau {network}, ou changez l’adresse de {device}.',
+    notion: 'dhcp',
+  },
   'router-iface-unconfigured': {
     title: '{device} : l’interface {iface} est câblée mais n’a pas d’adresse',
     explain:

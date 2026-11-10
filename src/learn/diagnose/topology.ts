@@ -1,4 +1,5 @@
 import type { Ipv4 } from '../../engine/core/ipv4';
+import { BOX_LAN, BOX_WAN, Box } from '../../engine/devices/box';
 import { Host } from '../../engine/devices/host';
 import { NetworkNode } from '../../engine/devices/node';
 import { Switch } from '../../engine/devices/switch';
@@ -8,7 +9,7 @@ import type { Network } from '../../engine/network';
  * exchange frames directly (they share switches), and whether switches form a
  * loop. Nothing is simulated here. */
 
-/** One network card: the interface `iface` of a computer or a router. */
+/** One network card: the interface `iface` of a terminal, a router or a box. */
 export interface Attachment {
   readonly deviceId: string;
   readonly iface: number;
@@ -21,7 +22,8 @@ export interface Attachment {
 
 /**
  * A broadcast domain: the network cards that reach each other without a
- * router, through cables, Wi-Fi links and switches.
+ * router, through cables, Wi-Fi links and switches. The home sockets of a box
+ * are a switch, into which the home side of the box itself is plugged.
  */
 export interface Segment {
   readonly switches: readonly string[];
@@ -79,8 +81,12 @@ const cardKey = (deviceId: string, iface: number) => `${deviceId}#${iface}`;
 /** Broadcast domains of the network. A card without cable is alone in its segment. */
 export function segments(network: Network): Segment[] {
   const groups = new Groups();
-  const key = (deviceId: string, port: number) =>
-    network.device(deviceId) instanceof Switch ? deviceId : cardKey(deviceId, port);
+  const key = (deviceId: string, port: number) => {
+    const device = network.device(deviceId);
+    if (device instanceof Switch) return deviceId;
+    if (device instanceof Box) return cardKey(deviceId, port === BOX_WAN ? BOX_WAN : BOX_LAN);
+    return cardKey(deviceId, port);
+  };
   for (const cable of network.cables) groups.join(key(cable.a, cable.portA), key(cable.b, cable.portB));
 
   const bySegment = new Map<string, { switches: string[]; members: Attachment[] }>();
@@ -101,16 +107,18 @@ export function segmentOf(all: readonly Segment[], deviceId: string, iface = 0):
 }
 
 /**
- * Switches cabled in a loop (two cables between the same switches included).
- * Without spanning tree, a broadcast would go round for ever. Empty when the
- * network has no loop.
+ * Switches cabled in a loop (two cables between the same switches included);
+ * the home sockets of a box count as a switch. Without spanning tree, a
+ * broadcast would go round for ever. Empty when the network has no loop.
  */
 export function switchLoop(network: Network): string[] {
   const groups = new Groups();
   const looped = new Set<string>();
   for (const cable of network.cables) {
     const [a, b] = [network.device(cable.a), network.device(cable.b)];
-    if (!(a instanceof Switch) || !(b instanceof Switch)) continue;
+    const switches = (device: typeof a, port: number) =>
+      device instanceof Switch || (device instanceof Box && port !== BOX_WAN);
+    if (!a || !b || !switches(a, cable.portA) || !switches(b, cable.portB)) continue;
     if (!groups.join(a.id, b.id)) {
       looped.add(a.id);
       looped.add(b.id);

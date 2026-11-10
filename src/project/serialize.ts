@@ -1,3 +1,4 @@
+import { Box } from '../engine/devices/box';
 import { isHostKind } from '../engine/devices/device';
 import { formatIp, parseIp, type Ipv4 } from '../engine/core/ipv4';
 import { Host } from '../engine/devices/host';
@@ -10,6 +11,7 @@ import {
   PROJECT_FORMAT,
   PROJECT_VERSION,
   projectSchema,
+  type BoxJson,
   type FirewallJson,
   type HostJson,
   type ProjectFile,
@@ -126,11 +128,60 @@ function routerToJson(router: Router): RouterJson {
   };
 }
 
+function boxToJson(box: Box): BoxJson {
+  const dhcp = box.dhcp.config;
+  return {
+    id: box.id,
+    kind: 'box',
+    name: box.name,
+    x: box.position.x,
+    y: box.position.y,
+    ssid: box.ssid,
+    wan: {
+      mac: box.wan.port.mac,
+      ip: formatIp(box.wan.ip),
+      mask: formatIp(box.wan.mask),
+      gateway: formatIp(box.gateway),
+    },
+    lan: { mac: box.lan.port.mac, ip: formatIp(box.lan.ip), mask: formatIp(box.lan.mask) },
+    dhcp: {
+      active: box.dhcp.active,
+      rangeStart: formatIp(dhcp.rangeStart),
+      rangeEnd: formatIp(dhcp.rangeEnd),
+      dns: formatIp(dhcp.dns),
+    },
+    rip: box.rip,
+  };
+}
+
+function loadBox(network: Network, json: BoxJson): void {
+  const problem = network.ssidProblem(json.ssid);
+  if (problem) throw new ProjectError(`Box « ${json.name} » : ${problem}`);
+  const box = network.addBox({
+    id: json.id,
+    name: json.name,
+    position: { x: json.x, y: json.y },
+    ssid: json.ssid,
+    macs: { wan: json.wan.mac, lan: json.lan.mac },
+  });
+  box.setWan({ ip: toIp(json.wan.ip), mask: toIp(json.wan.mask) });
+  box.setGateway(toIp(json.wan.gateway));
+  box.setLan({ ip: toIp(json.lan.ip), mask: toIp(json.lan.mask) });
+  box.dhcp.updateConfig({
+    rangeStart: toIp(json.dhcp.rangeStart),
+    rangeEnd: toIp(json.dhcp.rangeEnd),
+    dns: toIp(json.dhcp.dns),
+  });
+  box.dhcp.setActive(json.dhcp.active);
+  box.rip = json.rip;
+}
+
 /** Builds the project file of a network (always from its design state). */
 export function toProject(network: Network): ProjectFile {
   const devices = network.devices.map((device) => {
     if (device instanceof Host) return hostToJson(device);
     if (device instanceof Router) return routerToJson(device);
+    if (device instanceof Box) return boxToJson(device);
     return {
       id: device.id,
       kind: 'switch' as const,
@@ -244,7 +295,9 @@ export function fromProject(project: ProjectFile): Network {
         ? []
         : device.kind === 'router'
           ? device.interfaces.map((i) => i.mac)
-          : [device.mac];
+          : device.kind === 'box'
+            ? [device.wan.mac, device.lan.mac]
+            : [device.mac];
     for (const mac of deviceMacs) {
       if (macs.has(mac)) throw new ProjectError(`Adresse MAC en double : ${mac}`);
       macs.add(mac);
@@ -263,6 +316,8 @@ export function fromProject(project: ProjectFile): Network {
       });
     } else if (device.kind === 'router') {
       loadRouter(network, device);
+    } else if (device.kind === 'box') {
+      loadBox(network, device);
     } else {
       loadHost(network, device);
     }

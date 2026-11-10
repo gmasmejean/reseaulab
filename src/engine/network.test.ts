@@ -173,18 +173,18 @@ describe('Wi-Fi', () => {
     expect(net.ssidProblem('Wifi-1')).toMatch(/déjà utilisé/);
     expect(net.ssidProblem('Wifi-1', a.id)).toBeNull();
     expect(() => {
-      net.setSwitchSsid(b.id, 'Wifi-1');
+      net.setSsid(b.id, 'Wifi-1');
     }).toThrow(/déjà utilisé/);
     expect(() => {
       net.addSwitch({ ssid: 'Wifi-2' });
     }).toThrow(/déjà utilisé/);
-    net.setSwitchSsid(b.id, '  CDI  ');
+    net.setSsid(b.id, '  CDI  ');
     expect(b.ssid).toBe('CDI');
-    expect(net.switchBySsid('CDI')).toBe(b);
+    expect(net.accessPointBySsid('CDI')).toBe(b);
     expect(net.addSwitch({ ssid: 'Salle 12' }).ssid).toBe('Salle 12');
     expect(() => {
-      net.setSwitchSsid(net.addHost().id, 'X');
-    }).toThrow(/switch/);
+      net.setSsid(net.addHost().id, 'X');
+    }).toThrow(/Wi-Fi/);
   });
 
   test('un poste en Wi-Fi rejoint un switch par son SSID ; la connexion se comporte comme un câble', () => {
@@ -214,9 +214,9 @@ describe('Wi-Fi', () => {
     expect(net.wifiAccessPoint(laptop)).toBe(other);
     expect(net.cables.filter((c) => c.wireless)).toHaveLength(1);
 
-    net.setSwitchSsid(other.id, 'CDI'); // même nom : rien ne change
+    net.setSsid(other.id, 'CDI'); // même nom : rien ne change
     expect(net.wifiAccessPoint(laptop)).toBe(other);
-    net.setSwitchSsid(other.id, 'CDI-2');
+    net.setSsid(other.id, 'CDI-2');
     expect(net.wifiAccessPoint(laptop)).toBeNull();
 
     net.joinWifi(laptop.id, sw.ssid);

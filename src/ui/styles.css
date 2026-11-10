@@ -435,6 +435,9 @@ code {
 .device-icon.router .body {
   fill: #f6dfc8;
 }
+.device-icon.box .body {
+  fill: #e7defa;
+}
 .device-icon .light {
   fill: var(--ok);
 }

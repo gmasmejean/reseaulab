@@ -6,11 +6,12 @@ import {
   networkOf,
   sameNetwork,
 } from '../../engine/core/ipv4';
+import { BOX_LAN, Box } from '../../engine/devices/box';
 import { Host } from '../../engine/devices/host';
 import { Router } from '../../engine/devices/router';
 import type { Network } from '../../engine/network';
 import type { AppId } from '../../engine/services/catalog';
-import { APP_INFO } from '../../i18n/fr';
+import { APP_INFO, interfaceLabel } from '../../i18n/fr';
 import type { Finding, LintCode, Severity } from './findings';
 import { attachments, segmentOf, segments, switchLoop, type Attachment, type Segment } from './topology';
 
@@ -28,6 +29,7 @@ function unique(ids: readonly string[]): string[] {
 function hasDhcpServer(network: Network, segment: Segment | undefined): boolean {
   return (segment?.members ?? []).some((m) => {
     const device = network.device(m.deviceId);
+    if (device instanceof Box) return m.iface === BOX_LAN && device.dhcp.active;
     return device instanceof Host && device.isInstalled('dhcpserver') && device.dhcpServer.active;
   });
 }
@@ -46,7 +48,7 @@ export function lintNetwork(network: Network): Finding[] {
   const cards = attachments(network);
   const devices = network.devices;
   const hosts = devices.filter((d): d is Host => d instanceof Host);
-  const routers = devices.filter((d): d is Router => d instanceof Router);
+  const routers = devices.filter((d): d is Router | Box => d instanceof Router || d instanceof Box);
 
   const loop = switchLoop(network);
   if (loop.length > 0) add('switch-loop', 'error', loop);
@@ -70,6 +72,9 @@ export function lintNetwork(network: Network): Finding[] {
         add('ip-not-usable', 'error', [host.id], { ip: formatIp(c.ip) });
       checkGateway(host, cabled, segment);
       checkDns(host);
+      if (host.isInstalled('dhcpserver') && host.dhcpServer.active) {
+        checkRange(host.id, c, host.dhcpServer.config);
+      }
     }
 
     for (const app of SERVER_APPS) {
@@ -83,7 +88,11 @@ export function lintNetwork(network: Network): Finding[] {
     const c = host.config;
     const neighbours = (segment?.members ?? []).filter((m) => m.deviceId !== host.id);
     if (c.gateway === IP_ANY) {
-      const routerNearby = neighbours.some((m) => network.device(m.deviceId) instanceof Router);
+      // A box that leads nowhere is only the switch of the home: no gateway is needed yet.
+      const routerNearby = neighbours.some((m) => {
+        const device = network.device(m.deviceId);
+        return device instanceof Router || (device instanceof Box && device.wanPort.isConnected);
+      });
       if (routerNearby) add('gateway-missing', 'warning', [host.id]);
       return;
     }
@@ -100,6 +109,22 @@ export function lintNetwork(network: Network): Finding[] {
     } else if (network.device(owner.deviceId) instanceof Host) {
       add('gateway-not-router', 'error', [host.id, owner.deviceId], { gateway });
     }
+  }
+
+  /** A DHCP server must hand out addresses of its own network. */
+  function checkRange(
+    deviceId: string,
+    card: { ip: number; mask: number },
+    range: { rangeStart: number; rangeEnd: number },
+  ): void {
+    if (range.rangeStart === IP_ANY && range.rangeEnd === IP_ANY) return;
+    const inside = (address: number) => sameNetwork(card.ip, address, card.mask);
+    if (inside(range.rangeStart) && inside(range.rangeEnd)) return;
+    add('dhcp-range-outside', 'error', [deviceId], {
+      start: formatIp(range.rangeStart),
+      end: formatIp(range.rangeEnd),
+      network: formatCidr(networkOf(card.ip, card.mask), card.mask),
+    });
   }
 
   function checkDns(host: Host): void {
@@ -120,7 +145,7 @@ export function lintNetwork(network: Network): Finding[] {
   for (const router of routers) {
     const configured: { index: number; card: { ip: number; mask: number } }[] = [];
     router.interfaces.forEach((iface, index) => {
-      const name = `eth${index}`;
+      const name = interfaceLabel(router.kind, index);
       if (iface.ip === IP_ANY) {
         if (iface.port.isConnected) add('router-iface-unconfigured', 'error', [router.id], { iface: name });
       } else if (iface.mask === IP_ANY) {
@@ -136,12 +161,25 @@ export function lintNetwork(network: Network): Finding[] {
       for (const second of configured.slice(i + 1)) {
         if (!sameNetwork(first.card.ip, second.card.ip, first.card.mask)) continue;
         add('router-ifaces-same-network', 'error', [router.id], {
-          a: `eth${first.index}`,
-          b: `eth${second.index}`,
+          a: interfaceLabel(router.kind, first.index),
+          b: interfaceLabel(router.kind, second.index),
           network: formatCidr(networkOf(first.card.ip, first.card.mask), first.card.mask),
         });
       }
     });
+  }
+
+  for (const box of devices) {
+    if (!(box instanceof Box)) continue;
+    const { wan, lan } = box;
+    if (box.dhcp.active && lan.ip !== IP_ANY && lan.mask !== IP_ANY) checkRange(box.id, lan, box.dhcp.config);
+    if (box.gateway !== IP_ANY && wan.ip !== IP_ANY && !sameNetwork(wan.ip, box.gateway, wan.mask)) {
+      add('gateway-outside', 'error', [box.id], {
+        gateway: formatIp(box.gateway),
+        ip: formatIp(wan.ip),
+        mask: formatIp(wan.mask),
+      });
+    }
   }
 
   for (const segment of all) {

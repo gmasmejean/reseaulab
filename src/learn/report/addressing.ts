@@ -1,10 +1,11 @@
 import { IP_ANY, formatIp } from '../../engine/core/ipv4';
+import { Box } from '../../engine/devices/box';
 import type { DeviceKind } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { Router } from '../../engine/devices/router';
-import { Switch } from '../../engine/devices/switch';
 import type { Network } from '../../engine/network';
 import type { Port } from '../../engine/net/link';
+import { interfaceLabel } from '../../i18n/fr';
 
 /* The addressing table of a network: what a pupil is usually asked to fill in
  * by hand at the end of a practical. Built from the design, for the report. */
@@ -13,7 +14,7 @@ export interface AddressRow {
   readonly deviceId: string;
   readonly name: string;
   readonly kind: DeviceKind;
-  /** Name of the interface for a router (« eth0 »), empty otherwise. */
+  /** Name of the interface for a router (« eth0 ») or a box (« Maison »), empty otherwise. */
   readonly iface: string;
   /** What the interface is linked to, in words. */
   readonly link: string;
@@ -33,10 +34,17 @@ function linkOf(network: Network, port: Port | undefined): string {
   if (!port || !cable) return 'non relié';
   const other = network.device(cable.other(port).owner.id);
   if (cable.wireless) {
-    const ap = other instanceof Switch ? other : null;
-    return `Wi-Fi « ${ap?.ssid ?? ''} » (${other?.name ?? '?'})`;
+    // Seen from the terminal: the network it joined. Seen from the access point: who joined.
+    return other && 'ssid' in other && typeof other.ssid === 'string'
+      ? `Wi-Fi « ${other.ssid} » (${other.name})`
+      : `${other?.name ?? '?'} (Wi-Fi)`;
   }
   return other?.name ?? '?';
+}
+
+function linksOf(network: Network, ports: readonly Port[]): string {
+  const linked = ports.filter((p) => p.isConnected).map((p) => linkOf(network, p));
+  return linked.length === 0 ? 'non relié' : linked.join(', ');
 }
 
 /** One row per network card, in the order of the plan; switches come with their links. */
@@ -61,7 +69,7 @@ export function addressingTable(network: Network): AddressRow[] {
       device.interfaces.forEach((iface, index) => {
         rows.push({
           ...base,
-          iface: `eth${index}`,
+          iface: interfaceLabel(device.kind, index),
           link: linkOf(network, iface.port),
           mode: 'fixe',
           ip: address(iface.ip),
@@ -70,12 +78,32 @@ export function addressingTable(network: Network): AddressRow[] {
           dns: '',
         });
       });
+    } else if (device instanceof Box) {
+      rows.push({
+        ...base,
+        iface: interfaceLabel(device.kind, 0),
+        link: linkOf(network, device.wanPort),
+        mode: 'fixe',
+        ip: address(device.wan.ip),
+        mask: address(device.wan.mask),
+        gateway: address(device.gateway),
+        dns: '',
+      });
+      rows.push({
+        ...base,
+        iface: interfaceLabel(device.kind, 1),
+        link: linksOf(network, device.homePorts),
+        mode: 'fixe',
+        ip: address(device.lan.ip),
+        mask: address(device.lan.mask),
+        gateway: '',
+        dns: '',
+      });
     } else {
-      const linked = device.ports.filter((p) => p.isConnected).map((p) => linkOf(network, p));
       rows.push({
         ...base,
         iface: '',
-        link: linked.length === 0 ? 'non relié' : linked.join(', '),
+        link: linksOf(network, device.ports),
         mode: '',
         ip: '',
         mask: '',

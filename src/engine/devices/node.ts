@@ -4,7 +4,7 @@ import type { Port, SimContext } from '../net/link';
 import { IpStack } from '../stack/ip-stack';
 import { Device, type DeviceKind, type Position } from './device';
 
-/** A device with an IP stack (computer, laptop, router). */
+/** A device with an IP stack (terminal, router, box). */
 export abstract class NetworkNode extends Device {
   readonly stack: IpStack;
   readonly capture = new CaptureLog();

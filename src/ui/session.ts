@@ -823,7 +823,9 @@ export class Session {
         ? net.addSwitch({ position: pos })
         : kind === 'router'
           ? net.addRouter({ position: pos, interfaces })
-          : net.addHost(kind, { position: pos });
+          : kind === 'box'
+            ? net.addBox({ position: pos })
+            : net.addHost(kind, { position: pos });
     this.selection = { kind: 'device', id: device.id };
     if (this.autoFit) this.zoom = this.fitZoom();
     this.touch();

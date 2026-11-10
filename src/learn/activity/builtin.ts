@@ -263,6 +263,102 @@ Tu peux aussi installer le **navigateur web** sur l’ordinateur et taper l’ad
   },
 };
 
+const homeNetwork: BuiltinActivity = {
+  id: 'reseau-maison',
+  title: 'Le réseau de la maison',
+  level: '4e',
+  summary:
+    'Autour d’une box : brancher un ordinateur, connecter un smartphone en Wi-Fi, voir la box distribuer les adresses.',
+  build: () => {
+    const network = new Network();
+    network.addBox({ name: 'Box', position: { x: 520, y: 280 }, ssid: 'Maison' });
+    const box = existing(network, 'Box');
+    return define(network, {
+      id: 'reseau-maison',
+      title: 'Le réseau de la maison',
+      level: '4e',
+      duration: 30,
+      intro: `À la maison, on branche un appareil sur la [[box]], ou on choisit son Wi-Fi, et « ça marche ». Pourquoi ? Parce que la box **distribue les adresses** toute seule.
+
+Reconstruis ce réseau, puis regarde la box travailler.`,
+      profile: { base: '4e' },
+      steps: [
+        {
+          id: 'ordinateur',
+          title: 'Brancher un ordinateur',
+          body: `Ajoute un **Ordinateur** et relie-le à la box avec l’outil Câble.
+
+Dans son panneau, coche **Configuration automatique (DHCP)** : c’est la box qui lui donnera son adresse.`,
+          notions: ['box', 'dhcp'],
+          hints: [
+            'La case « Configuration automatique (DHCP) » est dans le panneau du bas, quand l’ordinateur est sélectionné.',
+          ],
+          objectives: [
+            {
+              id: 'ordinateur-relie',
+              label: 'Ordinateur 1 est relié à la box',
+              check: { type: 'linked', a: named('Ordinateur 1'), b: box },
+            },
+            {
+              id: 'ordinateur-automatique',
+              label: 'Ordinateur 1 est en configuration automatique',
+              check: { type: 'config', device: named('Ordinateur 1'), field: 'dhcp', isSet: true },
+            },
+          ],
+        },
+        {
+          id: 'wifi',
+          title: 'Connecter un smartphone en Wi-Fi',
+          body: `Ajoute un **Smartphone**. Il n’a pas de prise : dans son panneau, choisis le réseau sans fil **Maison**, celui de la box.
+
+Coche aussi sa configuration automatique.`,
+          notions: ['wifi'],
+          hints: [
+            'Le réseau sans fil (SSID) se choisit dans « Connexion réseau », dans le panneau du smartphone.',
+          ],
+          objectives: [
+            {
+              id: 'smartphone-relie',
+              label: 'Smartphone 1 a rejoint le Wi-Fi de la box',
+              check: { type: 'linked', a: named('Smartphone 1'), b: box },
+            },
+            {
+              id: 'smartphone-automatique',
+              label: 'Smartphone 1 est en configuration automatique',
+              check: { type: 'config', device: named('Smartphone 1'), field: 'dhcp', isSet: true },
+            },
+          ],
+        },
+        {
+          id: 'observer',
+          title: 'Regarder la box distribuer les adresses',
+          body: `Passe en mode **Simulation** : chaque appareil demande une adresse, la box répond. L’adresse reçue s’affiche sous l’appareil.
+
+Ouvre la ligne de commande de l’ordinateur : \`ipconfig\` montre son adresse, et \`ping\` suivi de l’adresse du smartphone teste la communication.`,
+          notions: ['dhcp', 'ping'],
+          hints: [
+            'Les adresses distribuées par la box commencent par 192.168.1. Un clic droit sur la box, puis « Afficher les tables de la box », en donne la liste.',
+            'Double-clique sur l’ordinateur pour ouvrir son bureau, puis sur « Ligne de commande ».',
+          ],
+          objectives: [
+            { id: 'simulation', label: 'La simulation a été lancée', check: { type: 'simulationStarted' } },
+            {
+              id: 'ipconfig',
+              label: 'La commande ipconfig a été utilisée sur Ordinateur 1',
+              check: { type: 'commandRan', command: 'ipconfig', device: named('Ordinateur 1') },
+            },
+            {
+              id: 'communique',
+              label: 'Ordinateur 1 communique avec Smartphone 1',
+              check: { type: 'ping', from: named('Ordinateur 1'), to: named('Smartphone 1') },
+            },
+          ],
+        },
+      ],
+    });
+  },
+};
+
 const twoNetworks: BuiltinActivity = {
   id: 'deux-reseaux',
   title: 'Relier deux réseaux',
@@ -491,6 +587,7 @@ const troubleshooting: BuiltinActivity = {
 export const BUILTIN_ACTIVITIES: readonly BuiltinActivity[] = [
   firstNetwork,
   connectedObject,
+  homeNetwork,
   twoNetworks,
   troubleshooting,
 ];

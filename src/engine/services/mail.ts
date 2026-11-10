@@ -259,7 +259,7 @@ export interface MailServerConfig {
 }
 
 /** SMTP (port 25) + POP3 (port 110) server; relays foreign domains using MX records. */
-export class MailServer extends ServerApp {
+export class MailServer extends ServerApp<Host> {
   config: MailServerConfig = { domain: '', accounts: [] };
   private closers: (() => void)[] = [];
 

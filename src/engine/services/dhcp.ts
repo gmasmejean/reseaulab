@@ -3,7 +3,9 @@ import type { Mac } from '../core/mac';
 import type { TimerId } from '../core/scheduler';
 import type { Host, HostService } from '../devices/host';
 import type { DhcpMessage } from '../net/messages';
-import { ServerApp } from './server-app';
+import type { L3Interface } from '../stack/interface';
+import type { Udp } from '../stack/udp';
+import { ServerApp, type ServiceHost } from './server-app';
 
 export const DHCP_SERVER_PORT = 67;
 export const DHCP_CLIENT_PORT = 68;
@@ -142,8 +144,14 @@ export interface DhcpLease {
   readonly confirmed: boolean;
 }
 
+/** Device running a DHCP server: `iface` is the one network it serves. */
+export interface DhcpHost extends ServiceHost {
+  readonly udp: Udp;
+  readonly iface: L3Interface;
+}
+
 /** Hands out addresses from a range (plus fixed reservations) to DHCP clients. */
-export class DhcpServer extends ServerApp {
+export class DhcpServer extends ServerApp<DhcpHost> {
   config: DhcpServerConfig = {
     rangeStart: IP_ANY,
     rangeEnd: IP_ANY,
@@ -164,7 +172,9 @@ export class DhcpServer extends ServerApp {
   }
 
   protected listen(): void {
-    this.release = this.host.udp.bind(DHCP_SERVER_PORT, (data) => {
+    this.release = this.host.udp.bind(DHCP_SERVER_PORT, (data, info) => {
+      // A box only serves its home side, never the Internet side.
+      if (info.iface && info.iface !== this.host.iface) return;
       if (data.kind === 'dhcp') this.handle(data.msg);
     });
   }
@@ -220,7 +230,13 @@ export class DhcpServer extends ServerApp {
             gateway: c.gateway,
             dns: c.dns,
           };
-    this.host.udp.send(DHCP_SERVER_PORT, IP_BROADCAST, DHCP_CLIENT_PORT, { kind: 'dhcp', msg });
+    this.host.udp.send(
+      DHCP_SERVER_PORT,
+      IP_BROADCAST,
+      DHCP_CLIENT_PORT,
+      { kind: 'dhcp', msg },
+      { iface: this.host.stack.interfaces.indexOf(iface) },
+    );
   }
 
   private chooseAddress(mac: Mac): Ipv4 | null {

@@ -12,6 +12,7 @@ export const DEVICE_LABEL: Record<DeviceKind, string> = {
   tablet: 'Tablette',
   switch: 'Switch',
   router: 'Routeur',
+  box: 'Box Internet',
 };
 
 /** Devices of the palette, terminals first. */
@@ -23,6 +24,7 @@ export const DEVICE_KINDS: readonly DeviceKind[] = [
   'object',
   'smartphone',
   'tablet',
+  'box',
   'switch',
   'router',
 ];
@@ -115,6 +117,14 @@ export const APP_INFO: Record<AppId, AppInfo> = {
     color: '#374151',
   },
 };
+
+/** The two sides of a box, in the order of its interfaces. */
+export const BOX_SIDES = ['Internet', 'Maison'] as const;
+
+/** Name of interface `index` of a device: « eth1 » on a router, the side on a box. */
+export function interfaceLabel(kind: DeviceKind, index: number): string {
+  return (kind === 'box' ? BOX_SIDES[index] : undefined) ?? `eth${index}`;
+}
 
 export const MODE_LABEL = { design: 'Conception', simulation: 'Simulation' } as const;
 

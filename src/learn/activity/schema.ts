@@ -42,7 +42,7 @@ const check = z.discriminatedUnion('type', [
   /* --- read on the design of the network, at any time --- */
   z.object({
     type: z.literal('deviceCount'),
-    kind: z.enum([...HOST_KINDS, 'switch', 'router', 'terminal']),
+    kind: z.enum([...HOST_KINDS, 'switch', 'router', 'box', 'terminal']),
     min: z.number().int().min(0).max(500).default(1),
     max: z.number().int().min(0).max(500).optional(),
   }),
