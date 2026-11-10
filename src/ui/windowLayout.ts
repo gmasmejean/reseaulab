@@ -16,7 +16,10 @@ export interface Point {
 
 /** What a window shows; mirrors `WindowSpec` without importing the session. */
 export type WindowKind =
-  | { readonly type: 'desktop' | 'capture' | 'switch' | 'router' | 'help' | 'diagnose' | 'settings' }
+  | {
+      readonly type:
+        'desktop' | 'capture' | 'switch' | 'router' | 'help' | 'diagnose' | 'settings' | 'activities';
+    }
   | { readonly type: 'app'; readonly app: AppId | 'software' };
 
 const APP_SIZE: Partial<Record<AppId | 'software', Size>> = {
@@ -38,6 +41,7 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   help: { width: 780, height: 540 },
   diagnose: { width: 600, height: 520 },
   settings: { width: 520, height: 420 },
+  activities: { width: 560, height: 460 },
 };
 
 const MIN_WIDTH = 320;

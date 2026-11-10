@@ -7,6 +7,7 @@ import type { AppId } from '../../engine/services/catalog';
 import { APP_INFO } from '../../i18n/fr';
 import { Window } from '../components/Window';
 import { useSession } from '../context';
+import { ActivitiesWindow } from '../learn/ActivitiesWindow';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import { KnowledgeWindow } from '../learn/KnowledgeWindow';
 import { SettingsWindow } from '../learn/SettingsWindow';
@@ -71,6 +72,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
           from={spec.from}
           to={spec.to}
         />
+      </Window>
+    );
+  }
+  if (spec.type === 'activities') {
+    return (
+      <Window window={w} title="Activités">
+        <ActivitiesWindow />
       </Window>
     );
   }

@@ -8,6 +8,7 @@ import { SimulationOverlay } from './components/SimulationOverlay';
 import { Toolbar } from './components/Toolbar';
 import { ZoomControls } from './components/ZoomControls';
 import { SessionProvider, useSession } from './context';
+import { ActivityPanel } from './learn/ActivityPanel';
 import { Session } from './session';
 import { WindowLayer } from './windows/WindowLayer';
 
@@ -140,6 +141,7 @@ function Layout() {
           <ResumeBanner />
           <Notice />
         </main>
+        <ActivityPanel />
       </div>
       <footer className="panel">
         <PropertiesPanel />

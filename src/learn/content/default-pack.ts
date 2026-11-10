@@ -117,6 +117,7 @@ Le travail en cours est aussi gardé automatiquement dans le navigateur du poste
     remember: [
       'La sauvegarde automatique ne remplace pas Enregistrer : elle reste sur ce poste.',
       'Exemple charge un réseau de collège complet pour s’entraîner.',
+      'Activités propose des exercices guidés ; le fichier enregistré garde ce qui a été réussi.',
     ],
     related: ['guide-construire'],
   },

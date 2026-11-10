@@ -252,9 +252,31 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       passe à une ligne par équipement pour que les neuf équipements et les
       trois outils restent visibles sur un écran de 768 px de haut. La box,
       prévue ici, fait l'objet de l'étape 29 (voir les écarts).
-- [ ] **Étape 25 — Activités guidées** : consignes et objectifs dans le fichier,
-      vérifiés automatiquement (état du réseau, sondes sur une copie, journal) ;
-      panneau élève, indices, verrous ; activités d'exemple.
+- [x] **Étape 25 — Activités guidées** : une activité, ce sont des consignes
+      par étapes et des **objectifs que le simulateur vérifie lui-même**. Les
+      vérifications sont des données prises dans une liste fermée (jamais du
+      code), de trois familles : lues sur le plan à tout moment (nombre
+      d'équipements, équipements reliés, même réseau, réglage d'un poste,
+      interface d'un routeur, logiciel installé, serveur démarré, plus rien à
+      signaler) ; testées par le vrai moteur sur une copie du réseau quand
+      l'élève clique **Vérifier mon travail** (ping réussi ou bloqué, nom
+      traduit par le DNS, page web obtenue) ; notées pendant la simulation
+      (commande tapée, simulation lancée). Un équipement est désigné par son
+      identifiant (réseau de départ), son nom (à créer par l'élève) ou sa
+      sorte (« tous les ordinateurs »). Les étapes se font dans l'ordre : les
+      objectifs d'une étape ne comptent qu'une fois les précédentes
+      terminées. Le **panneau d'activité**, à droite du plan et repliable,
+      montre la consigne, l'étape en cours, les objectifs cochés
+      automatiquement (avec la raison quand il en manque), des indices donnés
+      un par un et les fiches de connaissances liées. L'activité fixe son
+      niveau (profil) ; les équipements qu'elle cite ne peuvent pas être
+      supprimés. Activité et travail de l'élève voyagent dans le fichier de
+      projet (champs optionnels `activity` et `work`) et dans la sauvegarde
+      automatique. **Quatre activités fournies** (bouton Activités) : « Mon
+      premier réseau » et « Ajouter un objet connecté » (4e), « Relier deux
+      réseaux » et « Dépannage : le site du collège ne s'affiche plus » (3e).
+      Les tests jouent la solution de chacune et vérifient que rien n'est
+      validé au départ et que tout l'est à la fin.
 - [ ] **Étape 26 — Trace et compte rendu** : nom et classe, journal, compte
       rendu imprimable (plan, table d'adressage, objectifs, réponses), fichier
       rendu.
@@ -305,6 +327,20 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Liste de vérifications réduite** (étape 25) : par rapport au projet
+  initial, il manque les vérifications sur les routes, les enregistrements
+  DNS, les fichiers, les règles de pare-feu, les boîtes aux lettres, les
+  tables ARP et MAC et les pages visitées. Les quatorze disponibles couvrent
+  les activités fournies ; les autres s'ajoutent une à une dans
+  `src/learn/activity/schema.ts` et `evaluate.ts`.
+- **Verrouillage limité à la suppression** (étape 25) : une activité empêche
+  de supprimer les équipements qu'elle cite, mais pas de modifier leurs
+  réglages. Un élève peut donc changer un réglage du réseau de départ ; les
+  objectifs le détectent si cela compte.
+- **Rien n'empêche de lire les vérifications dans le fichier** (étape 25) :
+  un fichier d'activité est un texte lisible. Aucune solution n'y figure,
+  mais les objectifs oui. Ce qui prouve le travail, c'est le réseau rendu,
+  que l'on peut revérifier.
 - **Box reportée à l'étape 29** (étape 24) : une box est un équipement
   composite — un routeur, un switch interne, un point d'accès et un serveur
   DHCP qui, aujourd'hui, ne peut tourner que sur un poste. La réaliser

@@ -221,12 +221,13 @@ code {
 
 .workspace {
   display: grid;
-  grid-template-columns: 156px 1fr;
+  /* palette, plan, activity (when there is one) */
+  grid-template-columns: 156px 1fr auto;
   min-height: 0;
 }
 /* The palette is hidden during a simulation. */
 .app.mode-simulation .workspace {
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr auto;
 }
 
 .palette {
@@ -1808,4 +1809,193 @@ button.term-help[aria-expanded='true'] {
 .settings ul {
   margin: 0;
   padding-left: 20px;
+}
+
+/* ---------- activité ---------- */
+.activity {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  min-height: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.activity.folded {
+  width: auto;
+  padding: 8px 4px;
+}
+.activity.folded button {
+  writing-mode: vertical-rl;
+  padding: 10px 4px;
+}
+.activity > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px 4px;
+}
+.activity h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.05rem;
+}
+.activity-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--muted);
+  font-size: 0.92em;
+}
+.activity-progress progress {
+  flex: 1;
+  height: 8px;
+  accent-color: var(--ok);
+}
+.activity-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 12px 8px;
+  line-height: 1.45;
+}
+.activity-intro {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+}
+.activity-intro summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.activity-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.activity-step {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.activity-step.current {
+  border-color: var(--accent);
+}
+.activity-step.locked {
+  opacity: 0.7;
+}
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+}
+.step-number {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.85em;
+  line-height: 22px;
+  text-align: center;
+}
+.activity-step.current .step-number {
+  background: var(--accent);
+  color: #fff;
+}
+.activity-step.complete .step-number {
+  background: var(--ok);
+  color: #fff;
+}
+.step-body {
+  padding: 0 10px 8px;
+}
+.objectives {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+}
+.objective {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+.objective-sign {
+  flex: none;
+  width: 18px;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: center;
+}
+.objective.done {
+  color: var(--ok);
+}
+.objective.done .objective-sign {
+  color: var(--ok);
+}
+.objective.locked {
+  color: var(--muted);
+}
+.objective-detail {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.activity .hint {
+  margin: 6px 0;
+  padding: 6px 10px;
+  background: var(--warning-bg);
+  border-radius: 6px;
+}
+.step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.activity-finished {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: #e4f4e8;
+  border-radius: 6px;
+  color: var(--ok);
+}
+.activity > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.activities ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.activities li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.activities li > div {
+  flex: 1;
+}
+.activities p {
+  margin: 0 0 2px;
+}
+.activity-name {
+  font-weight: 600;
 }

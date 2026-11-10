@@ -626,3 +626,75 @@ test('profil par niveau : en 4e, l’interface se limite au programme du niveau'
   await expect(palette.getByRole('button', { name: /Routeur/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Réglages' })).toHaveAttribute('title', /niveau : 4e/);
 });
+
+test('activité guidée : « Mon premier réseau » réalisée de bout en bout', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await shot(page, '37-liste-activites');
+  await page.getByRole('button', { name: 'Commencer : Mon premier réseau' }).click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  await expect(panel).toContainText('0 objectif sur 9');
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+
+  // Étape 1 : poser les équipements.
+  await palette.getByRole('button', { name: 'Ordinateur', exact: true }).click();
+  await palette.getByRole('button', { name: 'Ordinateur', exact: true }).click();
+  await palette.getByRole('button', { name: 'Switch', exact: true }).click();
+  await expect(panel).toContainText('2 objectifs sur 9');
+
+  // Étape 2 : relier.
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Ordinateur 1', 'Switch 1', 'Ordinateur 2', 'Switch 1']) {
+    await page.locator(`[aria-label^="${name}"]`).click();
+  }
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  await expect(panel).toContainText('4 objectifs sur 9');
+  await shot(page, '38-activite-en-cours');
+
+  // Étape 3 : adresser. Une même adresse deux fois ne valide pas l'étape.
+  const address = page.getByRole('textbox', { name: 'Adresse IP', exact: true });
+  for (const name of ['Ordinateur 1', 'Ordinateur 2']) {
+    await page.locator(`[aria-label^="${name}"]`).click();
+    await address.fill('192.168.1.1');
+    await address.press('Enter');
+  }
+  await expect(panel).toContainText('5 objectifs sur 9');
+  await expect(panel).toContainText('1 point(s) signalé(s) par Vérifier.');
+  await address.fill('192.168.1.2');
+  await address.press('Enter');
+  await expect(panel).toContainText('6 objectifs sur 9');
+
+  // Étape 4 : tester en simulation.
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5');
+  await expect(panel).toContainText('7 objectifs sur 9');
+  const terminal = await openTerminal(page, 'Ordinateur 1');
+  const input = terminal.getByRole('textbox', { name: 'Commande', exact: true });
+  await input.fill('ping -n 1 192.168.1.2');
+  await input.press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
+  await expect(panel).toContainText('8 objectifs sur 9');
+  await panel.getByRole('button', { name: 'Vérifier mon travail' }).click();
+  await expect(panel).toContainText('Tous les objectifs sont atteints. Bravo !');
+  await shot(page, '39-activite-terminee');
+
+  // Le fichier rendu contient l'activité et le travail de l'élève.
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Enregistrer le projet' });
+  await expect(dialog.getByRole('textbox', { name: 'Nom du fichier' })).toHaveValue('premier-reseau');
+  const download = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  const path = await (await download).path();
+  const saved = JSON.parse(readFileSync(path, 'utf8')) as {
+    activity: { id: string };
+    work: { done: string[] };
+  };
+  expect(saved.activity.id).toBe('premier-reseau');
+  expect(saved.work.done).toHaveLength(9);
+
+  // Après rechargement de la page, l'activité est retrouvée avec son avancement.
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.getByRole('complementary', { name: 'Activité' })).toContainText('Mon premier réseau');
+  await expect(page.getByRole('region', { name: 'Travail retrouvé' })).toBeVisible();
+});

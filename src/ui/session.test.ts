@@ -1,6 +1,7 @@
 import { IP_ANY } from '../engine/core/ipv4';
 import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
+import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
 import { serializeProject } from '../project/serialize';
 import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
@@ -629,6 +630,167 @@ describe('Session : lecture de la simulation', () => {
     session.setMode('design');
     session.stepFrame();
     expect(session.stepping).toBe(false);
+  });
+});
+
+describe('Session : activités', () => {
+  const builtin = (id: string) => {
+    const found = BUILTIN_ACTIVITIES.find((a) => a.id === id);
+    if (!found) throw new Error(id);
+    return found;
+  };
+  const statusOf = (session: Session, id: string) => session.activityOutcomes().get(id)?.status;
+
+  test('commence une activité : réseau de départ, profil, progression', () => {
+    const session = new Session(null, new ManualFrames());
+    session.addDevice('router');
+    session.startActivity(builtin('premier-reseau'));
+    expect(session.activity?.title).toBe('Mon premier réseau');
+    expect(session.network.devices).toHaveLength(0);
+    expect(session.fileName).toBe('premier-reseau.reseaulab.json');
+    // L'activité vient avec son niveau : pas de routeur en 4e.
+    expect(session.profile.base).toBe('4e');
+    expect(session.can('device:router')).toBe(false);
+    expect(session.activityStep).toBe(0);
+    expect(session.objectivesDone().size).toBe(0);
+
+    session.addDevice('computer');
+    session.addDevice('computer');
+    expect(statusOf(session, 'deux-ordinateurs')).toBe('done');
+    expect(statusOf(session, 'cable-1')).toBe('locked');
+    session.addDevice('switch');
+    expect(session.activityStep).toBe(1);
+    expect(statusOf(session, 'cable-1')).toBe('todo');
+    // Ouvrir un autre réseau quitte l'activité et rend le niveau du poste.
+    session.newProject();
+    expect(session.activity).toBeNull();
+    expect(session.profile.base).toBe('complet');
+    expect(session.activityOutcomes().size).toBe(0);
+  });
+
+  test('« Vérifier mon travail » teste les communications ; un changement du réseau périme le résultat', () => {
+    const session = new Session(null, new ManualFrames());
+    session.startActivity(builtin('deux-reseaux'));
+    const net = session.network;
+    const id = (name: string) => net.devices.find((d) => d.name === name)?.id ?? '';
+    net.connect(id('Routeur'), id('Switch salle A'));
+    net.connect(id('Routeur'), id('Switch salle B'));
+    net.router(id('Routeur')).setInterface(0, { ip: ip('192.168.1.1'), mask: MASK_24 });
+    net.router(id('Routeur')).setInterface(1, { ip: ip('192.168.2.1'), mask: MASK_24 });
+    for (const [name, gateway] of [
+      ['Poste A1', '192.168.1.1'],
+      ['Poste A2', '192.168.1.1'],
+      ['Poste B1', '192.168.2.1'],
+    ] as const) {
+      net.host(id(name)).updateConfig({ gateway: ip(gateway) });
+    }
+    expect(session.activityStep).toBe(3);
+    expect(session.activityOutcomes().get('a-vers-b')).toEqual({
+      status: 'todo',
+      detail: 'Se vérifie avec le bouton « Vérifier mon travail ».',
+    });
+    session.checkWork();
+    expect(statusOf(session, 'a-vers-b')).toBe('done');
+    expect(session.mode).toBe('design');
+
+    // L'élève casse ensuite son réseau : le test est à refaire.
+    net.host(id('Poste B1')).updateConfig({ gateway: IP_ANY });
+    expect(session.activityOutcomes().get('a-vers-b')).toEqual({ status: 'locked' });
+    net.host(id('Poste B1')).updateConfig({ gateway: ip('192.168.2.1') });
+    expect(session.activityOutcomes().get('a-vers-b')).toEqual({
+      status: 'todo',
+      detail: 'Le réseau a changé : cliquez de nouveau sur « Vérifier mon travail ».',
+    });
+    session.checkWork();
+    expect(statusOf(session, 'a-vers-b')).toBe('done');
+  });
+
+  test('note la simulation et les commandes tapées ; donne les indices un par un', () => {
+    const session = new Session(null, new ManualFrames());
+    session.recordCommand('n1', 'ping');
+    session.revealHint('constater');
+    expect(session.work).toEqual({ done: [], hints: {}, commands: [], simulated: false });
+
+    session.startActivity(builtin('depannage'));
+    const poste = session.network.devices.find((d) => d.name === 'Poste 1')?.id ?? '';
+    expect(statusOf(session, 'simulation')).toBe('todo');
+    session.setMode('simulation');
+    expect(statusOf(session, 'simulation')).toBe('done');
+    session.recordCommand(poste, 'ping');
+    session.recordCommand(poste, 'ping');
+    expect(session.work.commands).toEqual([`${poste}:ping`]);
+    expect(statusOf(session, 'ping-essaye')).toBe('done');
+    expect(session.activityStep).toBe(1);
+    session.revealHint('reparer');
+    session.revealHint('reparer');
+    expect(session.work.hints).toEqual({ reparer: 2 });
+  });
+
+  test('un équipement cité par l’activité ne peut pas être supprimé', () => {
+    const session = new Session(null, new ManualFrames());
+    session.startActivity(builtin('objet-connecte'));
+    const first = session.network.devices.find((d) => d.name === 'Ordinateur 1')?.id ?? '';
+    const second = session.network.devices.find((d) => d.name === 'Ordinateur 2')?.id ?? '';
+    session.select({ kind: 'device', id: first });
+    session.deleteSelection();
+    expect(session.network.device(first)).toBeDefined();
+    expect(session.notice).toMatchObject({ kind: 'error' });
+    expect(session.notice?.text).toContain('fait partie de l’activité');
+    // Les autres équipements restent libres.
+    session.select({ kind: 'device', id: second });
+    session.deleteSelection();
+    expect(session.network.device(second)).toBeUndefined();
+    session.quitActivity();
+    session.select({ kind: 'device', id: first });
+    session.deleteSelection();
+    expect(session.network.device(first)).toBeUndefined();
+  });
+
+  test('le fichier enregistré garde l’activité et le travail ; il se rouvre et se retrouve au démarrage', () => {
+    const storage = new MemoryStorage();
+    const session = new Session(storage, new ManualFrames());
+    session.startActivity(builtin('premier-reseau'));
+    session.addDevice('computer');
+    session.addDevice('computer');
+    session.addDevice('switch');
+    session.revealHint('relier');
+    const text = session.serialize();
+    const file = JSON.parse(text) as { activity: { id: string }; work: { done: string[]; hints: unknown } };
+    expect(file.activity.id).toBe('premier-reseau');
+    expect(file.work.done).toEqual(['deux-ordinateurs', 'un-switch']);
+    expect(file.work.hints).toEqual({ relier: 1 });
+
+    const other = new Session(null, new ManualFrames());
+    expect(other.openProject(text, 'dupont.reseaulab.json')).toBe(true);
+    expect(other.notice?.text).toBe('Activité « Mon premier réseau » ouverte.');
+    expect(other.activity?.id).toBe('premier-reseau');
+    expect(other.work.hints).toEqual({ relier: 1 });
+    expect(other.objectivesDone()).toEqual(new Set(['deux-ordinateurs', 'un-switch']));
+
+    session.saveNow();
+    const restored = new Session(storage, new ManualFrames());
+    expect(restored.activity?.id).toBe('premier-reseau');
+    expect(restored.resumed).not.toBeNull();
+    expect(restored.activityStep).toBe(1);
+  });
+
+  test('annuler ne touche ni à l’activité ni au travail déjà noté', () => {
+    const session = new Session(null, new ManualFrames());
+    session.startActivity(builtin('premier-reseau'));
+    session.addDevice('computer');
+    session.commitHistory();
+    session.revealHint('poser');
+    session.addDevice('computer');
+    session.commitHistory();
+    expect(statusOf(session, 'deux-ordinateurs')).toBe('done');
+    session.undo();
+    expect(session.network.devices).toHaveLength(1);
+    expect(session.activity?.id).toBe('premier-reseau');
+    expect(session.work.hints).toEqual({ poser: 1 });
+    expect(statusOf(session, 'deux-ordinateurs')).toBe('todo');
+    // Un indice demandé n'est pas une modification du plan : rien de plus à annuler.
+    session.undo();
+    expect(session.network.devices).toHaveLength(0);
   });
 });
 

@@ -102,6 +102,23 @@ diagnostic renvoient aussi à la fiche concernée.
 Le contenu fourni est une proposition : le découpage par niveau et les textes
 sont à adapter à votre progression (voir « Pack pédagogique » plus bas).
 
+### Activités guidées
+
+Le bouton **Activités** propose quatre activités prêtes à l'emploi : « Mon
+premier réseau » et « Ajouter un objet connecté » (4e), « Relier deux
+réseaux » et « Dépannage : le site du collège ne s'affiche plus » (3e).
+Chacune ouvre un réseau de départ et un **panneau d'activité** à droite du
+plan : la consigne, des étapes, et des objectifs qui **se cochent tout seuls**
+quand ils sont atteints. Certains se lisent sur le plan (équipements reliés,
+adresse dans le bon réseau, plus rien à signaler) ; d'autres — une
+communication, une page web — sont testés sur une copie du réseau par le
+bouton **Vérifier mon travail**. Chaque étape propose des indices, donnés un
+par un, et renvoie aux fiches de connaissances.
+
+L'élève rend son travail avec **Enregistrer** : le fichier contient le réseau,
+l'activité et ce qui a été réussi. Il se rouvre avec **Ouvrir…**, comme tout
+fichier d'activité que vous distribuez.
+
 ### Niveau de la classe
 
 Le bouton **Réglages** (⚙) limite RéseauLab au programme d'un niveau : **5e**
@@ -155,8 +172,8 @@ pnpm run build      # produit le fichier unique dist/index.html
 En bref : `src/engine` contient le moteur de simulation (TypeScript pur,
 déterministe, sans DOM, couvert à plus de 90 % par les tests) ; `src/project`
 le format de fichier versionné et validé ; `src/learn` la logique pédagogique
-(diagnostic, fiches de connaissances, profils par niveau), pure et testée
-comme le moteur ;
+(diagnostic, fiches de connaissances, profils par niveau, activités et leur
+vérification), pure et testée comme le moteur ;
 `src/ui` l'interface React.
 
 ### Pack pédagogique

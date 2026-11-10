@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
+import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
 import { serializeProject } from '../project/serialize';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
@@ -1437,5 +1438,151 @@ describe('Terminaux variés', () => {
     const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
     expect(within(palette).getByRole('button', { name: 'Imprimante' })).toBeInTheDocument();
     expect(within(palette).queryByRole('button', { name: 'Objet connecté' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Activités guidées', () => {
+  function startFirst() {
+    const context = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+    const list = screen.getByRole('dialog', { name: 'Activités' });
+    expect(list).toHaveTextContent('Dépannage : le site du collège ne s’affiche plus');
+    fireEvent.click(within(list).getByRole('button', { name: 'Commencer : Mon premier réseau' }));
+    return context;
+  }
+
+  test('choisir une activité ouvre son panneau, à côté du plan', () => {
+    startFirst();
+    expect(screen.queryByRole('dialog', { name: 'Activités' })).not.toBeInTheDocument();
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    expect(within(panel).getByRole('heading', { name: 'Mon premier réseau' })).toBeInTheDocument();
+    expect(panel).toHaveTextContent('0 objectif sur 9');
+    expect(panel).toHaveTextContent('Deux ordinateurs doivent pouvoir échanger des fichiers.');
+    // Seule l'étape en cours est dépliée.
+    expect(within(panel).getByRole('button', { name: /Poser les équipements/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(within(panel).getByRole('button', { name: /Relier les ordinateurs/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    // L'activité est de niveau 4e : le routeur n'est pas proposé.
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    expect(within(palette).queryByRole('button', { name: 'Routeur' })).not.toBeInTheDocument();
+  });
+
+  test('les objectifs se cochent seuls et l’étape suivante s’ouvre', () => {
+    startFirst();
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: 'Ordinateur' }));
+    const objectives = within(panel).getByRole('list', { name: 'Objectifs : Poser les équipements' });
+    expect(within(objectives).getAllByRole('listitem')[0]).toHaveTextContent(
+      'À faire : Il y a deux ordinateurs sur le plan 1 sur 2.',
+    );
+    fireEvent.click(within(palette).getByRole('button', { name: 'Ordinateur' }));
+    expect(within(objectives).getAllByRole('listitem')[0]).toHaveTextContent(
+      'Atteint : Il y a deux ordinateurs',
+    );
+    expect(panel).toHaveTextContent('1 objectif sur 9');
+    fireEvent.click(within(palette).getByRole('button', { name: 'Switch' }));
+    expect(panel).toHaveTextContent('2 objectifs sur 9');
+    // L'étape terminée se replie, la suivante s'ouvre.
+    expect(within(panel).getByRole('button', { name: /Poser les équipements/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(
+      within(panel).getByRole('list', { name: 'Objectifs : Relier les ordinateurs au switch' }),
+    ).toBeInTheDocument();
+  });
+
+  test('indices donnés un par un, fiches liées, panneau repliable, sortie de l’activité', () => {
+    const { session } = startFirst();
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    fireEvent.click(within(panel).getByRole('button', { name: /Relier les ordinateurs/ }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Un indice (0/2)' }));
+    expect(panel).toHaveTextContent('Indice 1. L’outil Câble est dans la palette');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Un autre indice (1/2)' }));
+    expect(panel).toHaveTextContent('Indice 2.');
+    // Tous les indices de cette étape sont donnés : plus de bouton pour en demander un autre.
+    expect(within(panel).queryByRole('button', { name: /Un autre indice/ })).not.toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Fiche : Topologie d’un réseau' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Aide et connaissances' })).getByRole('article', {
+        name: 'Topologie d’un réseau',
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Réduire l’activité' }));
+    const folded = screen.getByRole('complementary', { name: 'Activité' });
+    expect(folded).toHaveTextContent('Activité (0/9)');
+    fireEvent.click(within(folded).getByRole('button'));
+    fireEvent.click(
+      within(screen.getByRole('complementary', { name: 'Activité' })).getByRole('button', {
+        name: 'Quitter l’activité',
+      }),
+    );
+    expect(screen.queryByRole('complementary', { name: 'Activité' })).not.toBeInTheDocument();
+    expect(session.activity).toBeNull();
+  });
+
+  test('commencer une activité demande confirmation quand un réseau est en cours', () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('router');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commencer : Relier deux réseaux' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Remplacer le réseau ?' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Annuler' }));
+    expect(session.activity).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Commencer : Relier deux réseaux' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commencer l’activité' }));
+    expect(session.activity?.id).toBe('deux-reseaux');
+    expect(session.network.devices).toHaveLength(6);
+  });
+
+  test('« Vérifier mon travail » valide une communication ; la fin de l’activité est annoncée', () => {
+    const { session } = setup();
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'premier-reseau');
+    act(() => {
+      if (builtin) session.startActivity(builtin);
+      const a = session.addDevice('computer');
+      const b = session.addDevice('computer');
+      const sw = session.addDevice('switch');
+      session.network.host(a).updateConfig({ ip: ip('192.168.1.1'), mask: MASK_24 });
+      session.network.host(b).updateConfig({ ip: ip('192.168.1.2'), mask: MASK_24 });
+      session.network.connect(a, sw);
+      session.network.connect(b, sw);
+      session.setMode('simulation');
+      session.recordCommand(a, 'ping');
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    expect(panel).toHaveTextContent('8 objectifs sur 9');
+    expect(panel).toHaveTextContent('Se vérifie avec le bouton « Vérifier mon travail ».');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Vérifier mon travail' }));
+    expect(panel).toHaveTextContent('9 objectifs sur 9');
+    expect(panel).toHaveTextContent('Tous les objectifs sont atteints. Bravo !');
+  });
+
+  test('une commande tapée dans la ligne de commande compte pour l’objectif', () => {
+    const { session, frames } = setup();
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'depannage');
+    let poste = '';
+    act(() => {
+      if (builtin) session.startActivity(builtin);
+      poste = session.network.devices.find((d) => d.name === 'Poste 1')?.id ?? '';
+      session.setMode('simulation');
+      session.openWindow({ type: 'app', deviceId: poste, app: 'terminal' });
+    });
+    const input = screen.getByRole('textbox', { name: 'Commande' });
+    fireEvent.change(input, { target: { value: 'ping -n 1 192.168.1.2' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    elapse(frames, 200);
+    expect(session.work.commands).toEqual([`${poste}:ping`]);
+    expect(screen.getByRole('complementary', { name: 'Activité' })).toHaveTextContent('2 objectifs sur 6');
   });
 });

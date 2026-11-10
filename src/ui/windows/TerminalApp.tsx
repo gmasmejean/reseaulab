@@ -35,8 +35,10 @@ export function TerminalApp({ host }: { host: Host }) {
         {
           ...(session ? { commands: allowedCommands(session.profile) } : {}),
           onEvent: (event) => {
-            if (event.kind === 'command') setUnreached(null);
-            else if (event.kind === 'resolve-failed') setUnreached(event.name);
+            if (event.kind === 'command') {
+              setUnreached(null);
+              session?.recordCommand(host.id, event.name);
+            } else if (event.kind === 'resolve-failed') setUnreached(event.name);
             else if (event.received < event.sent) setUnreached(formatIp(event.target));
           },
         },

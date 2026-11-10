@@ -97,16 +97,27 @@ export function Toolbar() {
           Enregistrer
         </button>
         {!simulation && (
-          <button
-            type="button"
-            onClick={() => {
-              replaceNetwork(() => {
-                session.loadExample();
-              });
-            }}
-          >
-            Exemple
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                replaceNetwork(() => {
+                  session.loadExample();
+                });
+              }}
+            >
+              Exemple
+            </button>
+            <button
+              type="button"
+              title="Activités guidées, avec des objectifs vérifiés automatiquement"
+              onClick={() => {
+                session.openWindow({ type: 'activities' });
+              }}
+            >
+              Activités
+            </button>
+          </>
         )}
       </nav>
       {/* Each mode shows its own controls, so that the bar fits on a 1366 px screen. */}

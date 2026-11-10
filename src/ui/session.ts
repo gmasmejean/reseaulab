@@ -17,6 +17,19 @@ import {
   type ProfileLevel,
   type ProfileSpec,
 } from '../learn/profile/capabilities';
+import type { BuiltinActivity } from '../learn/activity/builtin';
+import {
+  activityProfile,
+  currentStep,
+  evaluateNow,
+  evaluateProbes,
+  gateSteps,
+  journalEntry,
+  protectedDevices,
+  type Outcome,
+} from '../learn/activity/evaluate';
+import { EMPTY_WORK, familyOf, objectivesOf, type Activity, type Work } from '../learn/activity/schema';
+import { parseLearnFile, serializeLearnFile } from '../learn/file';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
@@ -42,7 +55,9 @@ export type WindowSpec =
    */
   | { readonly type: 'diagnose'; readonly from?: string; readonly to?: string; readonly at?: number }
   /** Settings of the class (level), for the teacher. */
-  | { readonly type: 'settings' };
+  | { readonly type: 'settings' }
+  /** Activities shipped with RéseauLab. */
+  | { readonly type: 'activities' };
 
 export interface OpenWindow {
   readonly id: string;
@@ -132,6 +147,7 @@ function windowKey(spec: WindowSpec): string {
     case 'help':
     case 'diagnose':
     case 'settings':
+    case 'activities':
       return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
@@ -206,6 +222,16 @@ export class Session {
   private pendingEdit: (() => boolean) | null = null;
   /** Knowledge cards and messages: the default pack, completed by the teacher's. */
   pack: Pack = DEFAULT_PACK;
+  /** Activity being done, with its instructions and objectives. */
+  activity: Activity | null = null;
+  /** What the pupil did in the activity. */
+  work: Work = EMPTY_WORK;
+  /** Results of the objectives tested on a copy, and the design they were tested on. */
+  private probed = new Map<string, Outcome>();
+  private probedAt = -1;
+  /** Counts the changes of the design, to know when a test is outdated. */
+  private designRevision = 0;
+  private outcomeCache: { readonly key: string; readonly value: Map<string, Outcome> } | null = null;
   /** What the interface offers on this computer (level of the class). */
   private localProfile: ProfileSpec = FULL_PROFILE;
   /** Size of the stage (plan and windows), once known. */
@@ -242,7 +268,7 @@ export class Session {
     private readonly now: () => number = () => Date.now(),
   ) {
     this.network = this.restore() ?? new Network();
-    this.present = this.serialize();
+    this.present = this.designText();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
     this.pack = this.readPack();
     this.localProfile = parseProfile(this.readPreference(PROFILE_KEY));
@@ -284,12 +310,23 @@ export class Session {
 
   /* ---------- project ---------- */
 
-  replaceNetwork(network: Network, fileName?: string): void {
+  replaceNetwork(
+    network: Network,
+    fileName?: string,
+    learn: { readonly activity: Activity | null; readonly work: Work | null } = {
+      activity: null,
+      work: null,
+    },
+  ): void {
     this.pendingEdit = null;
     this.setMode('design');
     this.commitHistory();
     this.detach();
     this.network = network;
+    this.activity = learn.activity;
+    this.work = learn.activity ? (learn.work ?? EMPTY_WORK) : EMPTY_WORK;
+    this.probed = new Map();
+    this.probedAt = -1;
     this.resumed = null;
     this.selection = null;
     this.cableStart = null;
@@ -315,8 +352,11 @@ export class Session {
 
   openProject(text: string, fileName: string): boolean {
     try {
-      this.replaceNetwork(parseProject(text), fileName);
-      this.notify(`Projet « ${fileName} » ouvert.`);
+      const file = parseLearnFile(text);
+      this.replaceNetwork(file.network, fileName, file);
+      this.notify(
+        file.activity ? `Activité « ${file.activity.title} » ouverte.` : `Projet « ${fileName} » ouvert.`,
+      );
       return true;
     } catch (error) {
       this.notify(error instanceof Error ? error.message : String(error), 'error');
@@ -344,8 +384,103 @@ export class Session {
     this.touch();
   }
 
+  /** The project file: the network, and the activity with the pupil's work when there is one. */
   serialize(): string {
+    const work = this.activity ? { ...this.work, done: [...this.objectivesDone()] } : null;
+    return serializeLearnFile(this.network, { activity: this.activity, work });
+  }
+
+  /** The design alone, as compared by the undo history. */
+  private designText(): string {
     return serializeProject(this.network);
+  }
+
+  /* ---------- activity ---------- */
+
+  /** Starts an activity shipped with RéseauLab, on its starting network. */
+  startActivity(builtin: BuiltinActivity): void {
+    const { network, activity } = builtin.build();
+    this.replaceNetwork(network, `${activity.id}${PROJECT_EXTENSION}`, { activity, work: null });
+    this.notify(`Activité « ${activity.title} » : suivez les étapes, à droite.`);
+  }
+
+  /** Leaves the activity; the network stays as it is. */
+  quitActivity(): void {
+    this.activity = null;
+    this.work = EMPTY_WORK;
+    this.probed = new Map();
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /**
+   * State of every objective. Those read on the design or on the journal are
+   * always up to date; those tested on a copy keep the result of the last
+   * « Vérifier mon travail », until the design changes.
+   */
+  activityOutcomes(): Map<string, Outcome> {
+    const activity = this.activity;
+    if (!activity) return new Map();
+    const key = `${this.network.version}:${this.designRevision}:${this.probedAt}:${this.work.commands.length}:${String(this.work.simulated)}`;
+    if (this.outcomeCache?.key === key) return this.outcomeCache.value;
+    const fresh = this.probedAt === this.designRevision;
+    const outcomes = evaluateNow(activity, this.network, this.work);
+    for (const objective of objectivesOf(activity)) {
+      if (familyOf(objective.check) !== 'probe') continue;
+      const tested = this.probed.get(objective.id);
+      outcomes.set(
+        objective.id,
+        tested && fresh
+          ? tested
+          : {
+              status: 'todo',
+              detail: tested
+                ? 'Le réseau a changé : cliquez de nouveau sur « Vérifier mon travail ».'
+                : 'Se vérifie avec le bouton « Vérifier mon travail ».',
+            },
+      );
+    }
+    const value = gateSteps(activity, outcomes);
+    this.outcomeCache = { key, value };
+    return value;
+  }
+
+  /** Identifiers of the objectives reached. */
+  objectivesDone(): Set<string> {
+    return new Set([...this.activityOutcomes()].filter(([, o]) => o.status === 'done').map(([id]) => id));
+  }
+
+  /** Step the pupil is working on. */
+  get activityStep(): number {
+    return this.activity ? currentStep(this.activity, this.objectivesDone()) : 0;
+  }
+
+  /** « Vérifier mon travail » : tests on a copy of the network what cannot be read on the plan. */
+  checkWork(): void {
+    if (!this.activity) return;
+    this.commitEdit();
+    this.probed = evaluateProbes(this.activity, this.network);
+    this.probedAt = this.designRevision;
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /** Shows one more hint of a step. */
+  revealHint(stepId: string): void {
+    if (!this.activity) return;
+    this.work = { ...this.work, hints: { ...this.work.hints, [stepId]: (this.work.hints[stepId] ?? 0) + 1 } };
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /** Notes a command typed in a terminal, for the objectives that ask for it. */
+  recordCommand(deviceId: string, command: string): void {
+    if (!this.activity) return;
+    const entry = journalEntry(deviceId, command);
+    if (this.work.commands.includes(entry) || this.work.commands.length >= 500) return;
+    this.work = { ...this.work, commands: [...this.work.commands, entry] };
+    this.scheduleSave();
+    this.touch();
   }
 
   /** Names the project file from what the pupil typed (without the extension). */
@@ -364,7 +499,8 @@ export class Session {
 
   /** The profile in use. */
   get profile(): ProfileSpec {
-    return this.localProfile;
+    // An activity comes with the interface its author chose.
+    return (this.activity ? activityProfile(this.activity) : null) ?? this.localProfile;
   }
 
   /** Whether the interface offers a device, an application, a command or a setting. */
@@ -444,6 +580,7 @@ export class Session {
     this.stepUntil = null;
     if (mode === 'simulation') {
       this.commitHistory();
+      if (this.activity && !this.work.simulated) this.work = { ...this.work, simulated: true };
       this.network.start();
       this.paused = false;
       this.clock.start();
@@ -607,6 +744,10 @@ export class Session {
   deleteSelection(): void {
     const sel = this.selection;
     if (!sel || this.mode !== 'design') return;
+    if (sel.kind === 'device' && this.activity && protectedDevices(this.activity).has(sel.id)) {
+      this.notify('Cet équipement fait partie de l’activité : il ne peut pas être supprimé.', 'error');
+      return;
+    }
     // Each deletion is a step of its own, whatever was changed just before.
     this.commitHistory();
     if (sel.kind === 'device') this.network.removeDevice(sel.id);
@@ -631,7 +772,7 @@ export class Session {
     if (this.historyTimer !== null) clearTimeout(this.historyTimer);
     this.historyTimer = null;
     this.historyDirty = false;
-    const current = this.serialize();
+    const current = this.designText();
     if (current === this.present) return;
     this.past.push(this.present);
     if (this.past.length > HISTORY_LIMIT) this.past.shift();
@@ -665,7 +806,8 @@ export class Session {
     this.detach();
     this.network = parseProject(project);
     // As this network is written, so that an unchanged design is never taken for a new step.
-    this.present = this.serialize();
+    this.present = this.designText();
+    this.designRevision++;
     this.attach();
     this.cableStart = null;
     const sel = this.selection;
@@ -847,7 +989,10 @@ export class Session {
     this.unsubscribe = [
       net.events.on('change', () => {
         this.scheduleSave();
-        if (this.mode === 'design') this.scheduleHistory();
+        if (this.mode === 'design') {
+          this.designRevision++;
+          this.scheduleHistory();
+        }
         this.touch();
       }),
       net.events.on('transmit', (event) => {
@@ -922,8 +1067,10 @@ export class Session {
     try {
       const saved = this.storage?.getItem(AUTOSAVE_KEY);
       if (!saved) return null;
-      const network = parseProject(saved);
-      if (network.devices.length > 0 || network.notes.length > 0) {
+      const { network, activity, work } = parseLearnFile(saved);
+      this.activity = activity;
+      this.work = activity ? (work ?? EMPTY_WORK) : EMPTY_WORK;
+      if (network.devices.length > 0 || network.notes.length > 0 || activity) {
         const date = Number(this.storage?.getItem(AUTOSAVE_DATE_KEY) ?? NaN);
         this.resumed = { savedAt: Number.isFinite(date) && date > 0 ? date : null };
       }
