@@ -221,7 +221,7 @@ code {
 
 .workspace {
   display: grid;
-  grid-template-columns: 132px 1fr;
+  grid-template-columns: 156px 1fr;
   min-height: 0;
 }
 /* The palette is hidden during a simulation. */
@@ -242,15 +242,20 @@ code {
   color: var(--muted);
   margin: 6px 4px 8px;
 }
+/* One line per item: with nine devices and three tools, everything stays visible on a 768 px screen. */
 .palette-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   width: 100%;
-  margin-bottom: 6px;
-  padding: 6px 4px;
+  margin-bottom: 4px;
+  padding: 3px 8px;
   background: var(--surface);
+  text-align: left;
+  line-height: 1.15;
+}
+.palette-item svg {
+  flex: none;
 }
 .palette-item.active {
   background: var(--accent-soft);
@@ -428,6 +433,9 @@ code {
 }
 .device-icon.router .body {
   fill: #f6dfc8;
+}
+.device-icon .light {
+  fill: var(--ok);
 }
 .device-icon .port {
   fill: #3b4a5f;

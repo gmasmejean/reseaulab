@@ -240,9 +240,18 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       reste visible et fonctionne. La fenêtre des réglages liste ce que le
       niveau masque. En simulation, la barre d'outils ne garde
       qu'« Enregistrer » parmi les actions de projet.
-- [ ] **Étape 24 — Box et objets connectés** : équipement « Box » (routeur,
-      switch, Wi-Fi, DHCP) ; serveur, imprimante, caméra IP, smartphone,
-      tablette.
+- [x] **Étape 24 — Terminaux variés** : serveur, imprimante, objet connecté,
+      smartphone et tablette rejoignent l'ordinateur et le portable. Ce sont
+      tous des postes (une carte réseau, une pile IP complète) : seuls
+      changent le dessin, le nom et l'équipement d'origine. L'imprimante et
+      l'objet connecté affichent leur état sur une petite page web, comme les
+      vrais ; le smartphone et la tablette sont en Wi-Fi et ont un
+      navigateur. « Ajouter un objet connecté à un réseau local » se fait
+      donc comme pour un poste : le relier, lui donner une adresse du réseau,
+      le joindre par `ping` ou par son adresse dans le navigateur. La palette
+      passe à une ligne par équipement pour que les neuf équipements et les
+      trois outils restent visibles sur un écran de 768 px de haut. La box,
+      prévue ici, fait l'objet de l'étape 29 (voir les écarts).
 - [ ] **Étape 25 — Activités guidées** : consignes et objectifs dans le fichier,
       vérifiés automatiquement (état du réseau, sondes sur une copie, journal) ;
       panneau élève, indices, verrous ; activités d'exemple.
@@ -253,6 +262,8 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       aux fiches.
 - [ ] **Étape 28 — Éditeur d'activités** : objectifs proposés depuis le réseau
       solution, réseau de départ, export et import du pack pédagogique.
+- [ ] **Étape 29 — Box Internet** : un seul équipement réunissant routeur,
+      switch, point d'accès Wi-Fi et serveur DHCP, comme à la maison.
 
 ## Écarts au plan
 
@@ -294,6 +305,14 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Box reportée à l'étape 29** (étape 24) : une box est un équipement
+  composite — un routeur, un switch interne, un point d'accès et un serveur
+  DHCP qui, aujourd'hui, ne peut tourner que sur un poste. La réaliser
+  touche le Wi-Fi (réservé aux switchs), le choix des ports au câblage, le
+  format de fichier et l'analyse de topologie du diagnostic. Elle est donc
+  sortie de l'étape 24 et placée après les étapes pédagogiques (25 à 28),
+  qui n'en dépendent pas. D'ici là, une box se reproduit avec un routeur, un
+  switch et un poste serveur DHCP ; la fiche « Box Internet » l'explique.
 - **Répartition par niveau à valider** (étape 23) : comme pour les fiches,
   le niveau attribué à chaque élément de l'interface est une proposition
   (5e : composants et web ; 4e : adressage, DHCP, `ping`, échanges de

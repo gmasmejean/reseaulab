@@ -1,7 +1,7 @@
 import { Emitter } from './core/emitter';
 import { MacAllocator } from './core/mac';
 import { Scheduler } from './core/scheduler';
-import type { Device, Position } from './devices/device';
+import type { Device, HostKind, Position } from './devices/device';
 import { Host, type HostConfig } from './devices/host';
 import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from './devices/router';
 import { Switch } from './devices/switch';
@@ -69,6 +69,11 @@ interface CreateOptions {
 const DEFAULT_NAMES: Record<Device['kind'], string> = {
   computer: 'Ordinateur',
   laptop: 'Portable',
+  server: 'Serveur',
+  printer: 'Imprimante',
+  object: 'Objet connecté',
+  smartphone: 'Smartphone',
+  tablet: 'Tablette',
   switch: 'Switch',
   router: 'Routeur',
 };
@@ -180,7 +185,7 @@ export class Network {
   }
 
   addHost(
-    kind: 'computer' | 'laptop' = 'computer',
+    kind: HostKind = 'computer',
     options: CreateOptions & { readonly config?: Partial<HostConfig>; readonly mac?: string } = {},
   ): Host {
     const mac = options.mac ?? this.macs.allocate();

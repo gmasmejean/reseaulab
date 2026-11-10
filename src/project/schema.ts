@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { isValidMask, parseIp } from '../engine/core/ipv4';
 import { isValidMac } from '../engine/core/mac';
 import type { FsJson } from '../engine/fs/filesystem';
+import { HOST_KINDS } from '../engine/devices/device';
 import { APP_IDS } from '../engine/services/catalog';
 
 /* Project file format, version 1. IPv4 addresses are stored as dotted strings
@@ -53,7 +54,8 @@ const dnsRecord = z.object({ name: text(253), type: z.enum(['A', 'MX', 'NS']), v
 
 const hostSchema = z.object({
   id: text(32),
-  kind: z.enum(['computer', 'laptop']),
+  // Other terminals than computers were added later: older files only have the first two.
+  kind: z.enum(HOST_KINDS),
   name,
   x: coordinate,
   y: coordinate,

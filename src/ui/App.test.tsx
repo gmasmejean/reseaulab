@@ -1414,3 +1414,28 @@ describe('Profils par niveau', () => {
     expect(within(index).queryByRole('button', { name: 'Adresse IP' })).not.toBeInTheDocument();
   });
 });
+
+describe('Terminaux variés', () => {
+  test('la palette propose serveur, imprimante, objet connecté, smartphone et tablette', () => {
+    const { session } = setup();
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    for (const name of ['Serveur', 'Imprimante', 'Objet connecté', 'Smartphone', 'Tablette']) {
+      expect(within(palette).getByRole('button', { name })).toBeInTheDocument();
+    }
+    fireEvent.click(within(palette).getByRole('button', { name: 'Objet connecté' }));
+    fireEvent.click(within(palette).getByRole('button', { name: 'Smartphone' }));
+    expect(session.network.devices.map((d) => d.kind)).toEqual(['object', 'smartphone']);
+    expect(screen.getByRole('button', { name: 'Objet connecté 1 (sans adresse)' })).toBeInTheDocument();
+    // Le smartphone est en Wi-Fi : son panneau propose de choisir un réseau sans fil.
+    expect(screen.getByRole('radio', { name: 'Sans fil (Wi-Fi)' })).toBeChecked();
+  });
+
+  test('l’objet connecté n’est proposé qu’à partir de la 4e', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PROFILE_KEY, JSON.stringify({ base: '5e' }));
+    render(<App session={new Session(storage, new ManualFrames())} />);
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    expect(within(palette).getByRole('button', { name: 'Imprimante' })).toBeInTheDocument();
+    expect(within(palette).queryByRole('button', { name: 'Objet connecté' })).not.toBeInTheDocument();
+  });
+});

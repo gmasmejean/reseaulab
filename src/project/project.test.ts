@@ -3,7 +3,7 @@ import { exampleNetwork } from './example';
 import { ip, ping, routedNetwork, settle } from '../engine/testing';
 import { httpGet, type HttpResult } from '../engine/services/http';
 import { cloneNetwork } from './clone';
-import { PROJECT_FORMAT } from './schema';
+import { PROJECT_FORMAT, type HostJson } from './schema';
 import { ProjectError, parseProject, serializeProject, toProject } from './serialize';
 
 function richNetwork() {
@@ -201,10 +201,7 @@ describe('Projet', () => {
 
   test('refuse les données incohérentes', () => {
     const host = (p: ReturnType<typeof toProject>) =>
-      p.devices.find((d) => d.kind === 'computer') as Extract<
-        ReturnType<typeof toProject>['devices'][number],
-        { kind: 'computer' | 'laptop' }
-      >;
+      p.devices.find((d) => d.kind === 'computer') as HostJson;
     expect(() => parseProject(mutate((p) => (host(p).config.ip = '300.1.1.1')))).toThrow(/config\.ip/);
     expect(() => parseProject(mutate((p) => (host(p).config.mask = '255.0.255.0')))).toThrow(
       /Masque invalide/,
@@ -336,5 +333,58 @@ describe('Copie d’un réseau', () => {
     expect(net.scheduler.now).toBe(1234);
     expect(net.host(a.id).capture.entries).toHaveLength(captured);
     expect(net.host(a.id).stack.arp.entries).toHaveLength(0);
+  });
+});
+
+describe('Terminaux variés', () => {
+  test('serveur, imprimante, objet connecté, smartphone et tablette sont des postes comme les autres', () => {
+    const { net, a, sw } = (() => {
+      const ctx = routedNetwork();
+      return { net: ctx.net, a: ctx.a, sw: ctx.s1 };
+    })();
+    const printer = net.addHost('printer', { config: { ip: ip('192.168.1.50'), mask: ip('255.255.255.0') } });
+    const object = net.addHost('object');
+    const phone = net.addHost('smartphone');
+    const tablet = net.addHost('tablet');
+    const server = net.addHost('server');
+    expect([printer, object, phone, tablet, server].map((h) => h.name)).toEqual([
+      'Imprimante 1',
+      'Objet connecté 1',
+      'Smartphone 1',
+      'Tablette 1',
+      'Serveur 1',
+    ]);
+    // Smartphone et tablette sont en Wi-Fi ; imprimante et objet affichent leur état sur une page web.
+    expect([phone.wifi, tablet.wifi, printer.wifi, server.wifi]).toEqual([true, true, false, false]);
+    expect(printer.installed).toEqual(['webserver']);
+    expect(printer.webServer.active).toBe(true);
+    expect(object.fs.readFile('/webserver/index.html')).toContain('Objet connecté');
+    expect(phone.installed).toEqual(['browser', 'terminal']);
+    expect(server.installed).toEqual(['terminal', 'texteditor', 'fileexplorer']);
+
+    // Ajouter l'imprimante au réseau : la relier, lui donner une adresse du réseau, la joindre.
+    net.connect(printer.id, sw.id);
+    net.start();
+    expect(ping(net, a, '192.168.1.50').kind).toBe('reply');
+    const page = settle<HttpResult>(net, (done) => {
+      httpGet(a, 'http://192.168.1.50/', done);
+    });
+    expect(page.kind === 'ok' && page.response.body).toContain('État : prête.');
+  });
+
+  test('leur sorte est enregistrée ; les réglages d’origine ne reviennent pas au rechargement', () => {
+    const net = exampleNetwork();
+    const printer = net.addHost('printer');
+    printer.webServer.setActive(false);
+    printer.fs.writeFile('/webserver/index.html', 'modifiée');
+    const phone = net.addHost('smartphone');
+    net.setHostWifi(phone.id, false);
+    const loaded = parseProject(serializeProject(net));
+    expect(loaded.host(printer.id).kind).toBe('printer');
+    expect(loaded.host(printer.id).webServer.active).toBe(false);
+    expect(loaded.host(printer.id).fs.readFile('/webserver/index.html')).toBe('modifiée');
+    expect(loaded.host(phone.id).kind).toBe('smartphone');
+    expect(loaded.host(phone.id).wifi).toBe(false);
+    expect(serializeProject(loaded)).toBe(serializeProject(net));
   });
 });

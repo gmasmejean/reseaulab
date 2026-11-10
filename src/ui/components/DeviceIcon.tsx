@@ -19,6 +19,47 @@ export function DeviceIcon({ kind, size = 56 }: { kind: DeviceKind; size?: numbe
           <path d="M4 44 h56 l-4 8 h-48 z" className="body" />
         </g>
       )}
+      {kind === 'server' && (
+        <g>
+          <rect x="14" y="6" width="36" height="52" rx="3" className="body" />
+          {[14, 26, 38].map((y) => (
+            <g key={y}>
+              <rect x="19" y={y} width="26" height="8" rx="1" className="screen" />
+              <circle cx="40" cy={y + 4} r="1.6" className="light" />
+            </g>
+          ))}
+        </g>
+      )}
+      {kind === 'printer' && (
+        <g>
+          <rect x="18" y="8" width="28" height="16" className="screen" />
+          <rect x="8" y="22" width="48" height="24" rx="4" className="body" />
+          <rect x="16" y="38" width="32" height="18" className="screen" />
+          <path d="M21 44 h22 M21 50 h16" className="arrows" />
+          <circle cx="48" cy="29" r="1.8" className="light" />
+        </g>
+      )}
+      {kind === 'object' && (
+        <g>
+          <rect x="18" y="26" width="28" height="30" rx="5" className="body" />
+          <circle cx="32" cy="41" r="7" className="screen" />
+          <path d="M22 18 a14 14 0 0 1 20 0 M26 23 a8 8 0 0 1 12 0" className="arrows" />
+        </g>
+      )}
+      {kind === 'smartphone' && (
+        <g>
+          <rect x="20" y="6" width="24" height="52" rx="5" className="body" />
+          <rect x="23" y="12" width="18" height="36" rx="1" className="screen" />
+          <circle cx="32" cy="53" r="2" className="screen" />
+        </g>
+      )}
+      {kind === 'tablet' && (
+        <g>
+          <rect x="10" y="10" width="44" height="44" rx="5" className="body" />
+          <rect x="14" y="14" width="36" height="32" rx="1" className="screen" />
+          <circle cx="32" cy="50" r="2" className="screen" />
+        </g>
+      )}
       {kind === 'switch' && (
         <g>
           <rect x="4" y="20" width="56" height="24" rx="4" className="body" />

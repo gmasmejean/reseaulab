@@ -58,6 +58,11 @@ export const PROFILE_LABEL: Record<ProfileLevel, string> = {
 export const CAPABILITY_LEVEL: Record<Capability, ProfileLevel> = {
   'device:computer': '5e',
   'device:laptop': '5e',
+  'device:server': '5e',
+  'device:printer': '5e',
+  'device:smartphone': '5e',
+  'device:tablet': '5e',
+  'device:object': '4e',
   'device:switch': '5e',
   'device:router': '3e',
 

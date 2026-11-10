@@ -13,7 +13,7 @@ import { Firewall } from '../stack/firewall';
 import type { L3Interface } from '../stack/interface';
 import { Tcp } from '../stack/tcp';
 import { Udp } from '../stack/udp';
-import type { Position } from './device';
+import type { HostKind, Position } from './device';
 import { NetworkNode } from './node';
 import { Switch } from './switch';
 
@@ -41,6 +41,27 @@ export interface HostService {
 
 export const DEFAULT_APPS: readonly AppId[] = ['terminal', 'texteditor', 'fileexplorer'];
 
+/** Software found on a new terminal of each kind. */
+const KIND_APPS: Record<HostKind, readonly AppId[]> = {
+  computer: DEFAULT_APPS,
+  laptop: DEFAULT_APPS,
+  server: DEFAULT_APPS,
+  // A printer or a connected object only shows its state, on a small web page.
+  printer: ['webserver'],
+  object: ['webserver'],
+  smartphone: ['browser', 'terminal'],
+  tablet: ['browser', 'terminal'],
+};
+
+/** Page served by a new printer or connected object, as real ones do. */
+const STATUS_PAGE: Partial<Record<HostKind, string>> = {
+  printer: '<h1>Imprimante</h1>\n<p>État : prête.</p>\n<p>Papier : 250 feuilles. Encre : 80 %.</p>\n',
+  object: '<h1>Objet connecté</h1>\n<p>État : en marche.</p>\n<p>Dernière mesure : 21,5 °C.</p>\n',
+};
+
+/** Terminals that join the network without a cable by default. */
+const WIRELESS_KINDS: readonly HostKind[] = ['smartphone', 'tablet'];
+
 /** Computer or laptop: one network card, a full IP stack, files and software. */
 export class Host extends NetworkNode {
   private readonly services: HostService[] = [];
@@ -65,11 +86,11 @@ export class Host extends NetworkNode {
   wifi = false;
   config: HostConfig;
   private runtimeDns: Ipv4 = IP_ANY;
-  private readonly software = new Set<AppId>(DEFAULT_APPS);
+  private readonly software: Set<AppId>;
 
   constructor(
     id: string,
-    kind: 'computer' | 'laptop',
+    kind: HostKind,
     name: string,
     position: Position,
     ctx: SimContext,
@@ -83,6 +104,14 @@ export class Host extends NetworkNode {
     this.udp = new Udp(this.stack);
     this.tcp = new Tcp(this.stack);
     this.stack.firewall = this.firewall;
+    this.software = new Set(KIND_APPS[kind]);
+    this.wifi = WIRELESS_KINDS.includes(kind);
+    const page = STATUS_PAGE[kind];
+    if (page !== undefined) {
+      this.fs.mkdir('/webserver', true);
+      this.fs.writeFile('/webserver/index.html', page);
+      this.webServer.setActive(true);
+    }
     this.config = { ip: IP_ANY, mask: IP_ANY, gateway: IP_ANY, dns: IP_ANY, useDhcp: false, ...config };
     this.applyStaticConfig();
   }

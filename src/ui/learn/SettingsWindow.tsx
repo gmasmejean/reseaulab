@@ -1,6 +1,6 @@
 import { APP_IDS } from '../../engine/services/catalog';
 import { TERMINAL_COMMANDS } from '../../engine/terminal/terminal';
-import { APP_INFO, DEVICE_LABEL } from '../../i18n/fr';
+import { APP_INFO, DEVICE_KINDS, DEVICE_LABEL } from '../../i18n/fr';
 import {
   PROFILE_LABEL,
   PROFILE_LEVELS,
@@ -35,9 +35,7 @@ const LEVEL_HINT: Record<ProfileLevel, string> = {
 /** What a level leaves out, as a sentence per family. */
 function hiddenBy(profile: ProfileSpec): string[] {
   const lines: string[] = [];
-  const devices = (['computer', 'laptop', 'switch', 'router'] as const).filter(
-    (kind) => !can(profile, `device:${kind}`),
-  );
+  const devices = DEVICE_KINDS.filter((kind) => !can(profile, `device:${kind}`));
   if (devices.length > 0) lines.push(`Équipements : ${devices.map((k) => DEVICE_LABEL[k]).join(', ')}.`);
   const apps = APP_IDS.filter((app) => !can(profile, `app:${app}`));
   if (apps.length > 0) lines.push(`Logiciels : ${apps.map((a) => APP_INFO[a].name).join(', ')}.`);

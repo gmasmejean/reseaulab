@@ -2,8 +2,9 @@
 
 Simulateur de réseaux informatiques pour l'enseignement, qui fonctionne
 entièrement dans le navigateur : **aucune installation, aucun serveur, aucune
-connexion Internet**. On construit un réseau (ordinateurs, switchs, routeurs,
-câbles), on le configure, puis on passe en mode simulation pour l'utiliser et
+connexion Internet**. On construit un réseau (ordinateurs, serveurs,
+imprimantes, objets connectés, smartphones, switchs, routeurs, câbles), on le
+configure, puis on passe en mode simulation pour l'utiliser et
 observer les échanges de données couche par couche.
 
 ## Utilisation au collège
@@ -40,6 +41,11 @@ ensuite avec **Ouvrir…**.
   sur le plan. Touche Suppr pour effacer la sélection ; **Ctrl+Z** annule,
   **Ctrl+Y** rétablit (50 étapes). Le plan s'ajuste à l'écran ; les boutons
   − / + / **Ajuster** en bas à droite et **Ctrl + molette** changent le zoom.
+- **Terminaux** : ordinateur, portable, serveur, imprimante, objet connecté,
+  smartphone et tablette se configurent de la même façon. L'imprimante et
+  l'objet connecté affichent leur état sur une page web (tapez leur adresse
+  dans le navigateur d'un poste) ; le smartphone et la tablette sont en
+  Wi-Fi.
 - **Wi-Fi**, comme dans Filius : chaque switch est aussi un point d'accès avec
   un **nom Wi-Fi (SSID)** modifiable. Un ordinateur ou un portable réglé en
   **Sans fil (Wi-Fi)** rejoint un switch en choisissant ce nom dans sa

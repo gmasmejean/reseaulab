@@ -21,7 +21,7 @@ describe('Profils par niveau', () => {
     for (const app of APP_IDS) expect(CAPABILITY_LEVEL[`app:${app}`]).toBeDefined();
     for (const command of TERMINAL_COMMANDS) expect(CAPABILITY_LEVEL[`cmd:${command}`]).toBeDefined();
     for (const feature of FEATURES) expect(CAPABILITY_LEVEL[`feature:${feature}`]).toBeDefined();
-    expect(CAPABILITIES).toHaveLength(4 + APP_IDS.length + TERMINAL_COMMANDS.length + FEATURES.length);
+    expect(CAPABILITIES).toHaveLength(9 + APP_IDS.length + TERMINAL_COMMANDS.length + FEATURES.length);
     for (const level of PROFILE_LEVELS) expect(PROFILE_LABEL[level]).not.toBe('');
   });
 

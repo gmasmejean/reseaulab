@@ -1,3 +1,4 @@
+import { isHostKind } from '../engine/devices/device';
 import { formatIp, parseIp, type Ipv4 } from '../engine/core/ipv4';
 import { Host } from '../engine/devices/host';
 import { Router } from '../engine/devices/router';
@@ -53,7 +54,7 @@ function hostToJson(host: Host): HostJson {
   const dhcp = host.dhcpServer.config;
   return {
     id: host.id,
-    kind: host.kind === 'laptop' ? 'laptop' : 'computer',
+    kind: isHostKind(host.kind) ? host.kind : 'computer',
     name: host.name,
     x: host.position.x,
     y: host.position.y,

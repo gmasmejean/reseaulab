@@ -1,7 +1,26 @@
 import type { EthernetFrame } from '../net/frames';
 import { Port, type PortOwner, type SimContext } from '../net/link';
 
-export type DeviceKind = 'computer' | 'laptop' | 'switch' | 'router';
+/**
+ * Terminals: all of them are a `Host` (one network card, a full IP stack).
+ * They differ by their picture, their name and what is installed at first.
+ */
+export const HOST_KINDS = [
+  'computer',
+  'laptop',
+  'server',
+  'printer',
+  'object',
+  'smartphone',
+  'tablet',
+] as const;
+export type HostKind = (typeof HOST_KINDS)[number];
+
+export type DeviceKind = HostKind | 'switch' | 'router';
+
+export function isHostKind(kind: string): kind is HostKind {
+  return (HOST_KINDS as readonly string[]).includes(kind);
+}
 
 export interface Position {
   x: number;

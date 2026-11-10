@@ -5,9 +5,27 @@ import type { AppId } from '../engine/services/catalog';
 export const DEVICE_LABEL: Record<DeviceKind, string> = {
   computer: 'Ordinateur',
   laptop: 'Portable',
+  server: 'Serveur',
+  printer: 'Imprimante',
+  object: 'Objet connecté',
+  smartphone: 'Smartphone',
+  tablet: 'Tablette',
   switch: 'Switch',
   router: 'Routeur',
 };
+
+/** Devices of the palette, terminals first. */
+export const DEVICE_KINDS: readonly DeviceKind[] = [
+  'computer',
+  'laptop',
+  'server',
+  'printer',
+  'object',
+  'smartphone',
+  'tablet',
+  'switch',
+  'router',
+];
 
 export interface AppInfo {
   readonly name: string;

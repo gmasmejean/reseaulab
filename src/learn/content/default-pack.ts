@@ -155,7 +155,8 @@ Pour se relier au réseau, un terminal a une **carte réseau**, filaire ou Wi-Fi
       'Un terminal est à une extrémité du réseau.',
       'Il a besoin d’une carte réseau pour communiquer.',
     ],
-    inApp: 'Dans la palette : Ordinateur et Portable.',
+    inApp:
+      'Dans la palette : Ordinateur, Portable, Serveur, Imprimante, Objet connecté, Smartphone et Tablette.',
     related: ['reseau', 'adresse-mac', 'client-serveur', 'objet-connecte'],
   },
   {
@@ -401,7 +402,7 @@ Pour le réseau, c’est un [[terminal]] comme un autre : pour communiquer il lu
       'Ajouter un objet à un réseau : le relier, lui donner une adresse du même réseau, tester.',
     ],
     inApp:
-      'Ajoutez un poste à un réseau existant, donnez-lui une adresse libre du même réseau, puis vérifiez par un ping.',
+      'Ajoutez un « Objet connecté » à un réseau existant, donnez-lui une adresse libre du même réseau, puis vérifiez par un ping, ou tapez son adresse dans le navigateur d’un poste pour lire sa mesure.',
     related: ['terminal', 'adresse-ip', 'masque', 'wifi'],
   },
   {
