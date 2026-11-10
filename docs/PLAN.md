@@ -277,9 +277,18 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       réseaux » et « Dépannage : le site du collège ne s'affiche plus » (3e).
       Les tests jouent la solution de chacune et vérifient que rien n'est
       validé au départ et que tout l'est à la fin.
-- [ ] **Étape 26 — Trace et compte rendu** : nom et classe, journal, compte
-      rendu imprimable (plan, table d'adressage, objectifs, réponses), fichier
-      rendu.
+- [x] **Étape 26 — Trace et compte rendu** : le bouton **Compte rendu** ouvre
+      une fenêtre où l'élève écrit son nom, sa classe et « ce que j'ai
+      appris », avec l'aperçu du document. Le compte rendu contient le plan
+      du réseau (redessiné, cadré sur son contenu), la **table d'adressage**
+      construite automatiquement (une ligne par carte réseau : équipement,
+      type, relié à, adresse, masque, passerelle, DNS) et, pour une activité,
+      chaque objectif atteint ou non avec l'heure de sa première réussite, le
+      nombre d'indices demandés et les commandes utilisées. **Imprimer ou
+      enregistrer en PDF** passe par l'impression du navigateur : seul le
+      compte rendu figure sur la page. Ces informations sont aussi dans le
+      fichier rendu (champ `work` : élève, conclusion, objectifs et heures,
+      indices, commandes), avec ou sans activité.
 - [ ] **Étape 27 — Quiz** : questions par notion et par niveau, bilan renvoyant
       aux fiches.
 - [ ] **Étape 28 — Éditeur d'activités** : objectifs proposés depuis le réseau
@@ -327,6 +336,11 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Trace déclarative, pas un journal complet** (étape 26) : le fichier
+  garde ce qui sert au compte rendu (objectifs et heures, indices,
+  commandes distinctes par poste), pas la suite de toutes les actions.
+  L'heure est celle de l'ordinateur ; rien de tout cela n'est infalsifiable,
+  le réseau rendu restant la preuve du travail.
 - **Liste de vérifications réduite** (étape 25) : par rapport au projet
   initial, il manque les vérifications sur les routes, les enregistrements
   DNS, les fichiers, les règles de pare-feu, les boîtes aux lettres, les

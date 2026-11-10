@@ -2,6 +2,7 @@ import { IP_ANY } from '../engine/core/ipv4';
 import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
+import { EMPTY_WORK } from '../learn/activity/schema';
 import { serializeProject } from '../project/serialize';
 import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
@@ -709,7 +710,7 @@ describe('Session : activités', () => {
     const session = new Session(null, new ManualFrames());
     session.recordCommand('n1', 'ping');
     session.revealHint('constater');
-    expect(session.work).toEqual({ done: [], hints: {}, commands: [], simulated: false });
+    expect(session.work).toEqual(EMPTY_WORK);
 
     session.startActivity(builtin('depannage'));
     const poste = session.network.devices.find((d) => d.name === 'Poste 1')?.id ?? '';
@@ -772,6 +773,42 @@ describe('Session : activités', () => {
     expect(restored.activity?.id).toBe('premier-reseau');
     expect(restored.resumed).not.toBeNull();
     expect(restored.activityStep).toBe(1);
+  });
+
+  test('note le nom de l’élève, sa conclusion et l’heure où chaque objectif est atteint', () => {
+    let clock = 1_000_000;
+    const session = new Session(null, new ManualFrames(), () => clock);
+    // Sans activité, le nom accompagne quand même le réseau rendu.
+    session.setStudent('Camille Dupont', '4e B');
+    session.addDevice('computer');
+    const plain = JSON.parse(session.serialize()) as { activity?: unknown; work?: { student: unknown } };
+    expect(plain.activity).toBeUndefined();
+    expect(plain.work?.student).toEqual({ name: 'Camille Dupont', className: '4e B' });
+
+    session.startActivity(builtin('premier-reseau'));
+    expect(session.work.startedAt).toBe(1_000_000);
+    // Une nouvelle activité repart d'un travail vierge.
+    expect(session.work.student.name).toBe('');
+    session.setStudent('Camille Dupont', '4e B');
+    session.setConclusion('Un switch relie les ordinateurs d’un même réseau.');
+    clock += 60_000;
+    session.addDevice('computer');
+    session.addDevice('computer');
+    clock += 30_000;
+    session.addDevice('switch');
+    expect(session.work.reachedAt).toEqual({ 'deux-ordinateurs': 1_060_000, 'un-switch': 1_090_000 });
+    // Un objectif perdu puis retrouvé garde l'heure de sa première réussite.
+    session.undo();
+    clock += 10_000;
+    session.redo();
+    expect(session.work.reachedAt['un-switch']).toBe(1_090_000);
+
+    const file = JSON.parse(session.serialize()) as { work: { conclusion: string; reachedAt: object } };
+    expect(file.work.conclusion).toContain('Un switch relie');
+    expect(Object.keys(file.work.reachedAt)).toHaveLength(2);
+    // Quitter l'activité garde le nom, pas le reste.
+    session.quitActivity();
+    expect(session.work).toEqual({ ...EMPTY_WORK, student: { name: 'Camille Dupont', className: '4e B' } });
   });
 
   test('annuler ne touche ni à l’activité ni au travail déjà noté', () => {

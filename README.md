@@ -119,6 +119,15 @@ L'élève rend son travail avec **Enregistrer** : le fichier contient le réseau
 l'activité et ce qui a été réussi. Il se rouvre avec **Ouvrir…**, comme tout
 fichier d'activité que vous distribuez.
 
+### Compte rendu
+
+Le bouton **Compte rendu** produit un document à imprimer ou à enregistrer en
+PDF : nom et classe de l'élève, plan du réseau, **table d'adressage** remplie
+automatiquement, objectifs de l'activité atteints ou non (avec l'heure),
+indices demandés, commandes utilisées et quelques lignes « ce que j'ai
+appris ». Il fonctionne aussi sans activité, pour garder une trace d'un
+réseau construit librement.
+
 ### Niveau de la classe
 
 Le bouton **Réglages** (⚙) limite RéseauLab au programme d'un niveau : **5e**

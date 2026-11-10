@@ -1586,3 +1586,77 @@ describe('Activités guidées', () => {
     expect(screen.getByRole('complementary', { name: 'Activité' })).toHaveTextContent('2 objectifs sur 6');
   });
 });
+
+describe('Compte rendu', () => {
+  test('nom, classe et conclusion s’écrivent dans le compte rendu, avec le plan et la table d’adressage', () => {
+    const { session } = setup();
+    act(() => {
+      const a = session.addDevice('computer');
+      const sw = session.addDevice('switch');
+      session.network.host(a).updateConfig({ ip: ip('192.168.1.10'), mask: MASK_24 });
+      session.network.connect(a, sw);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compte rendu' }));
+    const dialog = screen.getByRole('dialog', { name: 'Compte rendu' });
+    const preview = within(dialog).getByLabelText('Aperçu du compte rendu');
+    expect(within(preview).getByRole('heading', { name: 'Compte rendu de réseau' })).toBeInTheDocument();
+    expect(within(preview).getByRole('img', { name: 'Plan du réseau' })).toBeInTheDocument();
+    const row = within(preview).getByRole('row', { name: /^Ordinateur 1/ });
+    expect(row).toHaveTextContent('Ordinateur 1OrdinateurSwitch 1192.168.1.10255.255.255.0');
+    // Sans activité : pas de liste d'objectifs.
+    expect(within(preview).queryByRole('heading', { name: /Objectifs/ })).not.toBeInTheDocument();
+    expect(within(preview).getByLabelText('À compléter')).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Nom et prénom' }), {
+      target: { value: 'Camille Dupont' },
+    });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Classe' }), { target: { value: '4e B' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Ce que j’ai appris/ }), {
+      target: { value: 'Le switch relie les postes.' },
+    });
+    expect(preview).toHaveTextContent('NomCamille Dupont');
+    expect(preview).toHaveTextContent('Classe4e B');
+    expect(preview).toHaveTextContent('Le switch relie les postes.');
+    expect(session.work.student).toEqual({ name: 'Camille Dupont', className: '4e B' });
+  });
+
+  test('pour une activité : objectifs atteints ou non, indices et commandes ; l’impression est lancée', () => {
+    const print = vi.fn();
+    vi.stubGlobal('print', print);
+    try {
+      const { session } = setup();
+      const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'premier-reseau');
+      act(() => {
+        if (builtin) session.startActivity(builtin);
+        const a = session.addDevice('computer');
+        session.addDevice('computer');
+        session.addDevice('switch');
+        session.revealHint('relier');
+        session.setMode('simulation');
+        session.recordCommand(a, 'ping');
+        session.openWindow({ type: 'report' });
+      });
+      const preview = within(screen.getByRole('dialog', { name: 'Compte rendu' })).getByLabelText(
+        'Aperçu du compte rendu',
+      );
+      expect(within(preview).getByRole('heading', { name: 'Mon premier réseau' })).toBeInTheDocument();
+      expect(
+        within(preview).getByRole('heading', { name: 'Objectifs de l’activité : 2 sur 9' }),
+      ).toBeInTheDocument();
+      expect(preview).toHaveTextContent('Atteint : Il y a deux ordinateurs sur le plan');
+      expect(preview).toHaveTextContent('Non atteint : Ordinateur 1 est relié au switch');
+      expect(preview).toHaveTextContent('Indices demandés : 1.');
+      expect(preview).toHaveTextContent('Commandes utilisées : ping (Ordinateur 1).');
+      // La copie imprimée est hors de la fenêtre, seule sur la page.
+      expect(document.querySelector('body > .print-root .report')).not.toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Imprimer ou enregistrer en PDF' }));
+      expect(print).toHaveBeenCalledTimes(1);
+      act(() => {
+        session.closeAllWindows();
+      });
+      expect(document.querySelector('.print-root')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

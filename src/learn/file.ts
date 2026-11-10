@@ -46,7 +46,7 @@ export function parseLearnFile(text: string): LearnFile {
   return { network: fromProject(project), activity: activity ?? null, work: work ?? null };
 }
 
-/** Writes a project file, with the activity and the work of the pupil when there are any. */
+/** Writes a project file, with the activity and the work of the pupil when they are given. */
 export function serializeLearnFile(
   network: Network,
   extra: { activity: Activity | null; work: Work | null },
@@ -55,7 +55,7 @@ export function serializeLearnFile(
     {
       ...toProject(network),
       ...(extra.activity ? { activity: extra.activity } : {}),
-      ...(extra.activity && extra.work ? { work: extra.work } : {}),
+      ...(extra.work ? { work: extra.work } : {}),
     },
     null,
     2,

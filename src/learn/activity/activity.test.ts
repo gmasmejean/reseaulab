@@ -347,6 +347,11 @@ describe('Fichier d’activité', () => {
     const { net } = simpleLan();
     const parsedActivity = activitySchema.parse(sample);
     const work: Work = {
+      ...EMPTY_WORK,
+      student: { name: 'Camille Dupont', className: '4e B' },
+      conclusion: 'Un switch relie les ordinateurs.',
+      startedAt: 1_700_000_000_000,
+      reachedAt: { 'deux-postes': 1_700_000_060_000 },
       done: ['deux-postes'],
       hints: { cabler: 1 },
       commands: ['n1:ping'],
@@ -365,12 +370,23 @@ describe('Fichier d’activité', () => {
     });
   });
 
-  test('un projet simple reste un fichier valide, sans activité ; pas de travail sans activité', () => {
+  test('un projet simple reste un fichier valide ; le nom de l’élève peut l’accompagner sans activité', () => {
     const { net } = simpleLan();
     const plain = parseLearnFile(serializeProject(net));
     expect(plain.activity).toBeNull();
     expect(plain.work).toBeNull();
-    expect(serializeLearnFile(net, { activity: null, work: EMPTY_WORK })).toBe(serializeProject(net));
+    expect(serializeLearnFile(net, { activity: null, work: null })).toBe(serializeProject(net));
+    const signed = { ...EMPTY_WORK, student: { name: 'Sacha', className: '3e A' } };
+    const read = parseLearnFile(serializeLearnFile(net, { activity: null, work: signed }));
+    expect(read.activity).toBeNull();
+    expect(read.work?.student).toEqual({ name: 'Sacha', className: '3e A' });
+    // Un travail enregistré avant le compte rendu se relit, complété des valeurs par défaut.
+    const old = JSON.parse(serializeLearnFile(net, { activity: null, work: null })) as Record<
+      string,
+      unknown
+    >;
+    old.work = { done: ['x'], hints: {}, commands: [], simulated: true };
+    expect(parseLearnFile(JSON.stringify(old)).work).toEqual({ ...EMPTY_WORK, done: ['x'], simulated: true });
   });
 
   test('un fichier invalide est refusé en entier', () => {

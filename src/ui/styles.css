@@ -1999,3 +1999,172 @@ button.term-help[aria-expanded='true'] {
 .activity-name {
   font-weight: 600;
 }
+
+/* ---------- compte rendu ---------- */
+.report-window {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+.report-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  align-items: end;
+  gap: 8px 12px;
+}
+.report-form .field {
+  margin: 0;
+}
+.report-conclusion-field {
+  grid-column: 1 / 3;
+}
+.report-preview {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+.report {
+  color: #000;
+  line-height: 1.4;
+}
+.report h1 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+.report h2 {
+  margin: 16px 0 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #999;
+  font-size: 1.05rem;
+}
+.report h3 {
+  margin: 8px 0 2px;
+  font-size: 0.98rem;
+}
+.report-identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 28px;
+  margin: 0;
+}
+.report-identity div {
+  display: flex;
+  gap: 6px;
+}
+.report-identity dt {
+  font-weight: 600;
+}
+.report-identity dt::after {
+  content: ' :';
+}
+.report-identity dd {
+  margin: 0;
+}
+.plan-figure {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+}
+.figure-cable {
+  stroke: #555;
+  stroke-width: 2.5;
+}
+.figure-cable.wireless {
+  stroke-dasharray: 3 6;
+}
+.figure-zone {
+  stroke: #999;
+  opacity: 0.6;
+}
+.figure-label,
+.figure-sub,
+.figure-note {
+  text-anchor: middle;
+  font-size: 12px;
+}
+.figure-label {
+  font-weight: 600;
+}
+.figure-sub {
+  font-family: ui-monospace, 'DejaVu Sans Mono', monospace;
+  font-size: 11px;
+}
+.figure-note {
+  text-anchor: start;
+}
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.report-table th,
+.report-table td {
+  border: 1px solid #999;
+  padding: 3px 6px;
+  text-align: left;
+}
+.report-table th {
+  background: #eee;
+}
+.report-step ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.report-step .missed {
+  color: #555;
+}
+.report-time {
+  color: #555;
+  font-size: 0.9em;
+}
+.report-facts {
+  margin: 8px 0 0;
+  font-size: 0.92em;
+}
+.report-conclusion {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.report-lines {
+  height: 96px;
+  background: repeating-linear-gradient(transparent, transparent 30px, #999 30px, #999 31px);
+}
+.report footer {
+  margin-top: 14px;
+  color: #555;
+  font-size: 0.8em;
+}
+
+/* Printing shows the report alone, on white, whatever is on screen. */
+.print-root {
+  display: none;
+}
+@media print {
+  #root {
+    display: none !important;
+  }
+  .print-root {
+    display: block;
+  }
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  .report h2,
+  .report-step,
+  .report-table tr {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
+}

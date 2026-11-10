@@ -96,6 +96,16 @@ export function Toolbar() {
         >
           Enregistrer
         </button>
+        <button
+          type="button"
+          title="Compte rendu à imprimer : plan, table d’adressage, objectifs atteints"
+          onClick={() => {
+            session.commitEdit();
+            session.openWindow({ type: 'report' });
+          }}
+        >
+          Compte rendu
+        </button>
         {!simulation && (
           <>
             <button

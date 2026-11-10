@@ -46,7 +46,8 @@ interface OpenMenu {
   readonly opener: SVGElement;
 }
 
-function subtitle(device: Device): string | null {
+/** Second line under a device: its address, « DHCP », or the Wi-Fi network of a switch. */
+export function subtitle(device: Device): string | null {
   // A switch with Wi-Fi clients shows the name of its network.
   if (device instanceof Switch) {
     return device.ports.some((p) => p.cable?.wireless) ? `Wi-Fi « ${device.ssid} »` : null;

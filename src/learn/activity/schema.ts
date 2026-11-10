@@ -135,8 +135,19 @@ export const activitySchema = z.object({
   steps: z.array(step).min(1).max(30),
 });
 
-/** What a pupil did in an activity; completed by the report of step 26. */
+/**
+ * What a pupil did: who they are, what was reached and when, what they
+ * conclude. Kept in the file they hand in, with the network.
+ */
 export const workSchema = z.object({
+  student: z
+    .object({ name: text(80).default(''), className: text(40).default('') })
+    .default({ name: '', className: '' }),
+  /** « Ce que j’ai appris » : free text written by the pupil. */
+  conclusion: text(4000).default(''),
+  /** Real time (ms since the epoch) when the work began and when each objective was first reached. */
+  startedAt: z.number().min(0).optional(),
+  reachedAt: z.record(id, z.number().min(0)).default({}),
   /** Objectives reached, by identifier. */
   done: z.array(id).max(600).default([]),
   /** Hints shown, per step. */
@@ -154,7 +165,15 @@ export type Check = Objective['check'];
 export type DeviceRef = z.infer<typeof deviceRef>;
 export type Work = z.infer<typeof workSchema>;
 
-export const EMPTY_WORK: Work = { done: [], hints: {}, commands: [], simulated: false };
+export const EMPTY_WORK: Work = {
+  student: { name: '', className: '' },
+  conclusion: '',
+  reachedAt: {},
+  done: [],
+  hints: {},
+  commands: [],
+  simulated: false,
+};
 
 /** How a check is evaluated. */
 export type CheckFamily = 'state' | 'probe' | 'journal';

@@ -56,6 +56,8 @@ export type WindowSpec =
   | { readonly type: 'diagnose'; readonly from?: string; readonly to?: string; readonly at?: number }
   /** Settings of the class (level), for the teacher. */
   | { readonly type: 'settings' }
+  /** Report of the pupil's work, to print or hand in. */
+  | { readonly type: 'report' }
   /** Activities shipped with RéseauLab. */
   | { readonly type: 'activities' };
 
@@ -148,6 +150,7 @@ function windowKey(spec: WindowSpec): string {
     case 'diagnose':
     case 'settings':
     case 'activities':
+    case 'report':
       return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
@@ -324,7 +327,10 @@ export class Session {
     this.detach();
     this.network = network;
     this.activity = learn.activity;
-    this.work = learn.activity ? (learn.work ?? EMPTY_WORK) : EMPTY_WORK;
+    this.work = learn.work ?? EMPTY_WORK;
+    if (learn.activity && this.work.startedAt === undefined) {
+      this.work = { ...this.work, startedAt: this.now() };
+    }
     this.probed = new Map();
     this.probedAt = -1;
     this.resumed = null;
@@ -386,7 +392,11 @@ export class Session {
 
   /** The project file: the network, and the activity with the pupil's work when there is one. */
   serialize(): string {
-    const work = this.activity ? { ...this.work, done: [...this.objectivesDone()] } : null;
+    this.noteProgress();
+    // Without an activity, the work is only what the pupil wrote about themselves.
+    const { student, conclusion } = this.work;
+    const signed = student.name !== '' || student.className !== '' || conclusion !== '';
+    const work = this.activity || signed ? { ...this.work, done: [...this.objectivesDone()] } : null;
     return serializeLearnFile(this.network, { activity: this.activity, work });
   }
 
@@ -404,10 +414,10 @@ export class Session {
     this.notify(`Activité « ${activity.title} » : suivez les étapes, à droite.`);
   }
 
-  /** Leaves the activity; the network stays as it is. */
+  /** Leaves the activity; the network and the name of the pupil stay. */
   quitActivity(): void {
     this.activity = null;
-    this.work = EMPTY_WORK;
+    this.work = { ...EMPTY_WORK, student: this.work.student };
     this.probed = new Map();
     this.scheduleSave();
     this.touch();
@@ -461,6 +471,33 @@ export class Session {
     this.commitEdit();
     this.probed = evaluateProbes(this.activity, this.network);
     this.probedAt = this.designRevision;
+    this.noteProgress();
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /** Notes when each objective was first reached, for the report. */
+  noteProgress(): void {
+    if (!this.activity) return;
+    const fresh = [...this.objectivesDone()].filter((id) => this.work.reachedAt[id] === undefined);
+    if (fresh.length === 0) return;
+    const at = this.now();
+    this.work = {
+      ...this.work,
+      reachedAt: { ...this.work.reachedAt, ...Object.fromEntries(fresh.map((id) => [id, at])) },
+    };
+  }
+
+  /** Name and class of the pupil, written on the report and in the file handed in. */
+  setStudent(name: string, className: string): void {
+    this.work = { ...this.work, student: { name: name.slice(0, 80), className: className.slice(0, 40) } };
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /** « Ce que j’ai appris ». */
+  setConclusion(text: string): void {
+    this.work = { ...this.work, conclusion: text.slice(0, 4000) };
     this.scheduleSave();
     this.touch();
   }
@@ -479,6 +516,7 @@ export class Session {
     const entry = journalEntry(deviceId, command);
     if (this.work.commands.includes(entry) || this.work.commands.length >= 500) return;
     this.work = { ...this.work, commands: [...this.work.commands, entry] };
+    this.noteProgress();
     this.scheduleSave();
     this.touch();
   }
@@ -993,6 +1031,7 @@ export class Session {
           this.designRevision++;
           this.scheduleHistory();
         }
+        this.noteProgress();
         this.touch();
       }),
       net.events.on('transmit', (event) => {
@@ -1069,7 +1108,7 @@ export class Session {
       if (!saved) return null;
       const { network, activity, work } = parseLearnFile(saved);
       this.activity = activity;
-      this.work = activity ? (work ?? EMPTY_WORK) : EMPTY_WORK;
+      this.work = work ?? EMPTY_WORK;
       if (network.devices.length > 0 || network.notes.length > 0 || activity) {
         const date = Number(this.storage?.getItem(AUTOSAVE_DATE_KEY) ?? NaN);
         this.resumed = { savedAt: Number.isFinite(date) && date > 0 ? date : null };

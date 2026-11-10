@@ -698,3 +698,37 @@ test('activité guidée : « Mon premier réseau » réalisée de bout en bout',
   await expect(page.getByRole('complementary', { name: 'Activité' })).toContainText('Mon premier réseau');
   await expect(page.getByRole('region', { name: 'Travail retrouvé' })).toBeVisible();
 });
+
+test('compte rendu : le travail de l’élève s’imprime seul sur la page', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : Relier deux réseaux' }).click();
+  // La barre d'outils tient toujours sur une ligne, dans les deux modes.
+  expect((await page.getByRole('banner').boundingBox())?.height).toBeLessThan(60);
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  expect((await page.getByRole('banner').boundingBox())?.height).toBeLessThan(60);
+  await page.getByRole('radio', { name: /Conception/ }).click();
+
+  await page.getByRole('button', { name: 'Compte rendu' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Compte rendu' });
+  await dialog.getByRole('textbox', { name: 'Nom et prénom' }).fill('Camille Dupont');
+  await dialog.getByRole('textbox', { name: 'Classe' }).fill('3e A');
+  await dialog.getByRole('textbox', { name: /Ce que j’ai appris/ }).fill('Un routeur relie deux réseaux.');
+  const preview = dialog.getByLabel('Aperçu du compte rendu');
+  await expect(preview.getByRole('heading', { name: 'Relier deux réseaux' })).toBeVisible();
+  await expect(preview.getByRole('row', { name: /^Poste A1/ })).toContainText('192.168.1.10');
+  await expect(preview.getByRole('heading', { name: 'Objectifs de l’activité : 0 sur 8' })).toBeVisible();
+  await shot(page, '40-compte-rendu');
+
+  // À l'impression : le compte rendu, et rien d'autre.
+  await page.emulateMedia({ media: 'print' });
+  const printed = page.locator('.print-root .report');
+  await expect(printed).toBeVisible();
+  await expect(printed).toContainText('Camille Dupont');
+  await expect(printed.getByRole('img', { name: 'Plan du réseau' })).toBeVisible();
+  await expect(page.getByRole('banner')).toBeHidden();
+  await expect(page.getByRole('complementary', { name: 'Palette d’équipements' })).toBeHidden();
+  await page.screenshot({ path: `${SHOTS ?? 'test-results'}/41-impression.png`, fullPage: true });
+  await page.emulateMedia({ media: 'screen' });
+  await expect(page.getByRole('banner')).toBeVisible();
+});

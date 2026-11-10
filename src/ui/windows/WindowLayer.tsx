@@ -10,6 +10,7 @@ import { useSession } from '../context';
 import { ActivitiesWindow } from '../learn/ActivitiesWindow';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import { KnowledgeWindow } from '../learn/KnowledgeWindow';
+import { ReportWindow } from '../learn/ReportWindow';
 import { SettingsWindow } from '../learn/SettingsWindow';
 import type { OpenWindow } from '../session';
 import { BrowserApp } from './BrowserApp';
@@ -79,6 +80,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
     return (
       <Window window={w} title="Activités">
         <ActivitiesWindow />
+      </Window>
+    );
+  }
+  if (spec.type === 'report') {
+    return (
+      <Window window={w} title="Compte rendu">
+        <ReportWindow />
       </Window>
     );
   }
