@@ -662,23 +662,109 @@ function NoteProperties({ note }: { note: Note }) {
   );
 }
 
+/** In simulation mode the panel is a single line: what the selected device can show, and the windows. */
+function SimulationBar({ device }: { device: Device | null }) {
+  const session = useSession();
+  return (
+    <div className="properties simulation-bar">
+      {device ? (
+        <>
+          <strong>{device.name}</strong>
+          {device instanceof Host && (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                session.openWindow({ type: 'desktop', deviceId: device.id });
+              }}
+            >
+              Afficher le bureau
+            </button>
+          )}
+          {device instanceof Router && (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                session.openWindow({ type: 'router', deviceId: device.id });
+              }}
+            >
+              Afficher les tables du routeur
+            </button>
+          )}
+          {device.kind === 'switch' ? (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                session.openWindow({ type: 'switch', deviceId: device.id });
+              }}
+            >
+              Afficher la table des adresses MAC
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                session.openWindow({ type: 'capture', deviceId: device.id });
+              }}
+            >
+              Afficher les échanges de données
+            </button>
+          )}
+        </>
+      ) : (
+        <p className="muted">
+          Mode simulation : cliquez sur un ordinateur pour ouvrir son bureau, sur un switch ou un routeur pour
+          voir ses tables.
+        </p>
+      )}
+      {session.windows.length > 0 && (
+        <div className="window-actions">
+          <button
+            type="button"
+            title="Replacer les fenêtres en cascade, à droite du plan"
+            onClick={() => {
+              session.arrangeWindows();
+            }}
+          >
+            Ranger les fenêtres
+          </button>
+          <button
+            type="button"
+            title="Fermer toutes les fenêtres (Échap ferme celle du dessus)"
+            onClick={() => {
+              session.closeAllWindows();
+            }}
+          >
+            Tout fermer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PropertiesPanel() {
   const session = useSession();
   const { network: net, selection } = session;
+  if (session.mode === 'simulation') {
+    const device = selection?.kind === 'device' ? net.device(selection.id) : undefined;
+    return <SimulationBar device={device ?? null} />;
+  }
   if (!selection) {
     return (
       <div className="properties empty">
         <p className="muted">
-          {session.mode === 'design'
-            ? 'Sélectionnez un équipement ou un câble pour le configurer. Double-clic : ouvrir. Clic droit : menu. Suppr : supprimer.'
-            : 'Mode simulation : cliquez sur un ordinateur pour ouvrir son bureau, sur un switch ou un routeur pour voir ses tables.'}
+          Sélectionnez un équipement ou un câble pour le configurer. Double-clic : ouvrir. Clic droit : menu.
+          Suppr : supprimer. Ctrl+Z : annuler.
         </p>
       </div>
     );
   }
   if (selection.kind === 'note') {
     const note = net.note(selection.id);
-    return note && session.mode === 'design' ? <NoteProperties note={note} /> : null;
+    return note ? <NoteProperties note={note} /> : null;
   }
   if (selection.kind === 'cable') {
     const cable = net.cables.find((c) => c.id === selection.id);
@@ -721,58 +807,6 @@ export function PropertiesPanel() {
   }
   const device = net.device(selection.id);
   if (!device) return null;
-  if (session.mode === 'simulation') {
-    return (
-      <div className="properties">
-        <Section title={device.name}>
-          <div className="button-row">
-            {device instanceof Host && (
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  session.openWindow({ type: 'desktop', deviceId: device.id });
-                }}
-              >
-                Afficher le bureau
-              </button>
-            )}
-            {device instanceof Router && (
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  session.openWindow({ type: 'router', deviceId: device.id });
-                }}
-              >
-                Afficher les tables du routeur
-              </button>
-            )}
-            {device.kind === 'switch' ? (
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  session.openWindow({ type: 'switch', deviceId: device.id });
-                }}
-              >
-                Afficher la table des adresses MAC
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  session.openWindow({ type: 'capture', deviceId: device.id });
-                }}
-              >
-                Afficher les échanges de données
-              </button>
-            )}
-          </div>
-        </Section>
-      </div>
-    );
-  }
   return (
     <div className="properties">
       <div className="properties-actions">

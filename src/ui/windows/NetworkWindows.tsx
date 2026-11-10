@@ -241,7 +241,11 @@ export function HelpWindow() {
         </li>
         <li>
           Sélectionnez un équipement pour le configurer dans le panneau du bas (adresse IP, masque,
-          passerelle…).
+          passerelle…). <b>Ctrl+Z</b> annule la dernière modification, <b>Ctrl+Y</b> la rétablit.
+        </li>
+        <li>
+          Le plan s’ajuste à l’écran. Les boutons − / + / <b>Ajuster</b>, en bas à droite, et{' '}
+          <b>Ctrl + molette</b> changent le zoom.
         </li>
         <li>
           <b>Wi-Fi</b> : chaque switch (aussi appelé commutateur) a un <b>nom Wi-Fi (SSID)</b>. Réglez un
@@ -256,7 +260,8 @@ export function HelpWindow() {
         <li>
           Passez en mode <b>Simulation</b> : cliquez sur un ordinateur pour ouvrir son bureau, installer des
           logiciels et lancer la <b>ligne de commande</b> (<code>ipconfig</code>, <code>ping</code>,{' '}
-          <code>traceroute</code>…).
+          <code>traceroute</code>…). Déplacez une fenêtre par sa barre de titre ; <b>Échap</b> ferme celle du
+          dessus, <b>Ranger les fenêtres</b> et <b>Tout fermer</b> sont en bas de l’écran.
         </li>
         <li>
           Les trames circulent sur les câbles, au ralenti pour qu’on puisse les suivre ; le curseur{' '}

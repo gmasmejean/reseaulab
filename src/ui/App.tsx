@@ -5,6 +5,7 @@ import { Canvas } from './components/Canvas';
 import { Palette } from './components/Palette';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { Toolbar } from './components/Toolbar';
+import { ZoomControls } from './components/ZoomControls';
 import { SessionProvider, useSession } from './context';
 import { Session } from './session';
 import { WindowLayer } from './windows/WindowLayer';
@@ -89,11 +90,24 @@ function Shortcuts() {
   const session = useSession();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target) || (e.target instanceof HTMLElement && e.target.closest('.window'))) return;
-      if (e.key === 'Delete' || e.key === 'Backspace') session.deleteSelection();
+      // Text fields keep their own keys (Escape restores the value, Ctrl+Z undoes the typing).
+      if (isTyping(e.target)) return;
+      const inWindow = e.target instanceof Element ? e.target.closest<HTMLElement>('.window') : null;
       if (e.key === 'Escape') {
+        if (e.defaultPrevented) return;
+        const id = inWindow?.dataset.windowId ?? session.topWindow?.id;
         if (session.tool === 'cable') session.setTool('select');
+        else if (id !== undefined && (inWindow || session.mode === 'simulation')) session.closeWindow(id);
         else session.select(null);
+        return;
+      }
+      if (inWindow) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') session.deleteSelection();
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (key === 'z' || key === 'y')) {
+        e.preventDefault();
+        if (key === 'y' || e.shiftKey) session.redo();
+        else session.undo();
       }
     };
     const onUnload = () => {
@@ -115,10 +129,12 @@ function Layout() {
     <div className={`app mode-${session.mode}`}>
       <Toolbar />
       <div className="workspace">
-        <Palette />
+        {/* Nothing can be added during a simulation: the plan takes the whole width. */}
+        {session.mode === 'design' && <Palette />}
         <main className="stage">
           <Canvas />
           <WindowLayer />
+          <ZoomControls />
           <ResumeBanner />
           <Notice />
         </main>

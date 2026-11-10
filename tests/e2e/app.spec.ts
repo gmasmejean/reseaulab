@@ -119,6 +119,8 @@ test('exemple : DHCP, DNS, web et messagerie', async ({ page }) => {
   await expect(mail2.getByText('On travaille sur les réseaux ?')).toBeVisible();
   await shot(page, '05-messagerie');
 
+  // Les fenêtres des postes de gauche s'ouvrent à droite, par-dessus les serveurs.
+  await page.getByRole('button', { name: 'Tout fermer' }).click();
   await page.getByRole('button', { name: /^Serveur web/ }).click();
   await page
     .getByRole('dialog', { name: 'Bureau de Serveur web' })
@@ -368,4 +370,70 @@ test('Wi-Fi : un portable rejoint le réseau sans fil d’un switch puis répond
   await terminal.getByRole('textbox', { name: 'Commande', exact: true }).fill('ping -n 1 192.168.0.1');
   await terminal.getByRole('textbox', { name: 'Commande', exact: true }).press('Enter');
   await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
+});
+
+test('plan lisible : zoom ajusté, fenêtres à côté de l’équipement, annulation', async ({ page }) => {
+  // Écran courant d'une salle informatique.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'chargez le réseau d’exemple' }).click();
+
+  // Tout le réseau est visible, sans barre de défilement.
+  const fits = () =>
+    page.evaluate(
+      `(() => {
+        const el = document.querySelector('.canvas-scroll');
+        return el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight;
+      })()`,
+    );
+  expect(await fits()).toBe(true);
+  for (const name of ['Poste 1', 'Portable', 'Serveur DHCP', 'Serveur mail']) {
+    await expect(page.locator(`[aria-label^="${name}"]`)).toBeInViewport({ ratio: 1 });
+  }
+  const zoom = page.getByRole('group', { name: 'Zoom du plan' });
+  await zoom.getByRole('button', { name: 'Agrandir le plan' }).click();
+  expect(await fits()).toBe(false);
+  await zoom.getByRole('button', { name: 'Ajuster' }).click();
+  expect(await fits()).toBe(true);
+  await shot(page, '23-plan-ajuste');
+
+  // Supprimer par erreur puis annuler.
+  await page.locator('[aria-label^="Routeur"]').click();
+  await page.keyboard.press('Delete');
+  await expect(page.locator('.device')).toHaveCount(9);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('.device')).toHaveCount(10);
+  await expect(page.locator('[aria-label^="Routeur"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await page.getByRole('button', { name: 'Rétablir' }).click();
+  await expect(page.locator('.device')).toHaveCount(10);
+
+  // En simulation, la fenêtre s'ouvre du côté opposé à l'équipement : il reste visible.
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await expect(page.getByRole('complementary', { name: 'Palette d’équipements' })).toHaveCount(0);
+  expect(await fits()).toBe(true);
+  const apart = async (device: string, dialog: string) => {
+    const d = await page.locator(`[aria-label^="${device}"]`).boundingBox();
+    const w = await page.getByRole('dialog', { name: dialog }).boundingBox();
+    if (!d || !w) return false;
+    return w.x >= d.x + d.width || w.x + w.width <= d.x || w.y >= d.y + d.height || w.y + w.height <= d.y;
+  };
+  await page.locator('[aria-label^="Poste 1"]').click();
+  expect(await apart('Poste 1', 'Bureau de Poste 1')).toBe(true);
+  await page
+    .getByRole('dialog', { name: 'Bureau de Poste 1' })
+    .getByRole('button', { name: 'Ligne de commande' })
+    .click();
+  expect(await apart('Poste 1', 'Ligne de commande — Poste 1')).toBe(true);
+  await shot(page, '24-fenetres');
+  await page.getByRole('button', { name: 'Tout fermer' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // Un équipement de droite ouvre ses fenêtres à gauche ; Échap ferme celle du dessus.
+  await page.locator('[aria-label^="Serveur web"]').click();
+  expect(await apart('Serveur web', 'Bureau de Serveur web')).toBe(true);
+  await page.locator('[aria-label^="Serveur mail"]').click();
+  await expect(page.getByRole('dialog')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Bureau de Serveur mail' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Bureau de Serveur web' })).toBeVisible();
 });

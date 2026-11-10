@@ -1,5 +1,7 @@
 import {
   useCallback,
+  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type DragEvent,
@@ -20,8 +22,6 @@ import { cableMenu, deviceMenu, noteMenu } from './canvasMenus';
 
 export const DEVICE_DRAG_TYPE = 'application/x-reseaulab-device';
 const ICON = 56;
-const MIN_WIDTH = 1400;
-const MIN_HEIGHT = 900;
 
 interface Drag {
   /** What is dragged: a device, a note, or the resize handle of a note. */
@@ -86,25 +86,71 @@ export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
   const [menu, setMenu] = useState<OpenMenu | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  /** Point of the plan to keep under the pointer after a zoom with the wheel. */
+  const anchor = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const devices = net.devices;
   const notes = net.notes;
-  const width = Math.max(
-    MIN_WIDTH,
-    ...devices.map((d) => d.position.x + 160),
-    ...notes.map((n) => n.x + n.width + 40),
-  );
-  const height = Math.max(
-    MIN_HEIGHT,
-    ...devices.map((d) => d.position.y + 160),
-    ...notes.map((n) => n.y + n.height + 40),
-  );
+  // The plan is drawn in its own units and scaled by the zoom.
+  const zoom = session.zoom;
+  const { width, height } = session.planSize;
   const simulation = session.mode === 'simulation';
   const now = net.scheduler.now;
 
   const toSvg = (clientX: number, clientY: number) => {
     const rect = svgRef.current?.getBoundingClientRect();
-    return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+    return { x: (clientX - (rect?.left ?? 0)) / zoom, y: (clientY - (rect?.top ?? 0)) / zoom };
   };
+
+  // The session needs the size of the stage to fit the plan and place the windows.
+  useEffect(() => {
+    const element = scrollRef.current;
+    // ResizeObserver is absent from jsdom: the plan then keeps its default size.
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      session.setViewport(Math.floor(rect.width), Math.floor(rect.height));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => {
+      observer.disconnect();
+    };
+  }, [session]);
+
+  // Ctrl + wheel zooms around the pointer (a React handler could not cancel the page zoom).
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const rect = element.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+      anchor.current = {
+        x: (element.scrollLeft + offsetX) / session.zoom,
+        y: (element.scrollTop + offsetY) / session.zoom,
+        offsetX,
+        offsetY,
+      };
+      session.zoomStep(event.deltaY < 0 ? 1 : -1);
+    };
+    element.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      element.removeEventListener('wheel', onWheel);
+    };
+  }, [session]);
+
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    const kept = anchor.current;
+    if (!element || !kept) return;
+    anchor.current = null;
+    element.scrollLeft = kept.x * zoom - kept.offsetX;
+    element.scrollTop = kept.y * zoom - kept.offsetY;
+  }, [zoom]);
 
   const onDevicePointerDown = (event: PointerEvent, device: Device) => {
     event.stopPropagation();
@@ -129,10 +175,12 @@ export function Canvas() {
   const onPointerMove = (event: PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    const dx = event.clientX - d.pointerX;
-    const dy = event.clientY - d.pointerY;
-    if (!d.moved && Math.hypot(dx, dy) < 4) return;
+    const movedX = event.clientX - d.pointerX;
+    const movedY = event.clientY - d.pointerY;
+    if (!d.moved && Math.hypot(movedX, movedY) < 4) return;
     d.moved = true;
+    const dx = movedX / zoom;
+    const dy = movedY / zoom;
     if (d.target === 'device') {
       net.move(d.id, {
         x: Math.max(40, Math.round(d.originX + dx)),
@@ -260,12 +308,12 @@ export function Canvas() {
 
   const selected = session.selection;
   return (
-    <div className="canvas-scroll" data-tool={session.tool}>
+    <div className="canvas-scroll" data-tool={session.tool} ref={scrollRef}>
       <svg
         ref={svgRef}
         className={`canvas ${simulation ? 'simulating' : ''}`}
-        width={width}
-        height={height}
+        width={Math.floor(width * zoom)}
+        height={Math.floor(height * zoom)}
         viewBox={`0 0 ${width} ${height}`}
         role="application"
         aria-label="Plan du réseau"

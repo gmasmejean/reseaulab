@@ -17,16 +17,6 @@ import { CaptureWindow, HelpWindow, RouterWindow, SwitchWindow } from './Network
 import { DhcpServerApp, DnsServerApp, EchoServerApp, MailServerApp, WebServerApp } from './ServerApps';
 import { TerminalApp } from './TerminalApp';
 
-const APP_SIZE: Partial<Record<AppId, [number, number]>> = {
-  terminal: [700, 440],
-  browser: [760, 520],
-  mailclient: [720, 520],
-  dnsserver: [640, 520],
-  dhcpserver: [640, 560],
-  mailserver: [640, 520],
-  firewall: [760, 460],
-};
-
 function appBody(app: AppId, host: Host): ReactNode {
   switch (app) {
     case 'terminal':
@@ -63,7 +53,7 @@ function WindowContent({ w }: { w: OpenWindow }) {
   const spec = w.spec;
   if (spec.type === 'help') {
     return (
-      <Window window={w} title="Aide" width={620} height={480}>
+      <Window window={w} title="Aide">
         <HelpWindow />
       </Window>
     );
@@ -73,13 +63,7 @@ function WindowContent({ w }: { w: OpenWindow }) {
   switch (spec.type) {
     case 'desktop':
       return device instanceof Host ? (
-        <Window
-          window={w}
-          title={`Bureau de ${device.name}`}
-          width={560}
-          height={360}
-          className="desktop-window"
-        >
+        <Window window={w} title={`Bureau de ${device.name}`} className="desktop-window">
           <Desktop host={device} />
         </Window>
       ) : null;
@@ -87,19 +71,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
       if (!(device instanceof Host)) return null;
       if (spec.app === 'software') {
         return (
-          <Window window={w} title={`Installer des logiciels — ${device.name}`} width={560} height={520}>
+          <Window window={w} title={`Installer des logiciels — ${device.name}`}>
             <SoftwareInstaller host={device} />
           </Window>
         );
       }
-      const [width, height] = APP_SIZE[spec.app] ?? [600, 440];
       return (
-        <Window
-          window={w}
-          title={`${APP_INFO[spec.app].name} — ${device.name}`}
-          width={width}
-          height={height}
-        >
+        <Window window={w} title={`${APP_INFO[spec.app].name} — ${device.name}`}>
           {device.isInstalled(spec.app) ? (
             appBody(spec.app, device)
           ) : (
@@ -110,19 +88,19 @@ function WindowContent({ w }: { w: OpenWindow }) {
     }
     case 'capture':
       return device instanceof NetworkNode ? (
-        <Window window={w} title={`Échanges de données — ${device.name}`} width={900} height={520}>
+        <Window window={w} title={`Échanges de données — ${device.name}`}>
           <CaptureWindow key={spec.iface ?? 'all'} node={device} initialIface={spec.iface} />
         </Window>
       ) : null;
     case 'switch':
       return device instanceof Switch ? (
-        <Window window={w} title={`Table des adresses MAC — ${device.name}`} width={520} height={380}>
+        <Window window={w} title={`Table des adresses MAC — ${device.name}`}>
           <SwitchWindow device={device} />
         </Window>
       ) : null;
     case 'router':
       return device instanceof Router ? (
-        <Window window={w} title={`Routeur — ${device.name}`} width={680} height={460}>
+        <Window window={w} title={`Routeur — ${device.name}`}>
           <RouterWindow router={device} />
         </Window>
       ) : null;

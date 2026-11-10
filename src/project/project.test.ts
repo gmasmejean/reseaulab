@@ -271,6 +271,27 @@ describe('Projet', () => {
     expect(() => parseProject('x'.repeat(20_000_001))).toThrow(/volumineux/);
   });
 
+  test('enregistrer un projet qu’on vient d’ouvrir redonne le même texte', () => {
+    // L'historique d'annulation compare ces textes : un aller-retour ne doit rien changer.
+    const { net } = richNetwork();
+    net.addNote({
+      kind: 'text',
+      x: 10,
+      y: 20,
+      width: 200,
+      height: 40,
+      text: 'Salle 101',
+      color: '#1c2430',
+      fontSize: 16,
+      bold: true,
+      italic: false,
+    });
+    for (const network of [net, exampleNetwork()]) {
+      const text = serializeProject(network);
+      expect(serializeProject(parseProject(text))).toBe(text);
+    }
+  });
+
   test('un poste sans logiciel garde ses fichiers', () => {
     const { net, a } = richNetwork();
     a.fs.mkdir('/docs');

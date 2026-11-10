@@ -72,7 +72,8 @@ describe('App', () => {
     });
 
     fireEvent.click(screen.getByRole('radio', { name: /Simulation/ }));
-    expect(screen.getByRole('button', { name: 'Ordinateur' })).toBeDisabled();
+    // Rien à ajouter pendant une simulation : la palette laisse sa place au plan.
+    expect(screen.queryByRole('complementary', { name: 'Palette d’équipements' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Afficher le bureau' }));
     const desktop = screen.getByRole('dialog', { name: 'Bureau de Ordinateur 1' });
     fireEvent.click(within(desktop).getByRole('button', { name: 'Ligne de commande' }));
@@ -742,10 +743,133 @@ describe('Saisie et finitions', () => {
 
   test('les nombres s’écrivent avec une virgule', () => {
     const { session } = setup();
+    // Les réglages de la simulation n'apparaissent que dans ce mode.
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
     act(() => {
+      session.setMode('simulation');
       session.setSpeed(0.25);
     });
+    expect(screen.queryByRole('button', { name: 'Annuler' })).not.toBeInTheDocument();
     expect(screen.getByText('× 0,25')).toBeInTheDocument();
     expect(screen.getByTitle('Temps simulé')).toHaveTextContent('0,0 s');
+  });
+});
+
+describe('Plan lisible', () => {
+  test('annule et rétablit une modification, au bouton et au clavier', () => {
+    const { session } = setup();
+    const undo = screen.getByRole('button', { name: 'Annuler' });
+    const redo = screen.getByRole('button', { name: 'Rétablir' });
+    expect(undo).toBeDisabled();
+    expect(redo).toBeDisabled();
+    act(() => {
+      session.addDevice('computer');
+      session.commitHistory();
+      session.addDevice('switch');
+      session.commitHistory();
+      session.touch();
+    });
+    expect(session.network.devices).toHaveLength(2);
+
+    fireEvent.click(undo);
+    expect(screen.queryByRole('button', { name: /^Switch 1/ })).not.toBeInTheDocument();
+    expect(session.selection).toBeNull();
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(session.network.devices).toHaveLength(0);
+    expect(undo).toBeDisabled();
+
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'Z', ctrlKey: true, shiftKey: true });
+    expect(session.network.devices.map((d) => d.name)).toEqual(['Ordinateur 1', 'Switch 1']);
+    expect(redo).toBeDisabled();
+  });
+
+  test('Ctrl+Z dans un champ de texte reste celui du champ', () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('computer');
+      session.commitHistory();
+      session.touch();
+    });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Nom' }), { key: 'z', ctrlKey: true });
+    expect(session.network.devices).toHaveLength(1);
+  });
+
+  test('zoom : boutons −, +, taille réelle et Ajuster', () => {
+    const { session } = setup();
+    const group = screen.getByRole('group', { name: 'Zoom du plan' });
+    fireEvent.click(within(group).getByRole('button', { name: 'Réduire le plan' }));
+    expect(session.zoom).toBe(0.9);
+    expect(within(group).getByText('90 %')).toBeInTheDocument();
+    expect(session.autoFit).toBe(false);
+    fireEvent.click(within(group).getByRole('button', { name: 'Agrandir le plan' }));
+    fireEvent.click(within(group).getByRole('button', { name: 'Agrandir le plan' }));
+    expect(session.zoom).toBe(1.25);
+    fireEvent.click(within(group).getByRole('button', { name: /Revenir à la taille réelle/ }));
+    expect(session.zoom).toBe(1);
+    fireEvent.click(within(group).getByRole('button', { name: 'Ajuster' }));
+    expect(session.autoFit).toBe(true);
+    expect(within(group).getByRole('button', { name: 'Ajuster' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('le plan est dessiné à l’échelle du zoom et les déplacements en tiennent compte', () => {
+    const { session } = setup();
+    let id = '';
+    act(() => {
+      id = session.addDevice('computer', { x: 200, y: 200 });
+      session.setZoom(0.5);
+    });
+    const plan = screen.getByRole('application', { name: 'Plan du réseau' });
+    expect(plan).toHaveAttribute('viewBox', '0 0 1400 900');
+    expect(plan).toHaveAttribute('width', '700');
+    const device = screen.getByRole('button', { name: /^Ordinateur 1/ });
+    fireEvent.pointerDown(device, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(plan, { clientX: 150, clientY: 120 });
+    fireEvent.pointerUp(plan);
+    // 50 px à l'écran = 100 unités du plan à 50 %.
+    expect(session.network.device(id)?.position).toEqual({ x: 300, y: 240 });
+  });
+
+  test('en simulation : Échap ferme la fenêtre du dessus ; ranger et tout fermer', () => {
+    const { session } = setup();
+    let a = '';
+    let b = '';
+    act(() => {
+      a = session.addDevice('computer');
+      b = session.addDevice('computer');
+      session.setMode('simulation');
+      session.openWindow({ type: 'desktop', deviceId: a });
+      session.openWindow({ type: 'desktop', deviceId: b });
+    });
+    expect(screen.getAllByRole('dialog')).toHaveLength(2);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Bureau de Ordinateur 1');
+
+    act(() => {
+      session.openWindow({ type: 'capture', deviceId: b });
+      session.moveWindow(`desktop:${a}`, 300, 200);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ranger les fenêtres' }));
+    expect(session.windows.map((w) => [w.x, w.y])).toEqual([
+      [80, 60],
+      [108, 88],
+    ]);
+    // Échap dans une fenêtre ferme celle-ci, même si elle n'est pas au-dessus.
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Bureau de Ordinateur 1' }), { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Échanges de données — Ordinateur 2');
+    fireEvent.click(screen.getByRole('button', { name: 'Tout fermer' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tout fermer' })).not.toBeInTheDocument();
+  });
+
+  test('Échap dans le terminal ne ferme pas la fenêtre', () => {
+    const { session } = setup();
+    act(() => {
+      const a = session.addDevice('computer');
+      session.setMode('simulation');
+      session.openWindow({ type: 'app', deviceId: a, app: 'terminal' });
+    });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Commande' }), { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

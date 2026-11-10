@@ -226,9 +226,6 @@ code {
 .clock {
   min-width: 3em;
 }
-.app.mode-design .sim-controls {
-  opacity: 0.45;
-}
 .help-button {
   margin-left: auto;
 }
@@ -237,6 +234,10 @@ code {
   display: grid;
   grid-template-columns: 132px 1fr;
   min-height: 0;
+}
+/* The palette is hidden during a simulation. */
+.app.mode-simulation .workspace {
+  grid-template-columns: 1fr;
 }
 
 .palette {
@@ -708,6 +709,56 @@ input.narrow {
   background: transparent;
   border: 0;
   color: inherit;
+}
+
+.zoom-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 80;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.zoom-controls button {
+  border-color: transparent;
+  min-width: 30px;
+  padding: 3px 8px;
+}
+.zoom-controls .zoom-value {
+  min-width: 58px;
+  font-variant-numeric: tabular-nums;
+}
+.zoom-controls button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.icon-button {
+  min-width: 34px;
+  padding-inline: 8px;
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+.simulation-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding-block: 8px;
+}
+.simulation-bar p {
+  margin: 0;
+}
+.simulation-bar .window-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .resume-banner {
@@ -1184,7 +1235,8 @@ input.narrow {
 /* ---------- right-click menu ---------- */
 .context-menu {
   position: fixed;
-  z-index: 60;
+  /* Above the floating windows, below the modal dialogs. */
+  z-index: 900;
   min-width: 200px;
   max-width: min(360px, calc(100vw - 8px));
   padding: 4px;

@@ -37,7 +37,9 @@ ensuite avec **Ouvrir…**.
   champ (Entrée, Tab ou clic ailleurs) ; le masque `255.255.255.0` est proposé
   avec la première adresse. Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
   retire dans son onglet « Interfaces ». Les outils **Texte** et **Zone** ajoutent des annotations
-  sur le plan. Touche Suppr pour effacer la sélection.
+  sur le plan. Touche Suppr pour effacer la sélection ; **Ctrl+Z** annule,
+  **Ctrl+Y** rétablit (50 étapes). Le plan s'ajuste à l'écran ; les boutons
+  − / + / **Ajuster** en bas à droite et **Ctrl + molette** changent le zoom.
 - **Wi-Fi**, comme dans Filius : chaque switch est aussi un point d'accès avec
   un **nom Wi-Fi (SSID)** modifiable. Un ordinateur ou un portable réglé en
   **Sans fil (Wi-Fi)** rejoint un switch en choisissant ce nom dans sa
@@ -49,7 +51,9 @@ ensuite avec **Ouvrir…**.
   le bureau et les échanges de données de chaque interface. Au clavier : touche
   Menu ou Maj+F10.
 - **Mode simulation** : cliquer sur un ordinateur ouvre son bureau. On y
-  installe et lance des logiciels. Les paquets sont animés sur les câbles, au
+  installe et lance des logiciels. Les fenêtres s'ouvrent du côté opposé à
+  l'équipement pour le laisser visible ; **Échap** ferme celle du dessus,
+  **Ranger les fenêtres** et **Tout fermer** sont dans la barre du bas. Les paquets sont animés sur les câbles, au
   ralenti pour qu'on puisse les suivre (0,4 s par câble à la vitesse par
   défaut) ; entre deux envois, le temps s'écoule normalement. Le
   curseur **Vitesse** règle ce ralenti. La case **Masquer le trafic

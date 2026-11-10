@@ -145,7 +145,20 @@ export function toProject(network: Network): ProjectFile {
     version: PROJECT_VERSION,
     devices,
     cables: network.cables.map((c) => ({ ...c })),
-    notes: network.notes.map((n) => ({ ...n })),
+    // Fields in a fixed order: saving a file that was just opened gives the same text.
+    notes: network.notes.map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      x: n.x,
+      y: n.y,
+      width: n.width,
+      height: n.height,
+      text: n.text,
+      color: n.color,
+      fontSize: n.fontSize,
+      bold: n.bold,
+      italic: n.italic,
+    })),
   };
 }
 

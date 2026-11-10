@@ -88,6 +88,35 @@ export function Toolbar() {
           Exemple
         </button>
       </nav>
+      {/* Each mode shows its own controls, so that the bar fits on a 1366 px screen. */}
+      {!simulation && (
+        <div className="toolbar-group" role="group" aria-label="Historique">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Annuler"
+            title="Annuler la dernière modification (Ctrl+Z)"
+            disabled={!session.canUndo}
+            onClick={() => {
+              session.undo();
+            }}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Rétablir"
+            title="Rétablir la modification annulée (Ctrl+Y)"
+            disabled={!session.canRedo}
+            onClick={() => {
+              session.redo();
+            }}
+          >
+            ↷
+          </button>
+        </div>
+      )}
       <div className="mode-switch" role="radiogroup" aria-label="Mode">
         {(['design', 'simulation'] as const).map((mode) => (
           <button
@@ -105,50 +134,51 @@ export function Toolbar() {
           </button>
         ))}
       </div>
-      <div className="toolbar-group sim-controls">
-        <button
-          type="button"
-          disabled={!simulation}
-          onClick={() => {
-            session.togglePause();
-          }}
-        >
-          {session.paused ? 'Reprendre' : 'Pause'}
-        </button>
-        <label className="speed">
-          Vitesse
-          <input
-            type="range"
-            min={0}
-            max={SPEEDS.length - 1}
-            value={speedIndex}
-            onChange={(e) => {
-              session.setSpeed(SPEEDS[Number(e.target.value)] ?? 1);
+      {simulation && (
+        <div className="toolbar-group sim-controls">
+          <button
+            type="button"
+            onClick={() => {
+              session.togglePause();
             }}
-            aria-valuetext={speedLabel(session.speed)}
-          />
-          <span className="speed-value">{speedLabel(session.speed)}</span>
-        </label>
-        <label
-          className="hide-automatic"
-          title="Les échanges automatiques (adresses DHCP, routes RIP) ne sont plus animés ; ils restent listés dans les échanges de données."
-        >
-          <input
-            type="checkbox"
-            checked={session.hideAutomatic}
-            onChange={(e) => {
-              session.setHideAutomatic(e.target.checked);
-            }}
-          />
-          <span>
-            Masquer le trafic <br />
-            automatique
+          >
+            {session.paused ? 'Reprendre' : 'Pause'}
+          </button>
+          <label className="speed">
+            Vitesse
+            <input
+              type="range"
+              min={0}
+              max={SPEEDS.length - 1}
+              value={speedIndex}
+              onChange={(e) => {
+                session.setSpeed(SPEEDS[Number(e.target.value)] ?? 1);
+              }}
+              aria-valuetext={speedLabel(session.speed)}
+            />
+            <span className="speed-value">{speedLabel(session.speed)}</span>
+          </label>
+          <label
+            className="hide-automatic"
+            title="Les échanges automatiques (adresses DHCP, routes RIP) ne sont plus animés ; ils restent listés dans les échanges de données."
+          >
+            <input
+              type="checkbox"
+              checked={session.hideAutomatic}
+              onChange={(e) => {
+                session.setHideAutomatic(e.target.checked);
+              }}
+            />
+            <span>
+              Masquer le trafic <br />
+              automatique
+            </span>
+          </label>
+          <span className="clock" title="Temps simulé">
+            {decimal(session.network.scheduler.now / 1000, 1)} s
           </span>
-        </label>
-        <span className="clock" title="Temps simulé">
-          {decimal(session.network.scheduler.now / 1000, 1)} s
-        </span>
-      </div>
+        </div>
+      )}
       <button
         type="button"
         className="help-button"

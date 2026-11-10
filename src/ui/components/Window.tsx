@@ -6,13 +6,11 @@ interface Props {
   readonly window: OpenWindow;
   readonly title: string;
   readonly children: ReactNode;
-  readonly width?: number;
-  readonly height?: number;
   readonly className?: string;
 }
 
 /** Floating window, draggable by its title bar. */
-export function Window({ window: w, title, children, width = 640, height = 440, className = '' }: Props) {
+export function Window({ window: w, title, children, className = '' }: Props) {
   const session = useSession();
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   return (
@@ -20,7 +18,8 @@ export function Window({ window: w, title, children, width = 640, height = 440, 
       className={`window ${className}`}
       role="dialog"
       aria-label={title}
-      style={{ left: w.x, top: w.y, zIndex: 100 + w.z, width, height }}
+      data-window-id={w.id}
+      style={{ left: w.x, top: w.y, zIndex: 100 + w.z, width: w.width, height: w.height }}
       onPointerDown={() => {
         session.focusWindow(w.id);
       }}
@@ -36,7 +35,7 @@ export function Window({ window: w, title, children, width = 640, height = 440, 
         onPointerMove={(e) => {
           const d = drag.current;
           if (!d) return;
-          session.moveWindow(w.id, Math.max(0, d.ox + e.clientX - d.x), Math.max(0, d.oy + e.clientY - d.y));
+          session.moveWindow(w.id, d.ox + e.clientX - d.x, d.oy + e.clientY - d.y);
         }}
         onPointerUp={() => {
           drag.current = null;

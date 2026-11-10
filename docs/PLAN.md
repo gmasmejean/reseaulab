@@ -143,10 +143,19 @@ Les étapes 0 à 16 donnent un simulateur équivalent à Filius. Les suivantes e
 font un support d'apprentissage et de référence pour la Technologie au collège
 (4e, 3e), sur les PC de salle info.
 
-- [ ] **Étape 18 — Plan lisible** : zoom (Ctrl + molette, boutons, « Ajuster ») ;
-      fenêtres placées à droite, bornées à la zone, fermées par Échap,
-      « Ranger » et « Tout fermer » ; palette masquée et panneau réduit en
-      simulation ; Annuler / Rétablir (Ctrl+Z, Ctrl+Y).
+- [x] **Étape 18 — Plan lisible** : le plan s'ajuste à la zone visible (plus de
+      barres de défilement sur un écran 1366 × 768) tant que l'élève n'a pas
+      choisi de zoom ; boutons − / + / 100 % / « Ajuster » et Ctrl + molette
+      (de 30 % à 200 %). Une fenêtre s'ouvre contre le bord opposé à son
+      équipement, qui reste donc visible ; elle tient dans la zone (au plus
+      55 % de sa largeur), sa barre de titre ne peut plus en sortir, Échap
+      ferme celle du dessus, « Ranger les fenêtres » et « Tout fermer » sont
+      dans la barre du bas. En simulation la palette disparaît et le panneau
+      se réduit à une ligne ; la barre d'outils ne montre que les réglages du
+      mode en cours. Annuler / Rétablir (boutons, Ctrl+Z, Ctrl+Y ou
+      Ctrl+Maj+Z) sur 50 étapes : chaque étape est un instantané du projet,
+      les modifications rapprochées (glisser un équipement) sont regroupées,
+      ouvrir ou remplacer un réseau s'annule aussi.
 - [ ] **Étape 19 — Observabilité du moteur** : événement `drop` (raison de
       l'abandon d'un paquet), verdict sur les entrées de capture, événements du
       terminal, copie d'un réseau.
@@ -208,9 +217,19 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   « Passerelle » restent tels quels dans le panneau ; `ipconfig` garde les
   formes longues de Windows (« Masque de sous-réseau », « Passerelle par
   défaut »). Le lexique de l'étape 22 fera le lien.
-- **Fenêtres fermées au changement de mode** (étape 17) : le texte non
-  enregistré de l'éditeur est toujours perdu en quittant la simulation ; à
-  traiter avec la gestion des fenêtres de l'étape 18.
+- **Fenêtres fermées au changement de mode** : le texte non enregistré de
+  l'éditeur est toujours perdu en quittant la simulation (non traité aux
+  étapes 17 et 18).
+- **Fenêtres flottantes conservées** (étape 18) : sur 1366 px, un plan large
+  et une fenêtre de 640 px ne tiennent pas côte à côte sans réduire le plan à
+  une taille illisible. Les fenêtres restent donc superposées au plan, du côté
+  opposé à leur équipement ; les réseaux construits par les élèves (quelques
+  équipements placés à gauche) restent entièrement visibles.
+- **Annulation par instantanés** (étape 18) : l'historique garde le projet
+  sérialisé à chaque étape plutôt qu'une liste de commandes inverses ; c'est
+  plus simple et couvre toutes les modifications, y compris celles des
+  fenêtres de serveurs. L'ordre des champs des annotations est désormais
+  fixe dans le fichier, pour qu'un aller-retour redonne le même texte.
 
 ## Hors périmètre (documenté)
 

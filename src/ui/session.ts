@@ -6,6 +6,7 @@ import { exampleNetwork } from '../project/example';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
+import { clampWindow, defaultWindowSize, fitWindow, placeWindow, type Size } from './windowLayout';
 
 export type Mode = 'design' | 'simulation';
 export type Tool = 'select' | 'cable';
@@ -26,6 +27,8 @@ export interface OpenWindow {
   readonly z: number;
   readonly x: number;
   readonly y: number;
+  readonly width: number;
+  readonly height: number;
 }
 
 export interface Notice {
@@ -51,6 +54,14 @@ export interface ImportReport {
 }
 
 export const SPEEDS = [0.1, 0.25, 0.5, 1, 2, 4] as const;
+/** Zoom levels of the plan reached with the − and + buttons. */
+export const ZOOM_STEPS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.25, 1.5, 2] as const;
+const ZOOM_MIN = ZOOM_STEPS[0];
+const ZOOM_MAX = 2;
+/** Number of changes that can be undone. */
+export const HISTORY_LIMIT = 50;
+/** Changes closer than this (dragging a device, typing a note) are undone together. */
+export const HISTORY_DELAY_MS = 400;
 export const AUTOSAVE_KEY = 'reseaulab:autosave';
 export const AUTOSAVE_DATE_KEY = 'reseaulab:autosave-date';
 export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
@@ -98,6 +109,25 @@ function protocolOf(event: TransmitEvent): string {
 
 const DEFAULT_POSITION_STEP = 140;
 
+/** Smallest plan drawn when the size of the stage is unknown. */
+const MIN_PLAN: Size = { width: 1400, height: 900 };
+
+/** Area covered by the devices and notes, from the origin, labels included. */
+export function contentSize(network: Network): Size {
+  return {
+    width: Math.max(
+      0,
+      ...network.devices.map((d) => d.position.x + 100),
+      ...network.notes.map((n) => n.x + n.width + 30),
+    ),
+    height: Math.max(
+      0,
+      ...network.devices.map((d) => d.position.y + 90),
+      ...network.notes.map((n) => n.y + n.height + 30),
+    ),
+  };
+}
+
 export const PROJECT_EXTENSION = '.reseaulab.json';
 const DEFAULT_PROJECT_NAME = 'reseau';
 
@@ -141,6 +171,18 @@ export class Session {
   resumed: Resumed | null = null;
   /** Validates the text field being edited; false when its value is refused. */
   private pendingEdit: (() => boolean) | null = null;
+  /** Size of the stage (plan and windows), once known. */
+  viewport: Size | null = null;
+  /** Scale of the plan: 1 = real size. */
+  zoom = 1;
+  /** The zoom follows the size of the stage until the pupil chooses one. */
+  autoFit = true;
+  /** Earlier and undone states of the design, as project files. */
+  private past: string[] = [];
+  private future: string[] = [];
+  private present: string;
+  private historyTimer: ReturnType<typeof setTimeout> | null = null;
+  private historyDirty = false;
   readonly clock: SimulationClock;
   private readonly emitter = new Emitter<{ change: undefined }>();
   private revision = 0;
@@ -156,6 +198,7 @@ export class Session {
     private readonly now: () => number = () => Date.now(),
   ) {
     this.network = this.restore() ?? new Network();
+    this.present = this.serialize();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
     this.clock = new SimulationClock(
       () => this.network.scheduler,
@@ -186,6 +229,7 @@ export class Session {
   replaceNetwork(network: Network, fileName?: string): void {
     this.pendingEdit = null;
     this.setMode('design');
+    this.commitHistory();
     this.detach();
     this.network = network;
     this.resumed = null;
@@ -194,6 +238,10 @@ export class Session {
     this.windows = [];
     if (fileName) this.fileName = fileName;
     this.attach();
+    // Replacing the whole network is one step that can be undone.
+    this.commitHistory();
+    this.autoFit = true;
+    this.zoom = this.fitZoom();
     this.scheduleSave();
     this.touch();
   }
@@ -288,12 +336,15 @@ export class Session {
     this.windows = this.windows.filter((w) => w.spec.type === 'help');
     this.inFlight = [];
     if (mode === 'simulation') {
+      this.commitHistory();
       this.network.start();
       this.paused = false;
       this.clock.start();
     } else {
       this.clock.stop();
       this.network.stop();
+      // What the simulation changed for good (files, server settings) is one step.
+      this.commitHistory();
     }
     this.touch();
   }
@@ -338,6 +389,7 @@ export class Session {
 
   addDevice(kind: DeviceKind, position?: Position, interfaces = 2): string {
     this.commitEdit();
+    this.commitHistory();
     const pos = position ?? this.freePosition();
     const net = this.network;
     const device =
@@ -347,6 +399,7 @@ export class Session {
           ? net.addRouter({ position: pos, interfaces })
           : net.addHost(kind, { position: pos });
     this.selection = { kind: 'device', id: device.id };
+    if (this.autoFit) this.zoom = this.fitZoom();
     this.touch();
     return device.id;
   }
@@ -354,6 +407,7 @@ export class Session {
   /** Adds a text label or a coloured zone to the plan. */
   addNote(kind: 'text' | 'zone'): string {
     this.commitEdit();
+    this.commitHistory();
     const offset = (this.network.notes.length % 6) * 24;
     const note = this.network.addNote(
       kind === 'zone'
@@ -407,6 +461,7 @@ export class Session {
       return;
     }
     try {
+      this.commitHistory();
       const cable = this.network.connect(start, deviceId);
       this.selection = { kind: 'cable', id: cable.id };
     } catch (error) {
@@ -418,11 +473,146 @@ export class Session {
   deleteSelection(): void {
     const sel = this.selection;
     if (!sel || this.mode !== 'design') return;
+    // Each deletion is a step of its own, whatever was changed just before.
+    this.commitHistory();
     if (sel.kind === 'device') this.network.removeDevice(sel.id);
     else if (sel.kind === 'note') this.network.removeNote(sel.id);
     else this.network.disconnect(sel.id);
     this.selection = null;
     this.touch();
+  }
+
+  /* ---------- undo / redo ---------- */
+
+  get canUndo(): boolean {
+    return this.mode === 'design' && (this.past.length > 0 || this.historyDirty);
+  }
+
+  get canRedo(): boolean {
+    return this.mode === 'design' && this.future.length > 0 && !this.historyDirty;
+  }
+
+  /** Records the current design as a step of the history, when it changed. */
+  commitHistory(): void {
+    if (this.historyTimer !== null) clearTimeout(this.historyTimer);
+    this.historyTimer = null;
+    this.historyDirty = false;
+    const current = this.serialize();
+    if (current === this.present) return;
+    this.past.push(this.present);
+    if (this.past.length > HISTORY_LIMIT) this.past.shift();
+    this.present = current;
+    this.future = [];
+  }
+
+  undo(): void {
+    if (this.mode !== 'design') return;
+    this.commitEdit();
+    this.commitHistory();
+    const previous = this.past.pop();
+    if (previous === undefined) return;
+    this.future.push(this.present);
+    this.showDesign(previous);
+  }
+
+  redo(): void {
+    if (this.mode !== 'design') return;
+    this.commitEdit();
+    this.commitHistory();
+    const next = this.future.pop();
+    if (next === undefined) return;
+    this.past.push(this.present);
+    this.showDesign(next);
+  }
+
+  /** Replaces the network by a recorded state, keeping the selection when it still exists. */
+  private showDesign(project: string): void {
+    this.pendingEdit = null;
+    this.detach();
+    this.network = parseProject(project);
+    // As this network is written, so that an unchanged design is never taken for a new step.
+    this.present = this.serialize();
+    this.attach();
+    this.cableStart = null;
+    const sel = this.selection;
+    if (sel) {
+      const net = this.network;
+      const exists =
+        sel.kind === 'device'
+          ? net.device(sel.id)
+          : sel.kind === 'note'
+            ? net.note(sel.id)
+            : net.cable(sel.id);
+      if (!exists) this.selection = null;
+    }
+    if (this.autoFit) this.zoom = this.fitZoom();
+    this.scheduleSave();
+    this.touch();
+  }
+
+  private scheduleHistory(): void {
+    this.historyDirty = true;
+    if (this.historyTimer !== null) clearTimeout(this.historyTimer);
+    this.historyTimer = setTimeout(() => {
+      this.commitHistory();
+      this.touch();
+    }, HISTORY_DELAY_MS);
+  }
+
+  /* ---------- zoom of the plan ---------- */
+
+  /** Logical size of the plan: its content, and at least the visible stage. */
+  get planSize(): Size {
+    const content = contentSize(this.network);
+    const stage = this.viewport;
+    return {
+      width: Math.max(content.width, stage ? stage.width / this.zoom : MIN_PLAN.width),
+      height: Math.max(content.height, stage ? stage.height / this.zoom : MIN_PLAN.height),
+    };
+  }
+
+  /** Called by the plan when the stage is laid out or resized. */
+  setViewport(width: number, height: number): void {
+    if (this.viewport?.width === width && this.viewport.height === height) return;
+    this.viewport = { width, height };
+    if (this.autoFit) this.zoom = this.fitZoom();
+    this.windows = this.windows.map((w) => ({ ...w, ...clampWindow(w, this.viewport) }));
+    this.touch();
+  }
+
+  /** Largest zoom (at most 1) that shows the whole plan without scrolling. */
+  fitZoom(): number {
+    const stage = this.viewport;
+    if (!stage) return 1;
+    const content = contentSize(this.network);
+    const zoom = Math.min(
+      1,
+      content.width > 0 ? stage.width / content.width : 1,
+      content.height > 0 ? stage.height / content.height : 1,
+    );
+    return Math.max(ZOOM_MIN, Math.floor(zoom * 100) / 100);
+  }
+
+  /** « Ajuster » : shows the whole plan, and keeps doing so when the stage changes. */
+  fitPlan(): void {
+    this.autoFit = true;
+    this.zoom = this.fitZoom();
+    this.touch();
+  }
+
+  setZoom(zoom: number): void {
+    this.autoFit = false;
+    this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(zoom * 100) / 100));
+    this.touch();
+  }
+
+  /** Next zoom level above (+1) or below (-1) the current one. */
+  zoomStep(direction: 1 | -1): void {
+    const next =
+      direction > 0
+        ? ZOOM_STEPS.find((z) => z > this.zoom + 0.001)
+        : [...ZOOM_STEPS].reverse().find((z) => z < this.zoom - 0.001);
+    if (next !== undefined) this.setZoom(next);
   }
 
   /* ---------- windows ---------- */
@@ -439,9 +629,38 @@ export class Session {
       this.focusWindow(key);
       return;
     }
-    const offset = (this.windows.length % 8) * 28;
-    this.windows = [...this.windows, { id: key, spec, z: ++this.zCounter, x: 80 + offset, y: 60 + offset }];
+    const size = fitWindow(defaultWindowSize(spec), this.viewport);
+    const position = placeWindow(size, this.viewport, this.sideFor(spec), this.windows.length);
+    this.windows = [...this.windows, { id: key, spec, z: ++this.zCounter, ...position, ...size }];
     this.touch();
+  }
+
+  /** Side of the stage where a window hides its device the least: the opposite one. */
+  private sideFor(spec: WindowSpec): 'left' | 'right' {
+    if (spec.type === 'help' || !this.viewport) return 'right';
+    const device = this.network.device(spec.deviceId);
+    return device && device.position.x * this.zoom > this.viewport.width / 2 ? 'left' : 'right';
+  }
+
+  /** « Ranger » : cascades the windows again from the top right corner. */
+  arrangeWindows(): void {
+    const ordered = [...this.windows].sort((a, b) => a.z - b.z);
+    this.windows = ordered.map((w, index) => {
+      const size = fitWindow(defaultWindowSize(w.spec), this.viewport);
+      return { ...w, ...size, ...placeWindow(size, this.viewport, 'right', index), z: index + 1 };
+    });
+    this.zCounter = this.windows.length;
+    this.touch();
+  }
+
+  closeAllWindows(): void {
+    this.windows = [];
+    this.touch();
+  }
+
+  /** Window drawn above the others, if any. */
+  get topWindow(): OpenWindow | null {
+    return this.windows.reduce<OpenWindow | null>((top, w) => (top && top.z > w.z ? top : w), null);
   }
 
   focusWindow(id: string): void {
@@ -449,11 +668,18 @@ export class Session {
     const target = this.windows.find((w) => w.id === id);
     if (!target || target.z === top) return;
     this.windows = this.windows.map((w) => (w.id === id ? { ...w, z: ++this.zCounter } : w));
+    // Keep the stacking numbers small: they are added to the CSS z-index of the windows.
+    if (this.zCounter > 500) {
+      const ordered = [...this.windows].sort((a, b) => a.z - b.z).map((w) => w.id);
+      this.windows = this.windows.map((w) => ({ ...w, z: ordered.indexOf(w.id) + 1 }));
+      this.zCounter = this.windows.length;
+    }
     this.touch();
   }
 
   moveWindow(id: string, x: number, y: number): void {
-    this.windows = this.windows.map((w) => (w.id === id ? { ...w, x, y } : w));
+    const position = clampWindow({ x, y }, this.viewport);
+    this.windows = this.windows.map((w) => (w.id === id ? { ...w, ...position } : w));
     this.touch();
   }
 
@@ -486,6 +712,7 @@ export class Session {
     this.unsubscribe = [
       net.events.on('change', () => {
         this.scheduleSave();
+        if (this.mode === 'design') this.scheduleHistory();
         this.touch();
       }),
       net.events.on('transmit', (event) => {

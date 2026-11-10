@@ -11,7 +11,11 @@ import {
   AUTOSAVE_DATE_KEY,
   AUTOSAVE_KEY,
   HIDE_AUTOMATIC_KEY,
+  HISTORY_DELAY_MS,
+  HISTORY_LIMIT,
   Session,
+  ZOOM_STEPS,
+  contentSize,
   projectBaseName,
 } from './session';
 
@@ -321,6 +325,186 @@ describe('Session : saisie, reprise et nom du projet', () => {
     expect(session.fileName).toBe('Dupont – activité 1.reseaulab.json');
     session.setProjectName('');
     expect(session.fileName).toBe('reseau.reseaulab.json');
+  });
+});
+
+describe('Session : annuler et rétablir', () => {
+  test('annule et rétablit les modifications du plan, y compris un remplacement du réseau', () => {
+    const session = new Session();
+    expect(session.canUndo).toBe(false);
+    const a = session.addDevice('computer');
+    expect(session.canUndo).toBe(true); // modification en attente d'enregistrement
+    session.commitHistory();
+    session.network.host(a).updateConfig({ ip: ip('10.0.0.1'), mask: MASK_24 });
+    session.commitHistory();
+    session.loadExample();
+    expect(session.network.devices.length).toBeGreaterThan(5);
+
+    session.undo();
+    expect(session.network.devices.map((d) => d.name)).toEqual(['Ordinateur 1']);
+    expect(session.network.host(a).config.ip).toBe(ip('10.0.0.1'));
+    session.undo();
+    expect(session.network.host(a).config.ip).toBe(IP_ANY);
+    expect(session.canRedo).toBe(true);
+    session.undo();
+    expect(session.network.devices).toHaveLength(0);
+    expect(session.canUndo).toBe(false);
+    session.undo(); // plus rien à annuler
+    expect(session.network.devices).toHaveLength(0);
+
+    session.redo();
+    session.redo();
+    expect(session.network.host(a).config.ip).toBe(ip('10.0.0.1'));
+    // Une nouvelle modification efface ce qui pouvait être rétabli.
+    session.addDevice('switch');
+    session.commitHistory();
+    expect(session.canRedo).toBe(false);
+    session.redo();
+    expect(session.network.devices).toHaveLength(2);
+  });
+
+  test('regroupe une rafale de modifications et garde la sélection quand elle existe encore', () => {
+    vi.useFakeTimers();
+    try {
+      const session = new Session();
+      const a = session.addDevice('computer');
+      vi.advanceTimersByTime(HISTORY_DELAY_MS);
+      // Glisser un équipement : beaucoup de petits déplacements, une seule annulation.
+      for (let x = 200; x <= 400; x += 20) {
+        session.network.move(a, { x, y: 300 });
+        vi.advanceTimersByTime(16);
+      }
+      const b = session.addDevice('computer');
+      expect(session.selection).toEqual({ kind: 'device', id: b });
+      session.undo(); // enregistre d'abord la rafale en cours
+      expect(session.network.devices).toHaveLength(1);
+      expect(session.network.device(a)?.position).toEqual({ x: 400, y: 300 });
+      expect(session.selection).toBeNull();
+      session.select({ kind: 'device', id: a });
+      session.undo();
+      expect(session.network.device(a)?.position.x).not.toBe(400);
+      expect(session.selection).toEqual({ kind: 'device', id: a });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('ne fait rien en simulation ; ce que la simulation a changé forme une étape', () => {
+    const session = new Session(null, new ManualFrames());
+    const { a } = lan(session);
+    session.commitHistory();
+    session.setMode('simulation');
+    expect(session.canUndo).toBe(false);
+    session.undo();
+    expect(session.network.cables).toHaveLength(2);
+    session.network.host(a).install('webserver');
+    session.setMode('design');
+    expect(session.network.host(a).isInstalled('webserver')).toBe(true);
+    session.undo();
+    expect(session.network.host(a).isInstalled('webserver')).toBe(false);
+    expect(session.network.cables).toHaveLength(2);
+  });
+
+  test('garde au plus HISTORY_LIMIT étapes', () => {
+    const session = new Session();
+    for (let i = 0; i < HISTORY_LIMIT + 5; i++) {
+      session.addNote('text');
+      session.commitHistory();
+    }
+    for (let i = 0; i < HISTORY_LIMIT + 5; i++) session.undo();
+    expect(session.network.notes).toHaveLength(5);
+  });
+});
+
+describe('Session : zoom du plan et fenêtres', () => {
+  test('ajuste le plan à la zone visible tant que l’élève n’a pas choisi de zoom', () => {
+    const session = new Session();
+    expect(session.planSize).toEqual({ width: 1400, height: 900 });
+    session.loadExample();
+    expect(session.fitZoom()).toBe(1); // taille de la zone inconnue
+    const content = contentSize(session.network);
+    session.setViewport(Math.round(content.width / 2), 2000);
+    expect(session.zoom).toBe(0.5);
+    // Le plan remplit au moins la zone visible.
+    expect(session.planSize.height).toBe(4000);
+    session.setViewport(4000, 2000);
+    expect(session.zoom).toBe(1); // jamais agrandi au-delà de la taille réelle
+
+    session.setZoom(1.5);
+    expect(session.autoFit).toBe(false);
+    session.setViewport(400, 300);
+    expect(session.zoom).toBe(1.5);
+    session.fitPlan();
+    expect(session.zoom).toBeLessThan(0.5);
+    expect(session.zoom).toBeGreaterThanOrEqual(ZOOM_STEPS[0]);
+    session.setViewport(10, 10);
+    expect(session.zoom).toBe(ZOOM_STEPS[0]);
+  });
+
+  test('change de zoom par paliers, dans les limites', () => {
+    const session = new Session();
+    session.zoomStep(1);
+    expect(session.zoom).toBe(1.25);
+    session.setZoom(0.85);
+    session.zoomStep(-1);
+    expect(session.zoom).toBe(0.8);
+    session.setZoom(0.01);
+    expect(session.zoom).toBe(ZOOM_STEPS[0]);
+    session.zoomStep(-1);
+    expect(session.zoom).toBe(ZOOM_STEPS[0]);
+    session.setZoom(9);
+    expect(session.zoom).toBe(2);
+    session.zoomStep(1);
+    expect(session.zoom).toBe(2);
+  });
+
+  test('ajuste de nouveau le plan quand on ajoute un équipement ou qu’on annule', () => {
+    const session = new Session();
+    session.setViewport(800, 600);
+    expect(session.zoom).toBe(1);
+    session.addDevice('computer', { x: 1500, y: 100 });
+    expect(session.zoom).toBe(0.5);
+    session.commitHistory();
+    session.undo();
+    expect(session.zoom).toBe(1);
+  });
+
+  test('ouvre une fenêtre du côté opposé à son équipement, sans sortir de la zone', () => {
+    const session = new Session(null, new ManualFrames());
+    session.setViewport(1200, 600);
+    const left = session.addDevice('computer', { x: 100, y: 100 });
+    const right = session.addDevice('computer', { x: 1000, y: 100 });
+    session.setMode('simulation');
+    session.openWindow({ type: 'desktop', deviceId: left });
+    session.openWindow({ type: 'capture', deviceId: right });
+    const [first, second] = session.windows;
+    // Bureau : 560 × 360, calé à droite. Capture : limitée à 55 % de la largeur, à gauche.
+    expect(first).toMatchObject({ x: 1200 - 560 - 8, y: 8, width: 560, height: 360 });
+    expect(second).toMatchObject({ x: 8, y: 8 + 26, width: 660, height: 520 });
+    expect(session.topWindow?.id).toBe(`capture:${right}`);
+
+    session.moveWindow(`desktop:${left}`, 5000, -40);
+    expect(session.windows[0]).toMatchObject({ x: 1200 - 120, y: 0 });
+    // La zone rétrécit : les fenêtres restent attrapables.
+    session.setViewport(600, 300);
+    expect(session.windows[0]).toMatchObject({ x: 600 - 120 });
+
+    session.arrangeWindows();
+    expect(session.windows.every((w) => w.x + w.width <= 600 - 8 && w.x >= 8)).toBe(true);
+    session.closeAllWindows();
+    expect(session.windows).toHaveLength(0);
+    expect(session.topWindow).toBeNull();
+  });
+
+  test('renumérote l’empilement des fenêtres plutôt que de le laisser croître', () => {
+    const session = new Session(null, new ManualFrames());
+    const { a, b } = lan(session);
+    session.setMode('simulation');
+    session.openWindow({ type: 'desktop', deviceId: a });
+    session.openWindow({ type: 'desktop', deviceId: b });
+    for (let i = 0; i < 600; i++) session.focusWindow(i % 2 === 0 ? `desktop:${a}` : `desktop:${b}`);
+    expect(Math.max(...session.windows.map((w) => w.z))).toBeLessThanOrEqual(500);
+    expect(session.topWindow?.id).toBe(`desktop:${b}`);
   });
 });
 
