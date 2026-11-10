@@ -2248,3 +2248,96 @@ button.term-help[aria-expanded='true'] {
   color: var(--danger);
   font-weight: 600;
 }
+
+/* ---------- créer une activité ---------- */
+.author {
+  display: grid;
+  gap: 10px;
+}
+.author .field {
+  margin: 0;
+}
+.author textarea,
+.author input:not([type='radio']):not([type='checkbox']) {
+  width: 100%;
+}
+.author-head {
+  display: grid;
+  grid-template-columns: 1fr 90px 100px;
+  gap: 10px;
+}
+.author-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.author-steps > li {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.author-step-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 10px;
+}
+.author-step-extra {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.chips button {
+  padding: 1px 8px;
+  border-radius: 12px;
+  font-size: 0.9em;
+}
+.author-objectives {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+.author-objectives li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+.author-proposals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+.author-proposals button {
+  text-align: left;
+}
+.author-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.author-verdict p {
+  margin: 4px 0;
+}
+.settings section {
+  margin-top: 4px;
+}

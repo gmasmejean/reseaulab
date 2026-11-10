@@ -49,6 +49,18 @@ export function ActivitiesWindow() {
           </li>
         ))}
       </ul>
+      <p className="muted">
+        Enseignant ?{' '}
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            session.openWindow({ type: 'author' });
+          }}
+        >
+          Créer une activité
+        </button>
+      </p>
       {pending && (
         <ConfirmDialog
           title="Remplacer le réseau ?"

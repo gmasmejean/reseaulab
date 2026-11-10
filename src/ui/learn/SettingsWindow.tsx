@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { APP_IDS } from '../../engine/services/catalog';
 import { TERMINAL_COMMANDS } from '../../engine/terminal/terminal';
 import { APP_INFO, DEVICE_KINDS, DEVICE_LABEL } from '../../i18n/fr';
@@ -9,7 +10,11 @@ import {
   type ProfileLevel,
   type ProfileSpec,
 } from '../../learn/profile/capabilities';
+import { DEFAULT_PACK } from '../../learn/content/default-pack';
+import { serializePack } from '../../learn/content/schema';
+import { MESSAGES } from '../../learn/diagnose/messages.fr';
 import { useSession } from '../context';
+import { downloadText } from '../files';
 
 const FEATURE_LABEL: Record<Feature, string> = {
   wifi: 'Wi-Fi',
@@ -52,6 +57,8 @@ export function SettingsWindow() {
   const session = useSession();
   const current = session.profile.base;
   const hidden = hiddenBy(session.profile);
+  const pack = session.localPackSummary;
+  const packInput = useRef<HTMLInputElement>(null);
   return (
     <div className="settings">
       <h2>Niveau de la classe</h2>
@@ -88,6 +95,84 @@ export function SettingsWindow() {
             ))}
           </ul>
         )}
+      </section>
+      <section aria-label="Activités">
+        <h3>Activités</h3>
+        <p className="muted">
+          Écrivez vos propres activités : consignes par étapes et objectifs que RéseauLab vérifie.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            session.openWindow({ type: 'author' });
+          }}
+        >
+          Créer une activité
+        </button>
+      </section>
+      <section aria-label="Pack pédagogique">
+        <h3>Pack pédagogique</h3>
+        <p className="muted">
+          Fiches de connaissances, questions du quiz et messages du diagnostic sont modifiables par un
+          fichier. Exportez le contenu fourni, modifiez-le dans un éditeur de texte, puis importez-le.
+        </p>
+        <p>
+          {pack
+            ? `Pack installé sur ce poste : ${pack.notions} fiche(s), ${pack.questions} question(s), ${pack.messages} message(s) modifiés, ${pack.hidden} élément(s) masqué(s).`
+            : 'Contenu d’origine, sans modification.'}
+        </p>
+        <div className="button-row">
+          <button
+            type="button"
+            onClick={() => {
+              downloadText(
+                'reseaulab.pack.reseaulab.json',
+                serializePack({
+                  notions: DEFAULT_PACK.notions,
+                  questions: DEFAULT_PACK.questions,
+                  messages: MESSAGES,
+                }),
+              );
+              session.notify(
+                'Contenu fourni exporté dans vos téléchargements : reseaulab.pack.reseaulab.json',
+              );
+            }}
+          >
+            Exporter le contenu fourni
+          </button>
+          <button type="button" onClick={() => packInput.current?.click()}>
+            Importer un pack…
+          </button>
+          <input
+            ref={packInput}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            data-testid="import-pack"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              file
+                .text()
+                .then((text) => session.importPack(text))
+                .catch(() => {
+                  session.notify('Lecture du fichier impossible.', 'error');
+                });
+            }}
+          />
+          {pack && (
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                session.resetPack();
+              }}
+            >
+              Revenir au contenu d’origine
+            </button>
+          )}
+        </div>
       </section>
     </div>
   );

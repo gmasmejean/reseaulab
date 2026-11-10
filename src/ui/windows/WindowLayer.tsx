@@ -8,6 +8,7 @@ import { APP_INFO } from '../../i18n/fr';
 import { Window } from '../components/Window';
 import { useSession } from '../context';
 import { ActivitiesWindow } from '../learn/ActivitiesWindow';
+import { AuthorWindow } from '../learn/AuthorWindow';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import { KnowledgeWindow } from '../learn/KnowledgeWindow';
 import { QuizWindow } from '../learn/QuizWindow';
@@ -81,6 +82,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
     return (
       <Window window={w} title="Activités">
         <ActivitiesWindow />
+      </Window>
+    );
+  }
+  if (spec.type === 'author') {
+    return (
+      <Window window={w} title="Créer une activité">
+        <AuthorWindow />
       </Window>
     );
   }

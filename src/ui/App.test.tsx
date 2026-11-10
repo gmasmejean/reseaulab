@@ -1787,3 +1787,125 @@ describe('Quiz', () => {
     ).toHaveTextContent('2 quiz faits : 6 sur 8, 8 sur 8.');
   });
 });
+
+describe('Espace enseignant', () => {
+  test('créer une activité : objectifs proposés depuis la solution, contrôle, fichier, essai', () => {
+    const createObjectURL = vi.fn(() => 'blob:test');
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    try {
+      const { session } = setup();
+      act(() => {
+        const a = session.addDevice('computer');
+        const b = session.addDevice('computer');
+        const sw = session.addDevice('switch');
+        session.network.host(a).updateConfig({ ip: ip('10.0.0.1'), mask: MASK_24 });
+        session.network.host(b).updateConfig({ ip: ip('10.0.0.2'), mask: MASK_24 });
+        session.network.connect(a, sw);
+        session.network.connect(b, sw);
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+      fireEvent.click(
+        within(screen.getByRole('dialog', { name: 'Réglages' })).getByRole('button', {
+          name: 'Créer une activité',
+        }),
+      );
+      const author = screen.getByRole('dialog', { name: 'Créer une activité' });
+
+      // Sans titre, le contrôle dit ce qui manque.
+      fireEvent.click(within(author).getByRole('button', { name: 'Contrôler l’activité' }));
+      expect(within(author).getByRole('alert')).toHaveTextContent('Donnez un titre à l’activité.');
+      fireEvent.change(within(author).getByRole('textbox', { name: 'Titre de l’activité' }), {
+        target: { value: 'Adresser deux postes' },
+      });
+      fireEvent.change(within(author).getByRole('textbox', { name: 'Étape 1 : titre' }), {
+        target: { value: 'Donner les adresses' },
+      });
+      fireEvent.change(within(author).getByRole('textbox', { name: 'Indices (un par ligne)' }), {
+        target: { value: 'Même début d’adresse' },
+      });
+      fireEvent.change(within(author).getByRole('combobox', { name: 'Fiches à lire' }), {
+        target: { value: 'adresse-ip' },
+      });
+      expect(within(author).getByRole('button', { name: 'Adresse IP ✕' })).toBeInTheDocument();
+
+      fireEvent.click(within(author).getByRole('button', { name: 'Choisir parmi les objectifs proposés…' }));
+      const proposals = within(author).getByRole('group', { name: 'Objectifs proposés pour l’étape 1' });
+      fireEvent.click(
+        within(proposals).getByRole('button', { name: '+ Ordinateur 1 a une adresse du réseau 10.0.0.0' }),
+      );
+      fireEvent.click(
+        within(proposals).getByRole('button', { name: '+ Ordinateur 1 communique avec Ordinateur 2' }),
+      );
+      // Un objectif choisi n'est plus proposé ; sa phrase se reformule.
+      expect(
+        within(proposals).queryByRole('button', { name: '+ Ordinateur 1 a une adresse du réseau 10.0.0.0' }),
+      ).not.toBeInTheDocument();
+      fireEvent.change(within(author).getByRole('textbox', { name: 'Étape 1, objectif 2' }), {
+        target: { value: 'Les deux postes communiquent' },
+      });
+
+      fireEvent.click(within(author).getByRole('button', { name: 'Contrôler l’activité' }));
+      const verdict = within(author).getByRole('status');
+      expect(verdict).toHaveTextContent('Votre réseau (la solution) atteint 2 des 2 objectifs');
+      expect(verdict).toHaveTextContent('Au départ, aucun n’est déjà atteint');
+      // Départ « tel quel » : tout serait déjà fait, et le contrôle le signale.
+      fireEvent.click(within(author).getByRole('radio', { name: 'Le réseau tel qu’il est maintenant' }));
+      fireEvent.click(within(author).getByRole('button', { name: 'Contrôler l’activité' }));
+      expect(within(author).getByRole('status')).toHaveTextContent(
+        'Déjà atteints sur le réseau de départ (rien à faire pour l’élève) : Ordinateur 1 a une adresse du réseau 10.0.0.0 ; Les deux postes communiquent.',
+      );
+      fireEvent.click(within(author).getByRole('radio', { name: 'Le même réseau, sans les adresses' }));
+
+      fireEvent.click(within(author).getByRole('button', { name: 'Enregistrer le fichier d’activité' }));
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(session.notice?.text).toContain('adresser-deux-postes.activite.reseaulab.json');
+
+      // Le brouillon survit à la fermeture de la fenêtre.
+      fireEvent.click(within(author).getByRole('button', { name: 'Fermer Créer une activité' }));
+      act(() => {
+        session.openWindow({ type: 'author' });
+      });
+      expect(screen.getByRole('textbox', { name: 'Titre de l’activité' })).toHaveValue(
+        'Adresser deux postes',
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Essayer comme un élève' }));
+      const panel = screen.getByRole('complementary', { name: 'Activité' });
+      expect(within(panel).getByRole('heading', { name: 'Adresser deux postes' })).toBeInTheDocument();
+      expect(panel).toHaveTextContent('0 objectif sur 2');
+      expect(screen.getByRole('button', { name: 'Ordinateur 1 (sans adresse)' })).toBeInTheDocument();
+    } finally {
+      click.mockRestore();
+    }
+  });
+
+  test('importer un pack depuis les réglages, puis revenir au contenu d’origine', async () => {
+    const { session } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    const settings = screen.getByRole('dialog', { name: 'Réglages' });
+    const section = within(settings).getByRole('region', { name: 'Pack pédagogique' });
+    expect(section).toHaveTextContent('Contenu d’origine, sans modification.');
+    const text = serializePack({
+      hidden: ['box'],
+      messages: { 'ip-missing': { title: 'Adresse à compléter' } },
+    });
+    const file = Object.assign(new File([text], 'mon.pack.reseaulab.json'), {
+      text: () => Promise.resolve(text),
+    });
+    fireEvent.change(within(settings).getByTestId('import-pack'), { target: { files: [file] } });
+    expect(await within(section).findByText(/Pack installé sur ce poste : 0 fiche\(s\)/)).toBeInTheDocument();
+    expect(section).toHaveTextContent('1 message(s) modifiés, 1 élément(s) masqué(s)');
+    expect(session.notion('box')).toBeUndefined();
+
+    const bad = Object.assign(new File(['{'], 'x.json'), { text: () => Promise.resolve('{') });
+    fireEvent.change(within(settings).getByTestId('import-pack'), { target: { files: [bad] } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('JSON illisible');
+    // Un fichier refusé ne remplace pas le pack en place.
+    expect(session.notion('box')).toBeUndefined();
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Revenir au contenu d’origine' }));
+    expect(section).toHaveTextContent('Contenu d’origine, sans modification.');
+    expect(session.notion('box')).toBeDefined();
+  });
+});

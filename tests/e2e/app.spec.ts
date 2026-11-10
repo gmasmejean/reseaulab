@@ -759,3 +759,91 @@ test('quiz : une question corrigée tout de suite, un bilan par notion', async (
   await help.getByRole('button', { name: 'Quiz d’entraînement' }).click();
   await expect(quiz.getByRole('button', { name: 'Commencer (8 questions)' })).toBeVisible();
 });
+
+test('enseignant : créer une activité, la distribuer, l’ouvrir comme un élève', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  // La solution : deux ordinateurs adressés, reliés par un switch.
+  await palette.getByRole('button', { name: 'Ordinateur', exact: true }).click();
+  await palette.getByRole('button', { name: 'Ordinateur', exact: true }).click();
+  await palette.getByRole('button', { name: 'Switch', exact: true }).click();
+  const address = page.getByRole('textbox', { name: 'Adresse IP', exact: true });
+  for (const [name, ip] of [
+    ['Ordinateur 1', '10.0.0.1'],
+    ['Ordinateur 2', '10.0.0.2'],
+  ] as const) {
+    await page.locator(`[aria-label^="${name}"]`).click();
+    await address.fill(ip);
+    await address.press('Enter');
+  }
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Ordinateur 1', 'Switch 1', 'Ordinateur 2', 'Switch 1']) {
+    await page.locator(`[aria-label^="${name}"]`).click();
+  }
+  await palette.getByRole('button', { name: 'Câble' }).click();
+
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page
+    .getByRole('dialog', { name: 'Activités' })
+    .getByRole('button', { name: 'Créer une activité' })
+    .click();
+  const author = page.getByRole('dialog', { name: 'Créer une activité' });
+  await author.getByRole('textbox', { name: 'Titre de l’activité' }).fill('Adresser deux postes');
+  await author
+    .getByRole('textbox', { name: 'Consigne générale' })
+    .fill('Donne une **adresse** à chaque poste.');
+  await author.getByRole('textbox', { name: 'Étape 1 : titre' }).fill('Donner les adresses');
+  await author.getByRole('button', { name: 'Choisir parmi les objectifs proposés…' }).click();
+  await author.getByRole('button', { name: '+ Ordinateur 1 a une adresse du réseau 10.0.0.0' }).click();
+  await author.getByRole('button', { name: '+ Ordinateur 2 a une adresse du réseau 10.0.0.0' }).click();
+  await author.getByRole('button', { name: '+ Ordinateur 1 communique avec Ordinateur 2' }).click();
+  await author.getByRole('button', { name: 'Fermer les propositions' }).click();
+  await author.getByRole('button', { name: 'Contrôler l’activité' }).click();
+  await expect(author.getByRole('status')).toContainText('atteint 3 des 3 objectifs');
+  await expect(author.getByRole('status')).toContainText('Au départ, aucun n’est déjà atteint');
+  await shot(page, '44-creer-activite');
+
+  const download = page.waitForEvent('download');
+  await author.getByRole('button', { name: 'Enregistrer le fichier d’activité' }).click();
+  const saved = await download;
+  expect(saved.suggestedFilename()).toBe('adresser-deux-postes.activite.reseaulab.json');
+  const text = readFileSync(await saved.path(), 'utf8');
+  // La solution n'est pas dans le fichier distribué.
+  expect(text).not.toContain('"ip": "10.0.0.1"');
+
+  // Sur le poste d'un élève : ouvrir le fichier, faire l'activité.
+  await page.evaluate(() => {
+    localStorage.clear();
+  });
+  await page.reload();
+  await page.getByTestId('open-project').setInputFiles({
+    name: 'adresser-deux-postes.activite.reseaulab.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(text),
+  });
+  // Le poste garde le réseau précédent : ouvrir un fichier demande de confirmer son remplacement.
+  await page
+    .getByRole('alertdialog', { name: 'Remplacer le réseau ?' })
+    .getByRole('button', { name: 'Remplacer' })
+    .click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  await expect(panel.getByRole('heading', { name: 'Adresser deux postes' })).toBeVisible();
+  await expect(panel).toContainText('0 objectif sur 3');
+  for (const [name, ip] of [
+    ['Ordinateur 1', '10.0.0.7'],
+    ['Ordinateur 2', '10.0.0.8'],
+  ] as const) {
+    await page.locator(`[aria-label^="${name}"]`).click();
+    await address.fill(ip);
+    await address.press('Enter');
+  }
+  await expect(panel).toContainText('2 objectifs sur 3');
+  await panel.getByRole('button', { name: 'Vérifier mon travail' }).click();
+  await expect(panel).toContainText('Tous les objectifs sont atteints. Bravo !');
+});
+
+test('le fichier unique reste léger', () => {
+  const file = fileURLToPath(new URL('../../dist/index.html', import.meta.url));
+  // Distribué par ENT, clé USB ou courriel : au-delà de 900 Ko, il faut se demander pourquoi.
+  expect(readFileSync(file).length).toBeLessThan(900_000);
+});

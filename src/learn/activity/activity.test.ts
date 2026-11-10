@@ -171,6 +171,8 @@ describe('Vérification des objectifs : état du réseau', () => {
       detail: '1 point(s) signalé(s) par Vérifier.',
     });
     expect(statuses(net, [{ type: 'lintClean', ignore: ['gateway-missing'] }])).toEqual(['done']);
+    // Un plan vide n'a rien à corriger, mais rien n'y est fait non plus.
+    expect(statuses(new Network(), [{ type: 'lintClean' }])).toEqual(['todo']);
   });
 });
 

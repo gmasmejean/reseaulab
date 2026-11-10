@@ -303,8 +303,25 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       rendu et dans le fichier rendu. Les questions font partie du pack : un
       fichier de pack peut en ajouter, en remplacer ou en masquer. Le tirage
       est déterministe (la graine vient de l'interface), donc testable.
-- [ ] **Étape 28 — Éditeur d'activités** : objectifs proposés depuis le réseau
-      solution, réseau de départ, export et import du pack pédagogique.
+- [x] **Étape 28 — Espace enseignant** : **Créer une activité** (depuis
+      Activités ou Réglages). L'enseignant construit sur le plan le réseau
+      terminé ; RéseauLab en déduit des **objectifs proposés** que ce réseau
+      atteint (équipements présents, liens, adresse dans tel réseau,
+      passerelle, interface de routeur, serveur démarré, plus rien à
+      signaler, communications qui fonctionnent, nom traduit, page web
+      affichée, commande utilisée). Il les répartit dans des étapes, les
+      reformule, ajoute consignes, indices et fiches à lire, puis choisit le
+      **réseau de départ** des élèves : tel quel (dépannage), sans les
+      adresses, ou plan vide (les équipements sont alors désignés par leur
+      nom). **Contrôler l'activité** vérifie que la solution atteint tout et
+      qu'au départ rien n'est déjà fait. **Essayer comme un élève** ouvre
+      l'activité ; **Enregistrer le fichier d'activité** produit le fichier à
+      distribuer, sans la solution. **Pack pédagogique** (Réglages) :
+      exporter le contenu fourni (fiches, questions, messages), le modifier,
+      l'importer sur le poste, revenir au contenu d'origine. Un fichier
+      d'activité peut emporter le pack de l'enseignant, que l'élève reçoit
+      alors sur n'importe quel poste. Un test garde le fichier unique sous
+      900 Ko (718 Ko à cette étape).
 - [ ] **Étape 29 — Box Internet** : un seul équipement réunissant routeur,
       switch, point d'accès Wi-Fi et serveur DHCP, comme à la maison.
 
@@ -348,6 +365,15 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Objectifs choisis parmi les propositions** (étape 28) : l'éditeur ne
+  permet pas de composer une vérification à la main (par exemple « le ping
+  doit échouer ») ; il propose celles que le réseau solution atteint. Les
+  autres s'écrivent dans le fichier d'activité, dont le format est validé à
+  l'ouverture. Le brouillon d'une activité vit le temps de la session : il
+  n'est pas gardé après un rechargement de la page.
+- **Pas d'édition du pack dans l'interface** (étape 28) : le pack se modifie
+  dans un éditeur de texte, à partir du contenu exporté ; un fichier invalide
+  est refusé avec l'endroit de l'erreur.
 - **Types de questions réduits** (étape 27) : pas de question
   d'association ni de « clique sur l'équipement qui… » sur le plan, prévues
   au départ. Le bilan par notion repose sur un seul quiz ; il n'y a pas de

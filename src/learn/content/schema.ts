@@ -83,13 +83,17 @@ const message = z
   })
   .partial();
 
-export const packFileSchema = z.object({
-  format: z.literal(PACK_FORMAT),
-  version: z.literal(PACK_VERSION),
+/** What a pack adds, changes or hides; also carried by an activity file. */
+export const packContentSchema = z.object({
   notions: z.array(notion).max(500).default([]),
   questions: z.array(question).max(1000).default([]),
   messages: z.partialRecord(z.enum([...LINT_CODES, ...TRACE_CODES]), message).default({}),
   hidden: z.array(id).max(500).default([]),
+});
+
+export const packFileSchema = packContentSchema.extend({
+  format: z.literal(PACK_FORMAT),
+  version: z.literal(PACK_VERSION),
 });
 
 export class PackError extends Error {}

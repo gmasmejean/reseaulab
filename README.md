@@ -128,6 +128,28 @@ L'élève rend son travail avec **Enregistrer** : le fichier contient le réseau
 l'activité et ce qui a été réussi. Il se rouvre avec **Ouvrir…**, comme tout
 fichier d'activité que vous distribuez.
 
+### Créer ses propres activités
+
+**Activités → Créer une activité** (ou Réglages) :
+
+1. Construisez sur le plan le réseau **terminé**, tel qu'un élève doit
+   l'obtenir.
+2. Donnez un titre, un niveau, une consigne ; ajoutez des étapes avec leurs
+   consignes, leurs indices (un par ligne) et les fiches à lire.
+3. Pour chaque étape, **choisissez parmi les objectifs proposés** : RéseauLab
+   liste ce que votre réseau atteint (adresses, liens, passerelles,
+   communications…). Chaque phrase se reformule.
+4. Choisissez le **réseau de départ** : le même sans les adresses, un plan
+   vide, ou le réseau tel quel (pour un dépannage : cassez-le d'abord).
+5. **Contrôler l'activité** vérifie que votre solution atteint tous les
+   objectifs et qu'aucun n'est déjà atteint au départ.
+6. **Enregistrer le fichier d'activité** : le fichier à distribuer (ENT, clé
+   USB). Il ne contient pas la solution. Les élèves l'ouvrent avec
+   **Ouvrir…** et vous rendent le fichier qu'ils enregistrent.
+
+Un élève qui ouvre le fichier dans un éditeur de texte peut lire les
+objectifs, pas la solution. Ce qui prouve le travail est le réseau rendu.
+
 ### Compte rendu
 
 Le bouton **Compte rendu** produit un document à imprimer ou à enregistrer en
@@ -223,6 +245,11 @@ fiches, en masquer, et reformuler des messages, sans toucher au code :
 }
 ```
 
+**Réglages → Pack pédagogique** exporte le contenu fourni (à modifier dans un
+éditeur de texte), importe un pack sur le poste et permet de revenir au
+contenu d'origine. Un fichier d'activité peut emporter votre pack : cochez
+« Joindre mon pack pédagogique au fichier » en l'enregistrant.
+
 Une fiche dont l'identifiant existe déjà remplace celle fournie. Le pack peut
 aussi contenir des questions de quiz (`questions`), par exemple :
 
@@ -240,8 +267,7 @@ aussi contenir des questions de quiz (`questions`), par exemple :
 ```
 
 Les autres types sont `order` (`items` dans le bon ordre), `short`
-(`accepted` : réponses admises) et `same-network` (question calculée). L'import et
-l'export depuis l'interface sont prévus (étape 28 du plan).
+(`accepted` : réponses admises) et `same-network` (question calculée).
 
 ## Licence
 

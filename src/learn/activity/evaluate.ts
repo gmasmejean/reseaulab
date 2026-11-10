@@ -167,6 +167,8 @@ function evaluateStateCheck(network: Network, check: Check): Outcome {
         d instanceof Host && d.isInstalled(check.app) && d.serverFor(check.app)?.active ? DONE : todo(),
       );
     case 'lintClean': {
+      // An empty plan has nothing wrong, and nothing done either.
+      if (network.devices.length === 0) return todo();
       const left = lintNetwork(network).filter(
         (f) =>
           (f.severity === 'error' || f.severity === 'warning') &&

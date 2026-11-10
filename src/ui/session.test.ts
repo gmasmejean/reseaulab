@@ -2,7 +2,11 @@ import { IP_ANY } from '../engine/core/ipv4';
 import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
+import { EMPTY_STEP, emptyDraft, type Draft } from '../learn/activity/draft';
 import { EMPTY_WORK } from '../learn/activity/schema';
+import { suggestObjectives } from '../learn/activity/suggest';
+import { serializePack } from '../learn/content/schema';
+import { parseLearnFile } from '../learn/file';
 import { serializeProject } from '../project/serialize';
 import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
@@ -828,6 +832,114 @@ describe('Session : activités', () => {
     // Un indice demandé n'est pas une modification du plan : rien de plus à annuler.
     session.undo();
     expect(session.network.devices).toHaveLength(0);
+  });
+});
+
+describe('Session : espace enseignant', () => {
+  const custom = serializePack({
+    notions: [
+      {
+        id: 'vlan',
+        title: 'VLAN',
+        aliases: [],
+        level: '3e',
+        category: 'materiel',
+        short: 'Un réseau virtuel dans un switch.',
+        body: '',
+        remember: [],
+        related: [],
+      },
+    ],
+    hidden: ['box'],
+    messages: { 'ip-missing': { title: '{device} : adresse à compléter' } },
+  });
+
+  test('installe un pack sur le poste, le résume, puis revient au contenu d’origine', () => {
+    const storage = new MemoryStorage();
+    const session = new Session(storage);
+    expect(session.localPackSummary).toBeNull();
+    expect(session.importPack('{"format":"autre"}')).toBe(false);
+    expect(session.notice?.kind).toBe('error');
+    expect(session.notion('box')).toBeDefined();
+
+    expect(session.importPack(custom)).toBe(true);
+    expect(session.localPackSummary).toEqual({ notions: 1, questions: 0, messages: 1, hidden: 1 });
+    expect(session.notion('vlan')?.title).toBe('VLAN');
+    expect(session.notion('box')).toBeUndefined();
+    // Les questions de la fiche masquée partent avec elle.
+    expect(session.pack.questions.some((q) => q.notion === 'box')).toBe(false);
+    expect(new Session(storage).notion('vlan')).toBeDefined();
+
+    session.resetPack();
+    expect(session.localPackSummary).toBeNull();
+    expect(session.notion('box')).toBeDefined();
+    expect(new Session(storage).notion('vlan')).toBeUndefined();
+  });
+
+  test('écrit un fichier d’activité : réseau de départ, activité, pack joint ; rien de la solution', () => {
+    const session = new Session(new MemoryStorage(), new ManualFrames());
+    session.importPack(custom);
+    const { a, b } = lan(session);
+    const proposals = suggestObjectives(session.network);
+    const draft: Draft = {
+      ...emptyDraft(),
+      title: 'Deux postes',
+      steps: [
+        { ...EMPTY_STEP, title: 'Adresser', objectives: proposals.filter((p) => p.check.type === 'config') },
+      ],
+    };
+    expect(session.activityFile({ ...draft, title: '' }, true)).toEqual({
+      error: 'Donnez un titre à l’activité.',
+    });
+
+    const file = session.activityFile(draft, true);
+    if ('error' in file) throw new Error(file.error);
+    expect(file.fileName).toBe('deux-postes.activite.reseaulab.json');
+    const read = parseLearnFile(file.text);
+    expect(read.activity?.title).toBe('Deux postes');
+    expect(read.work).toBeNull();
+    expect(read.pack?.notions?.[0]?.id).toBe('vlan');
+    // Départ sans adresses : la solution de l'enseignant n'est pas dans le fichier.
+    expect(read.network.host(a).config.ip).toBe(IP_ANY);
+    expect(file.text).not.toContain('10.0.0.1');
+    expect(session.network.host(a).config.ip).toBe(ip('10.0.0.1'));
+    const without = session.activityFile(draft, false);
+    expect('text' in without && parseLearnFile(without.text).pack).toBeNull();
+
+    // Un élève qui ouvre ce fichier sur un autre poste reçoit le pack avec l'activité.
+    const pupil = new Session(null, new ManualFrames());
+    expect(pupil.openProject(file.text, file.fileName)).toBe(true);
+    expect(pupil.notion('vlan')).toBeDefined();
+    expect(pupil.objectivesDone().size).toBe(0);
+    pupil.network.host(a).updateConfig({ ip: ip('10.0.0.1'), mask: MASK_24 });
+    pupil.network.host(b).updateConfig({ ip: ip('10.0.0.2'), mask: MASK_24 });
+    expect(pupil.objectivesDone().size).toBe(2);
+    // Le pack reste dans le fichier que l'élève enregistre ; il part avec un autre projet.
+    expect(parseLearnFile(pupil.serialize()).pack?.notions).toHaveLength(1);
+    pupil.newProject();
+    expect(pupil.notion('vlan')).toBeUndefined();
+  });
+
+  test('essayer l’activité l’ouvre comme pour un élève ; annuler ramène la solution', () => {
+    const session = new Session(null, new ManualFrames());
+    const { a } = lan(session);
+    session.commitHistory();
+    const [first] = suggestObjectives(session.network).filter((p) => p.check.type === 'config');
+    const draft: Draft = {
+      ...emptyDraft(),
+      title: 'Essai',
+      steps: [{ ...EMPTY_STEP, title: 'Adresser', objectives: first ? [first] : [] }],
+    };
+    session.setAuthorDraft(draft);
+    expect(session.tryActivity({ ...draft, title: '' })).toBe('Donnez un titre à l’activité.');
+    expect(session.tryActivity(draft)).toBeNull();
+    expect(session.activity?.title).toBe('Essai');
+    expect(session.network.host(a).config.ip).toBe(IP_ANY);
+    // Le brouillon est gardé pendant l'essai.
+    expect(session.authorDraft).toEqual(draft);
+    session.quitActivity();
+    session.undo();
+    expect(session.network.host(a).config.ip).toBe(ip('10.0.0.1'));
   });
 });
 

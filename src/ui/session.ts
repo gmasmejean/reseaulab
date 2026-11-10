@@ -8,7 +8,7 @@ import { exampleNetwork } from '../project/example';
 import { DEFAULT_PACK } from '../learn/content/default-pack';
 import { mergePacks } from '../learn/content/merge';
 import { parsePack } from '../learn/content/schema';
-import type { Notion, Pack } from '../learn/content/types';
+import type { Notion, Pack, PackOverride } from '../learn/content/types';
 import {
   FULL_PROFILE,
   can,
@@ -18,6 +18,8 @@ import {
   type ProfileSpec,
 } from '../learn/profile/capabilities';
 import type { BuiltinActivity } from '../learn/activity/builtin';
+import { buildActivity, type Draft } from '../learn/activity/draft';
+import { startingNetwork } from '../learn/activity/suggest';
 import {
   activityProfile,
   currentStep,
@@ -58,6 +60,8 @@ export type WindowSpec =
   | { readonly type: 'settings' }
   /** Report of the pupil's work, to print or hand in. */
   | { readonly type: 'report' }
+  /** Writing an activity, for the teacher. */
+  | { readonly type: 'author' }
   /** Self-assessment quiz, about one knowledge card when `notion` is given. */
   | { readonly type: 'quiz'; readonly notion?: string; readonly at?: number }
   /** Activities shipped with RéseauLab. */
@@ -154,6 +158,7 @@ function windowKey(spec: WindowSpec): string {
     case 'activities':
     case 'report':
     case 'quiz':
+    case 'author':
       return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
@@ -226,8 +231,13 @@ export class Session {
   resumed: Resumed | null = null;
   /** Validates the text field being edited; false when its value is refused. */
   private pendingEdit: (() => boolean) | null = null;
-  /** Knowledge cards and messages: the default pack, completed by the teacher's. */
+  /** Knowledge cards, questions and messages: the default pack, completed by the teacher's. */
   pack: Pack = DEFAULT_PACK;
+  /** Pack kept in this browser, and pack that came with the file being worked on. */
+  private localPack: PackOverride | null = null;
+  private filePack: PackOverride | null = null;
+  /** Activity being written by the teacher (kept while the window is closed). */
+  authorDraft: Draft | null = null;
   /** Activity being done, with its instructions and objectives. */
   activity: Activity | null = null;
   /** What the pupil did in the activity. */
@@ -276,7 +286,8 @@ export class Session {
     this.network = this.restore() ?? new Network();
     this.present = this.designText();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
-    this.pack = this.readPack();
+    this.localPack = this.readLocalPack();
+    this.rebuildPack();
     this.localProfile = parseProfile(this.readPreference(PROFILE_KEY));
     this.clock = new SimulationClock(
       () => this.network.scheduler,
@@ -319,10 +330,11 @@ export class Session {
   replaceNetwork(
     network: Network,
     fileName?: string,
-    learn: { readonly activity: Activity | null; readonly work: Work | null } = {
-      activity: null,
-      work: null,
-    },
+    learn: {
+      readonly activity: Activity | null;
+      readonly work: Work | null;
+      readonly pack?: PackOverride | null;
+    } = { activity: null, work: null },
   ): void {
     this.pendingEdit = null;
     this.setMode('design');
@@ -330,6 +342,8 @@ export class Session {
     this.detach();
     this.network = network;
     this.activity = learn.activity;
+    this.filePack = learn.pack ?? null;
+    this.rebuildPack();
     this.work = learn.work ?? EMPTY_WORK;
     if (learn.activity && this.work.startedAt === undefined) {
       this.work = { ...this.work, startedAt: this.now() };
@@ -401,7 +415,7 @@ export class Session {
     const signed =
       student.name !== '' || student.className !== '' || conclusion !== '' || this.work.quizzes.length > 0;
     const work = this.activity || signed ? { ...this.work, done: [...this.objectivesDone()] } : null;
-    return serializeLearnFile(this.network, { activity: this.activity, work });
+    return serializeLearnFile(this.network, { activity: this.activity, work, pack: this.filePack });
   }
 
   /** The design alone, as compared by the undo history. */
@@ -586,14 +600,100 @@ export class Session {
     this.touch();
   }
 
-  /** The default pack, completed by the pack kept in this browser when it is valid. */
-  private readPack(): Pack {
+  /** The pack kept in this browser, when there is a valid one. */
+  private readLocalPack(): PackOverride | null {
     try {
       const saved = this.storage?.getItem(PACK_KEY);
-      return saved ? mergePacks(DEFAULT_PACK, parsePack(saved)) : DEFAULT_PACK;
+      return saved ? parsePack(saved) : null;
     } catch {
-      return DEFAULT_PACK;
+      return null;
     }
+  }
+
+  /** The default pack, completed by the teacher's: this computer first, then the file. */
+  private rebuildPack(): void {
+    const overrides = [this.localPack, this.filePack].filter((p): p is PackOverride => p !== null);
+    this.pack = overrides.length === 0 ? DEFAULT_PACK : mergePacks(DEFAULT_PACK, ...overrides);
+  }
+
+  /** What the pack of this computer changes, or null when there is none. */
+  get localPackSummary(): { notions: number; questions: number; messages: number; hidden: number } | null {
+    const pack = this.localPack;
+    if (!pack) return null;
+    return {
+      notions: pack.notions?.length ?? 0,
+      questions: pack.questions?.length ?? 0,
+      messages: Object.keys(pack.messages ?? {}).length,
+      hidden: pack.hidden?.length ?? 0,
+    };
+  }
+
+  /** Installs a pack file on this computer. False (with a message) when it is not valid. */
+  importPack(text: string): boolean {
+    try {
+      this.localPack = parsePack(text);
+    } catch (error) {
+      this.notify(error instanceof Error ? error.message : String(error), 'error');
+      return false;
+    }
+    try {
+      this.storage?.setItem(PACK_KEY, text);
+    } catch {
+      /* not kept for the next visit: still in use now */
+    }
+    this.rebuildPack();
+    this.notify('Pack pédagogique installé sur ce poste.');
+    return true;
+  }
+
+  /** Back to the content shipped with RéseauLab. */
+  resetPack(): void {
+    this.localPack = null;
+    try {
+      this.storage?.setItem(PACK_KEY, '');
+    } catch {
+      /* nothing to forget */
+    }
+    this.rebuildPack();
+    this.notify('Contenu d’origine rétabli.');
+  }
+
+  /* ---------- writing an activity (teacher) ---------- */
+
+  setAuthorDraft(draft: Draft): void {
+    this.authorDraft = draft;
+    this.touch();
+  }
+
+  /**
+   * The file of the activity being written: its starting network, made from
+   * the current one, and the activity. With `embedPack`, the teacher's pack
+   * travels in the file, so that pupils get it on any computer.
+   */
+  activityFile(draft: Draft, embedPack: boolean): { fileName: string; text: string } | { error: string } {
+    this.commitEdit();
+    const built = buildActivity(draft);
+    if ('error' in built) return built;
+    return {
+      fileName: `${built.activity.id}.activite${PROJECT_EXTENSION}`,
+      text: serializeLearnFile(startingNetwork(this.network, draft.start), {
+        activity: built.activity,
+        work: null,
+        pack: embedPack ? this.localPack : null,
+      }),
+    };
+  }
+
+  /** Opens the activity being written as a pupil would get it. Undo brings the solution back. */
+  tryActivity(draft: Draft): string | null {
+    const file = this.activityFile(draft, false);
+    if ('error' in file) return file.error;
+    const parsed = parseLearnFile(file.text);
+    this.replaceNetwork(parsed.network, file.fileName, { ...parsed, pack: this.filePack });
+    this.notify(
+      'Activité ouverte comme pour un élève. « Quitter l’activité » puis Ctrl+Z pour revenir à votre réseau.',
+    );
+    return null;
   }
 
   /* ---------- text field being edited ---------- */
@@ -1123,9 +1223,10 @@ export class Session {
     try {
       const saved = this.storage?.getItem(AUTOSAVE_KEY);
       if (!saved) return null;
-      const { network, activity, work } = parseLearnFile(saved);
+      const { network, activity, work, pack } = parseLearnFile(saved);
       this.activity = activity;
       this.work = work ?? EMPTY_WORK;
+      this.filePack = pack;
       if (network.devices.length > 0 || network.notes.length > 0 || activity) {
         const date = Number(this.storage?.getItem(AUTOSAVE_DATE_KEY) ?? NaN);
         this.resumed = { savedAt: Number.isFinite(date) && date > 0 ? date : null };
