@@ -224,8 +224,22 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       (`reseaulab-pack`, validé comme un projet) peut remplacer, ajouter ou
       masquer des fiches et reformuler les messages du diagnostic ; il est lu
       depuis le navigateur du poste (clé `reseaulab:pack`).
-- [ ] **Étape 23 — Profils par niveau** : préréglages 5e / 4e / 3e / complet qui
-      masquent équipements, onglets, logiciels, commandes et couches.
+- [x] **Étape 23 — Profils par niveau** : le bouton **Réglages** (⚙) permet de
+      choisir le niveau de la classe — 5e, 4e, 3e ou complet —, gardé sur le
+      poste. Une table (`src/learn/profile/capabilities.ts`) dit à partir de
+      quel niveau chaque équipement, logiciel, commande et réglage est
+      proposé ; elle est exhaustive par construction (un logiciel ajouté sans
+      niveau ne compile pas). Selon le niveau, RéseauLab masque : le routeur
+      de la palette ; des logiciels à installer ; des commandes de la ligne
+      de commande ; les champs passerelle, DNS, DHCP, Wi-Fi ; les onglets
+      Routage et Pare-feu du routeur ; les échanges de données et les tables ;
+      les constats du diagnostic que l'élève ne pourrait pas corriger ; l'aide
+      « ? » et, par défaut, les fiches au-delà du niveau. Un profil masque
+      l'interface sans rien désactiver : ce qui est déjà sur le plan ou déjà
+      réglé (un routeur posé par l'enseignant, une passerelle renseignée)
+      reste visible et fonctionne. La fenêtre des réglages liste ce que le
+      niveau masque. En simulation, la barre d'outils ne garde
+      qu'« Enregistrer » parmi les actions de projet.
 - [ ] **Étape 24 — Box et objets connectés** : équipement « Box » (routeur,
       switch, Wi-Fi, DHCP) ; serveur, imprimante, caméra IP, smartphone,
       tablette.
@@ -280,6 +294,16 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Répartition par niveau à valider** (étape 23) : comme pour les fiches,
+  le niveau attribué à chaque élément de l'interface est une proposition
+  (5e : composants et web ; 4e : adressage, DHCP, `ping`, échanges de
+  données ; 3e : routeur, passerelle, DNS, messagerie, pare-feu ; complet :
+  RIP). Un profil accepte des écarts (`show`, `hide`), utilisés par les
+  activités de l'étape 25 ; l'interface des réglages ne propose pour
+  l'instant que le choix du niveau.
+- **Couches de la capture non masquées** (étape 23) : il était prévu de
+  cacher les couches hautes aux petits niveaux ; à la place, les échanges de
+  données n'apparaissent qu'à partir de la 4e.
 - **Contenu des fiches à valider** (étape 22) : le découpage par niveau et
   la rédaction sont une proposition. Aucune fiche ne cite le programme
   officiel (son texte n'a pas pu être consulté pendant la rédaction) ; le

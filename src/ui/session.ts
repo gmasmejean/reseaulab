@@ -9,6 +9,14 @@ import { DEFAULT_PACK } from '../learn/content/default-pack';
 import { mergePacks } from '../learn/content/merge';
 import { parsePack } from '../learn/content/schema';
 import type { Notion, Pack } from '../learn/content/types';
+import {
+  FULL_PROFILE,
+  can,
+  parseProfile,
+  type Capability,
+  type ProfileLevel,
+  type ProfileSpec,
+} from '../learn/profile/capabilities';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
@@ -32,7 +40,9 @@ export type WindowSpec =
    * « Vérifier mon réseau ». With `from` and `to`, the communication between
    * them is tested at once; `at` tells two requests for the same test apart.
    */
-  | { readonly type: 'diagnose'; readonly from?: string; readonly to?: string; readonly at?: number };
+  | { readonly type: 'diagnose'; readonly from?: string; readonly to?: string; readonly at?: number }
+  /** Settings of the class (level), for the teacher. */
+  | { readonly type: 'settings' };
 
 export interface OpenWindow {
   readonly id: string;
@@ -93,6 +103,8 @@ export const AUTOSAVE_DATE_KEY = 'reseaulab:autosave-date';
 export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
 /** Pedagogical pack of the teacher, kept in this browser. */
 export const PACK_KEY = 'reseaulab:pack';
+/** Level of the class chosen on this computer. */
+export const PROFILE_KEY = 'reseaulab:profil';
 
 /**
  * Frames that devices send on their own, without any action of the pupil:
@@ -119,6 +131,7 @@ function windowKey(spec: WindowSpec): string {
   switch (spec.type) {
     case 'help':
     case 'diagnose':
+    case 'settings':
       return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
@@ -193,6 +206,8 @@ export class Session {
   private pendingEdit: (() => boolean) | null = null;
   /** Knowledge cards and messages: the default pack, completed by the teacher's. */
   pack: Pack = DEFAULT_PACK;
+  /** What the interface offers on this computer (level of the class). */
+  private localProfile: ProfileSpec = FULL_PROFILE;
   /** Size of the stage (plan and windows), once known. */
   viewport: Size | null = null;
   /** Scale of the plan: 1 = real size. */
@@ -230,6 +245,7 @@ export class Session {
     this.present = this.serialize();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
     this.pack = this.readPack();
+    this.localProfile = parseProfile(this.readPreference(PROFILE_KEY));
     this.clock = new SimulationClock(
       () => this.network.scheduler,
       () => {
@@ -344,6 +360,29 @@ export class Session {
     this.touch();
   }
 
+  /* ---------- level of the class ---------- */
+
+  /** The profile in use. */
+  get profile(): ProfileSpec {
+    return this.localProfile;
+  }
+
+  /** Whether the interface offers a device, an application, a command or a setting. */
+  can(capability: Capability): boolean {
+    return can(this.profile, capability);
+  }
+
+  /** Chooses the level of the class on this computer. */
+  setProfileLevel(base: ProfileLevel): void {
+    this.localProfile = { base };
+    try {
+      this.storage?.setItem(PROFILE_KEY, JSON.stringify(this.localProfile));
+    } catch {
+      /* preference not kept: harmless */
+    }
+    this.touch();
+  }
+
   /* ---------- knowledge ---------- */
 
   /** The knowledge card `id`, when it exists in the pack in use. */
@@ -398,7 +437,7 @@ export class Session {
     this.tool = 'select';
     this.cableStart = null;
     // Windows about the whole network are useful in both modes.
-    this.windows = this.windows.filter((w) => w.spec.type === 'help' || w.spec.type === 'diagnose');
+    this.windows = this.windows.filter((w) => !('deviceId' in w.spec));
     this.inFlight = [];
     this.dropMarks = [];
     this.stepping = false;
@@ -732,8 +771,9 @@ export class Session {
 
   /** Side of the stage where a window hides its device the least: the opposite one. */
   private sideFor(spec: WindowSpec): 'left' | 'right' {
-    if (spec.type === 'help' || !this.viewport) return 'right';
-    const device = this.network.device(spec.type === 'diagnose' ? (spec.from ?? '') : spec.deviceId);
+    if (!this.viewport) return 'right';
+    const anchor = 'deviceId' in spec ? spec.deviceId : spec.type === 'diagnose' ? spec.from : undefined;
+    const device = anchor === undefined ? undefined : this.network.device(anchor);
     return device && device.position.x * this.zoom > this.viewport.width / 2 ? 'left' : 'right';
   }
 

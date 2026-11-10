@@ -96,19 +96,20 @@ function simulationMenu(session: Session, device: Device): MenuEntry[] {
       onSelect: open({ type: 'desktop', deviceId: device.id }),
     });
   } else if (device.kind === 'switch') {
-    entries.push({
-      kind: 'action',
-      label: 'Afficher la table des adresses MAC',
-      onSelect: open({ type: 'switch', deviceId: device.id }),
-    });
-  } else {
+    if (session.can('feature:mac-table'))
+      entries.push({
+        kind: 'action',
+        label: 'Afficher la table des adresses MAC',
+        onSelect: open({ type: 'switch', deviceId: device.id }),
+      });
+  } else if (session.can('feature:tables')) {
     entries.push({
       kind: 'action',
       label: 'Afficher les tables du routeur',
       onSelect: open({ type: 'router', deviceId: device.id }),
     });
   }
-  if (device instanceof NetworkNode) {
+  if (device instanceof NetworkNode && session.can('feature:capture')) {
     device.stack.interfaces.forEach((iface, index) => {
       const address = iface.ip === IP_ANY ? 'sans adresse' : formatIp(iface.ip);
       const name = device instanceof Host ? address : `eth${index} – ${address}`;

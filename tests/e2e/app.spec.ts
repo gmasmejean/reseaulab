@@ -598,3 +598,31 @@ test('connaissances : définition depuis un champ, fiches, recherche et lexique'
   await page.getByRole('button', { name: 'Aide', exact: true }).click();
   await expect(help.getByRole('article', { name: 'Construire un réseau' })).toBeVisible();
 });
+
+test('profil par niveau : en 4e, l’interface se limite au programme du niveau', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await expect(palette.getByRole('button', { name: /Routeur/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Réglages' }).click();
+  const settings = page.getByRole('dialog', { name: 'Réglages' });
+  await settings.getByRole('radio', { name: /^4e/ }).check();
+  await expect(settings.getByRole('region', { name: 'Ce qui est masqué' })).toContainText(
+    'Équipements : Routeur.',
+  );
+  await shot(page, '34-reglages');
+  await settings.getByRole('button', { name: /Fermer/ }).click();
+
+  await expect(palette.getByRole('button', { name: /Routeur/ })).toHaveCount(0);
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Adresse IP', exact: true })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Passerelle', exact: true })).toHaveCount(0);
+  await shot(page, '35-niveau-4e');
+
+  // Le choix est gardé sur le poste.
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(palette.getByRole('button', { name: /Switch/ })).toBeVisible();
+  await expect(palette.getByRole('button', { name: /Routeur/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Réglages' })).toHaveAttribute('title', /niveau : 4e/);
+});

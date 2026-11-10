@@ -5,6 +5,7 @@ import { downloadText } from '../files';
 import { SPEEDS } from '../session';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SaveDialog } from './SaveDialog';
+import { PROFILE_LABEL } from '../../learn/profile/capabilities';
 import { useLint } from '../learn/hooks';
 
 /** Simulated time; alone to follow the animation frames. */
@@ -48,19 +49,24 @@ export function Toolbar() {
         RéseauLab
       </div>
       <nav className="toolbar-group" aria-label="Projet">
-        <button
-          type="button"
-          onClick={() => {
-            replaceNetwork(() => {
-              session.newProject();
-            });
-          }}
-        >
-          Nouveau
-        </button>
-        <button type="button" onClick={() => fileInput.current?.click()}>
-          Ouvrir…
-        </button>
+        {/* Replacing the network is a design action: not offered during a simulation. */}
+        {!simulation && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                replaceNetwork(() => {
+                  session.newProject();
+                });
+              }}
+            >
+              Nouveau
+            </button>
+            <button type="button" onClick={() => fileInput.current?.click()}>
+              Ouvrir…
+            </button>
+          </>
+        )}
         <input
           ref={fileInput}
           type="file"
@@ -90,16 +96,18 @@ export function Toolbar() {
         >
           Enregistrer
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            replaceNetwork(() => {
-              session.loadExample();
-            });
-          }}
-        >
-          Exemple
-        </button>
+        {!simulation && (
+          <button
+            type="button"
+            onClick={() => {
+              replaceNetwork(() => {
+                session.loadExample();
+              });
+            }}
+          >
+            Exemple
+          </button>
+        )}
       </nav>
       {/* Each mode shows its own controls, so that the bar fits on a 1366 px screen. */}
       {!simulation && (
@@ -212,6 +220,17 @@ export function Toolbar() {
         }}
       >
         Aide
+      </button>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Réglages"
+        title={`Réglages de la classe (niveau : ${PROFILE_LABEL[session.profile.base]})`}
+        onClick={() => {
+          session.openWindow({ type: 'settings' });
+        }}
+      >
+        ⚙
       </button>
       {saving && (
         <SaveDialog

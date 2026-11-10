@@ -45,29 +45,34 @@ export function Desktop({ host }: { host: Host }) {
           </span>
           <span>Installer des logiciels</span>
         </button>
-        <button
-          type="button"
-          className="desktop-icon"
-          onClick={() => {
-            session.openWindow({ type: 'capture', deviceId: host.id });
-          }}
-        >
-          <span className="app-badge capture" aria-hidden>
-            ⇄
-          </span>
-          <span>Échanges de données</span>
-        </button>
+        {session.can('feature:capture') && (
+          <button
+            type="button"
+            className="desktop-icon"
+            onClick={() => {
+              session.openWindow({ type: 'capture', deviceId: host.id });
+            }}
+          >
+            <span className="app-badge capture" aria-hidden>
+              ⇄
+            </span>
+            <span>Échanges de données</span>
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 export function SoftwareInstaller({ host }: { host: Host }) {
+  const session = useSession();
+  // What is already installed stays listed, whatever the level of the class.
+  const offered = APP_IDS.filter((app) => host.isInstalled(app) || session.can(`app:${app}`));
   return (
     <div className="software">
       <p className="muted">Les serveurs installés doivent être démarrés depuis leur fenêtre.</p>
       <ul className="software-list">
-        {APP_IDS.map((app) => {
+        {offered.map((app) => {
           const installed = host.isInstalled(app);
           return (
             <li key={app}>

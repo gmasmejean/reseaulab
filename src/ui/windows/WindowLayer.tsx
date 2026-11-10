@@ -9,6 +9,7 @@ import { Window } from '../components/Window';
 import { useSession } from '../context';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import { KnowledgeWindow } from '../learn/KnowledgeWindow';
+import { SettingsWindow } from '../learn/SettingsWindow';
 import type { OpenWindow } from '../session';
 import { BrowserApp } from './BrowserApp';
 import { EchoClientApp, FirewallApp } from './ClientApps';
@@ -70,6 +71,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
           from={spec.from}
           to={spec.to}
         />
+      </Window>
+    );
+  }
+  if (spec.type === 'settings') {
+    return (
+      <Window window={w} title="Réglages">
+        <SettingsWindow />
       </Window>
     );
   }

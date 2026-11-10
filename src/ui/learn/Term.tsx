@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { teaches } from '../../learn/profile/capabilities';
 import { useSessionHandle } from '../context';
 
 const WIDTH = 300;
@@ -15,7 +16,9 @@ export function TermHelp({ term, label }: { term: string; label: string }) {
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
-  const notion = session?.notion(term);
+  const found = session?.notion(term);
+  // Nothing above the level of the class.
+  const notion = found && session && teaches(session.profile, found.level) ? found : undefined;
 
   // Placed in the page (not in its container, which may be scrollable): above
   // the button when there is not enough room below.

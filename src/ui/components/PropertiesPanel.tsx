@@ -63,7 +63,10 @@ function NameField({ device }: { device: Device }) {
 
 /** Wired or Wi-Fi network card, and the Wi-Fi network (SSID) it joins, as in Filius. */
 function ConnectionSection({ host }: { host: Host }) {
-  const { network } = useSession();
+  const session = useSession();
+  const { network } = session;
+  // A setting above the level of the class stays visible when it is already in use.
+  const wifiOffered = session.can('feature:wifi') || host.wifi;
   const id = useId();
   const [pendingMode, setPendingMode] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,27 +90,29 @@ function ConnectionSection({ host }: { host: Host }) {
   }
   return (
     <Section title="Connexion réseau">
-      <fieldset className="radio-group">
-        <legend className="label">Carte réseau</legend>
-        {(
-          [
-            [false, 'Filaire (LAN)'],
-            [true, 'Sans fil (Wi-Fi)'],
-          ] as const
-        ).map(([wifi, label]) => (
-          <label key={label}>
-            <input
-              type="radio"
-              name={`${id}-mode`}
-              checked={host.wifi === wifi}
-              onChange={() => {
-                chooseMode(wifi);
-              }}
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
+      {wifiOffered && (
+        <fieldset className="radio-group">
+          <legend className="label">Carte réseau</legend>
+          {(
+            [
+              [false, 'Filaire (LAN)'],
+              [true, 'Sans fil (Wi-Fi)'],
+            ] as const
+          ).map(([wifi, label]) => (
+            <label key={label}>
+              <input
+                type="radio"
+                name={`${id}-mode`}
+                checked={host.wifi === wifi}
+                onChange={() => {
+                  chooseMode(wifi);
+                }}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {host.wifi && (
         <div className="field">
           <label htmlFor={`${id}-ssid`}>Réseau sans fil (SSID)</label>
@@ -166,7 +171,8 @@ function ConnectionSection({ host }: { host: Host }) {
 }
 
 function SwitchProperties({ device }: { device: Switch }) {
-  const { network } = useSession();
+  const session = useSession();
+  const { network } = session;
   const wifiClients = device.ports.filter((p) => p.cable?.wireless).length;
   return (
     <div className="properties-grid">
@@ -177,31 +183,37 @@ function SwitchProperties({ device }: { device: Switch }) {
           automatiquement quand tous sont occupés.
         </p>
       </Section>
-      <Section title="Point d’accès Wi-Fi">
-        <TextField
-          label="Nom Wi-Fi (SSID)"
-          term="wifi"
-          value={device.ssid}
-          hint="Les postes en Wi-Fi rejoignent ce switch en choisissant ce nom. Le changer les déconnecte."
-          onCommit={(value) => {
-            const problem = network.ssidProblem(value, device.id);
-            if (problem) return problem;
-            network.setSwitchSsid(device.id, value);
-            return null;
-          }}
-        />
-        <p className="muted">
-          {wifiClients === 0
-            ? 'Aucun poste connecté en Wi-Fi.'
-            : `${String(wifiClients)} poste(s) connecté(s) en Wi-Fi.`}
-        </p>
-      </Section>
+      {(session.can('feature:wifi') || wifiClients > 0) && (
+        <Section title="Point d’accès Wi-Fi">
+          <TextField
+            label="Nom Wi-Fi (SSID)"
+            term="wifi"
+            value={device.ssid}
+            hint="Les postes en Wi-Fi rejoignent ce switch en choisissant ce nom. Le changer les déconnecte."
+            onCommit={(value) => {
+              const problem = network.ssidProblem(value, device.id);
+              if (problem) return problem;
+              network.setSwitchSsid(device.id, value);
+              return null;
+            }}
+          />
+          <p className="muted">
+            {wifiClients === 0
+              ? 'Aucun poste connecté en Wi-Fi.'
+              : `${String(wifiClients)} poste(s) connecté(s) en Wi-Fi.`}
+          </p>
+        </Section>
+      )}
     </div>
   );
 }
 
 function HostProperties({ host }: { host: Host }) {
+  const session = useSession();
   const c = host.config;
+  const dhcpOffered = session.can('feature:dhcp-client') || c.useDhcp;
+  const gatewayOffered = session.can('feature:gateway') || c.gateway !== IP_ANY;
+  const dnsOffered = session.can('feature:dns-field') || c.dns !== IP_ANY;
   return (
     <div className="properties-grid">
       <Section title={DEVICE_LABEL[host.kind]}>
@@ -223,14 +235,16 @@ function HostProperties({ host }: { host: Host }) {
       </Section>
       <ConnectionSection host={host} />
       <Section title="Configuration IP">
-        <Checkbox
-          label="Configuration automatique (DHCP)"
-          term="dhcp"
-          checked={c.useDhcp}
-          onChange={(useDhcp) => {
-            host.updateConfig({ useDhcp });
-          }}
-        />
+        {dhcpOffered && (
+          <Checkbox
+            label="Configuration automatique (DHCP)"
+            term="dhcp"
+            checked={c.useDhcp}
+            onChange={(useDhcp) => {
+              host.updateConfig({ useDhcp });
+            }}
+          />
+        )}
         <div className="field-row">
           <IpField
             label="Adresse IP"
@@ -252,26 +266,32 @@ function HostProperties({ host }: { host: Host }) {
             }}
           />
         </div>
-        <div className="field-row">
-          <IpField
-            label="Passerelle"
-            term="passerelle"
-            value={c.gateway}
-            disabled={c.useDhcp}
-            onChange={(gateway) => {
-              host.updateConfig({ gateway });
-            }}
-          />
-          <IpField
-            label="Serveur DNS"
-            term="dns"
-            value={c.dns}
-            disabled={c.useDhcp}
-            onChange={(dns) => {
-              host.updateConfig({ dns });
-            }}
-          />
-        </div>
+        {(gatewayOffered || dnsOffered) && (
+          <div className="field-row">
+            {gatewayOffered && (
+              <IpField
+                label="Passerelle"
+                term="passerelle"
+                value={c.gateway}
+                disabled={c.useDhcp}
+                onChange={(gateway) => {
+                  host.updateConfig({ gateway });
+                }}
+              />
+            )}
+            {dnsOffered && (
+              <IpField
+                label="Serveur DNS"
+                term="dns"
+                value={c.dns}
+                disabled={c.useDhcp}
+                onChange={(dns) => {
+                  host.updateConfig({ dns });
+                }}
+              />
+            )}
+          </div>
+        )}
       </Section>
     </div>
   );
@@ -384,8 +404,17 @@ function RouteForm({ router }: { router: Router }) {
 }
 
 function RouterProperties({ router }: { router: Router }) {
-  const { network } = useSession();
-  const [tab, setTab] = useState<'interfaces' | 'routes' | 'firewall'>('interfaces');
+  const session = useSession();
+  const { network } = session;
+  const [chosenTab, setTab] = useState<'interfaces' | 'routes' | 'firewall'>('interfaces');
+  // Tabs above the level of the class stay when the router already uses them.
+  const ripOffered = session.can('feature:rip') || router.rip;
+  const offered = {
+    interfaces: true,
+    routes: session.can('feature:static-routes') || ripOffered || router.staticRoutes.length > 0,
+    firewall: session.can('feature:router-firewall') || router.firewall.enabled,
+  };
+  const tab = offered[chosenTab] ? chosenTab : 'interfaces';
   const [pendingRemoval, setPendingRemoval] = useState<{
     readonly index: number;
     readonly consequences: readonly string[];
@@ -399,19 +428,21 @@ function RouterProperties({ router }: { router: Router }) {
             ['routes', 'Routage'],
             ['firewall', 'Pare-feu'],
           ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => {
-              setTab(id);
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        )
+          .filter(([id]) => offered[id])
+          .map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => {
+                setTab(id);
+              }}
+            >
+              {label}
+            </button>
+          ))}
       </div>
       {tab === 'interfaces' && (
         <div className="properties-grid">
@@ -514,14 +545,16 @@ function RouterProperties({ router }: { router: Router }) {
       )}
       {tab === 'routes' && (
         <Section title="Routes statiques">
-          <Checkbox
-            label="Routage automatique (RIP) : les routeurs s’échangent leurs routes"
-            term="table-de-routage"
-            checked={router.rip}
-            onChange={(v) => {
-              router.ripService.setEnabled(v);
-            }}
-          />
+          {ripOffered && (
+            <Checkbox
+              label="Routage automatique (RIP) : les routeurs s’échangent leurs routes"
+              term="table-de-routage"
+              checked={router.rip}
+              onChange={(v) => {
+                router.ripService.setEnabled(v);
+              }}
+            />
+          )}
           <p className="muted small">
             Les réseaux directement reliés aux interfaces sont ajoutés automatiquement.
           </p>
@@ -698,7 +731,7 @@ function SimulationBar({ device }: { device: Device | null }) {
               Afficher le bureau
             </button>
           )}
-          {device instanceof Router && (
+          {device instanceof Router && session.can('feature:tables') && (
             <button
               type="button"
               className="primary"
@@ -709,7 +742,7 @@ function SimulationBar({ device }: { device: Device | null }) {
               Afficher les tables du routeur
             </button>
           )}
-          {device.kind === 'switch' ? (
+          {device.kind === 'switch' && session.can('feature:mac-table') && (
             <button
               type="button"
               className="primary"
@@ -719,7 +752,8 @@ function SimulationBar({ device }: { device: Device | null }) {
             >
               Afficher la table des adresses MAC
             </button>
-          ) : (
+          )}
+          {device.kind !== 'switch' && session.can('feature:capture') && (
             <button
               type="button"
               onClick={() => {
@@ -729,7 +763,7 @@ function SimulationBar({ device }: { device: Device | null }) {
               Afficher les échanges de données
             </button>
           )}
-          {device instanceof Host && (
+          {device instanceof Host && session.can('feature:tables') && (
             <button
               type="button"
               title="Table de routage et table ARP de ce poste"

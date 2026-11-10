@@ -92,7 +92,9 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
   const session = useSession();
   const notions = session.pack.notions;
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<LevelFilter>('all');
+  // Opened on the level of the class; the pupil may still look further.
+  const base = session.profile.base;
+  const [filter, setFilter] = useState<LevelFilter>(base === '5e' || base === '4e' ? base : 'all');
   const [view, setView] = useState<'cards' | 'lexicon'>('cards');
   const [current, setCurrent] = useState<string | undefined>(() =>
     asked !== undefined && session.notion(asked) ? asked : notions[0]?.id,

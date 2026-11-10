@@ -96,6 +96,17 @@ diagnostic renvoient aussi à la fiche concernée.
 Le contenu fourni est une proposition : le découpage par niveau et les textes
 sont à adapter à votre progression (voir « Pack pédagogique » plus bas).
 
+### Niveau de la classe
+
+Le bouton **Réglages** (⚙) limite RéseauLab au programme d'un niveau : **5e**
+(composants d'un réseau local, web), **4e** (adresse IP et masque, DHCP,
+`ping`, échanges de données), **3e** (routeur, passerelle, DNS, messagerie,
+pare-feu) ou **Complet**. Ce qui dépasse le niveau disparaît de la palette,
+des logiciels à installer, de la ligne de commande et des panneaux ; ce que
+vous avez déjà placé dans un réseau distribué aux élèves reste visible et
+fonctionne. Le choix est gardé sur le poste. La répartition est une
+proposition, à ajuster à votre progression.
+
 ### Vérifier son réseau
 
 Le bouton **Vérifier** repère les erreurs de configuration les plus courantes
@@ -138,7 +149,8 @@ pnpm run build      # produit le fichier unique dist/index.html
 En bref : `src/engine` contient le moteur de simulation (TypeScript pur,
 déterministe, sans DOM, couvert à plus de 90 % par les tests) ; `src/project`
 le format de fichier versionné et validé ; `src/learn` la logique pédagogique
-(diagnostic, fiches de connaissances), pure et testée comme le moteur ;
+(diagnostic, fiches de connaissances, profils par niveau), pure et testée
+comme le moteur ;
 `src/ui` l'interface React.
 
 ### Pack pédagogique

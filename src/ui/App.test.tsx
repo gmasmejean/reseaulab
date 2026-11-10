@@ -6,7 +6,7 @@ import { serializeProject } from '../project/serialize';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
 import { serializePack } from '../learn/content/schema';
-import { PACK_KEY, Session } from './session';
+import { PACK_KEY, PROFILE_KEY, Session } from './session';
 
 function setup() {
   const frames = new ManualFrames();
@@ -1279,5 +1279,138 @@ describe('Aide et connaissances', () => {
     // Un pack illisible est ignoré : le contenu par défaut reste disponible.
     storage.setItem(PACK_KEY, '{cassé');
     expect(new Session(storage).notion('box')?.title).toBe('Box Internet');
+  });
+});
+
+describe('Profils par niveau', () => {
+  function withLevel(level: '5e' | '4e' | '3e') {
+    const storage = new MemoryStorage();
+    storage.setItem(PROFILE_KEY, JSON.stringify({ base: level }));
+    const frames = new ManualFrames();
+    const session = new Session(storage, frames);
+    render(<App session={session} />);
+    return { session, frames, storage };
+  }
+
+  test('le niveau se choisit dans les réglages et reste mémorisé sur le poste', () => {
+    const storage = new MemoryStorage();
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    expect(within(palette).getByRole('button', { name: /Routeur/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    const settings = screen.getByRole('dialog', { name: 'Réglages' });
+    expect(within(settings).getByRole('radio', { name: /^Complet/ })).toBeChecked();
+    expect(settings).toHaveTextContent('Rien : tout est proposé.');
+    fireEvent.click(within(settings).getByRole('radio', { name: /^4e/ }));
+    expect(within(palette).queryByRole('button', { name: /Routeur/ })).not.toBeInTheDocument();
+    const hidden = within(settings).getByRole('region', { name: 'Ce qui est masqué' });
+    expect(hidden).toHaveTextContent('Équipements : Routeur.');
+    expect(hidden).toHaveTextContent('Commandes : traceroute, arp, route, netstat, nslookup.');
+    expect(hidden).toHaveTextContent('passerelle');
+    expect(storage.getItem(PROFILE_KEY)).toBe('{"base":"4e"}');
+    expect(new Session(storage).profile).toEqual({ base: '4e' });
+  });
+
+  test('en 4e : ni passerelle ni DNS à régler, ni constat à leur sujet', () => {
+    const { session } = withLevel('4e');
+    act(() => {
+      session.addDevice('switch');
+      session.addDevice('computer');
+    });
+    expect(screen.getByRole('textbox', { name: 'Adresse IP' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Configuration automatique (DHCP)' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Passerelle' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Serveur DNS' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Qu’est-ce que : Adresse IP ?' })).toBeInTheDocument();
+  });
+
+  test('ce qui est déjà utilisé reste visible au-delà du niveau', () => {
+    const { session } = withLevel('4e');
+    let host = '';
+    let router = '';
+    act(() => {
+      router = session.addDevice('router');
+      host = session.addDevice('computer');
+      session.network.host(host).updateConfig({ ip: ip('10.0.0.2'), mask: MASK_24, gateway: ip('10.0.0.1') });
+      session.network.router(router).setInterface(0, { ip: ip('10.0.0.1'), mask: MASK_24 });
+      session.network.connect(host, router);
+      session.select({ kind: 'device', id: host });
+    });
+    // La passerelle est renseignée : le champ reste, mais sans son aide de niveau 3e.
+    expect(screen.getByRole('textbox', { name: 'Passerelle' })).toHaveValue('10.0.0.1');
+    expect(screen.queryByRole('button', { name: 'Qu’est-ce que : Passerelle ?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Serveur DNS' })).not.toBeInTheDocument();
+    // Le routeur posé par l'enseignant fonctionne ; ses onglets avancés sont masqués.
+    act(() => {
+      session.select({ kind: 'device', id: router });
+    });
+    expect(screen.getByRole('tab', { name: 'Interfaces' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Routage' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Pare-feu' })).not.toBeInTheDocument();
+    act(() => {
+      session.network.router(router).firewall.setEnabled(true);
+      session.touch();
+    });
+    expect(screen.getByRole('tab', { name: 'Pare-feu' })).toBeInTheDocument();
+  });
+
+  test('en 4e : logiciels et commandes du niveau seulement', () => {
+    const { session, frames } = withLevel('4e');
+    let a = '';
+    act(() => {
+      a = session.addDevice('computer');
+      session.network.host(a).install('mailclient');
+      session.setMode('simulation');
+      session.openWindow({ type: 'app', deviceId: a, app: 'software' });
+    });
+    const installer = screen.getByRole('dialog', { name: 'Installer des logiciels — Ordinateur 1' });
+    expect(installer).toHaveTextContent('Serveur DHCP');
+    expect(installer).not.toHaveTextContent('Serveur DNS');
+    // Déjà installée par l'enseignant : la messagerie reste listée.
+    expect(installer).toHaveTextContent('Messagerie');
+
+    act(() => {
+      session.closeAllWindows();
+      session.select({ kind: 'device', id: a });
+      session.openWindow({ type: 'app', deviceId: a, app: 'terminal' });
+    });
+    const terminal = screen.getByRole('dialog', { name: 'Ligne de commande — Ordinateur 1' });
+    const input = within(terminal).getByRole('textbox', { name: 'Commande' });
+    fireEvent.change(input, { target: { value: 'traceroute 10.0.0.1' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    elapse(frames, 100);
+    expect(within(terminal).getByRole('log')).toHaveTextContent('Commande inconnue : traceroute');
+    fireEvent.change(input, { target: { value: 'help' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(within(terminal).getByRole('log')).toHaveTextContent('ping');
+    expect(screen.getByRole('button', { name: 'Afficher les échanges de données' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Afficher les tables' })).not.toBeInTheDocument();
+  });
+
+  test('en 5e : pas de ligne de commande à installer, pas d’échanges de données, fiches du niveau', () => {
+    const { session } = withLevel('5e');
+    let a = '';
+    act(() => {
+      a = session.addDevice('computer');
+      session.setMode('simulation');
+      session.select({ kind: 'device', id: a });
+    });
+    expect(
+      screen.queryByRole('button', { name: 'Afficher les échanges de données' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher le bureau' }));
+    const desktop = screen.getByRole('dialog', { name: 'Bureau de Ordinateur 1' });
+    expect(within(desktop).queryByRole('button', { name: 'Échanges de données' })).not.toBeInTheDocument();
+    // La ligne de commande, installée d'origine, reste sur le bureau.
+    expect(within(desktop).getByRole('button', { name: 'Ligne de commande' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    const index = within(help).getByRole('navigation', { name: 'Fiches' });
+    expect(within(index).getByRole('combobox', { name: 'Niveau' })).toHaveValue('5e');
+    expect(within(index).getByRole('button', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+    expect(within(index).queryByRole('button', { name: 'Adresse IP' })).not.toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatIp } from '../../engine/core/ipv4';
 import type { Host } from '../../engine/devices/host';
 import { Terminal } from '../../engine/terminal/terminal';
+import { allowedCommands } from '../../learn/profile/capabilities';
 import { useSessionHandle } from '../context';
 
 const MAX_LINES = 1000;
@@ -32,6 +33,7 @@ export function TerminalApp({ host }: { host: Host }) {
           },
         },
         {
+          ...(session ? { commands: allowedCommands(session.profile) } : {}),
           onEvent: (event) => {
             if (event.kind === 'command') setUnreached(null);
             else if (event.kind === 'resolve-failed') setUnreached(event.name);

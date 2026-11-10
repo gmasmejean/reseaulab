@@ -22,6 +22,7 @@ Les outils **Texte** et **Zone** servent à annoter le plan : nommer une salle, 
     remember: [
       'Un équipement sélectionné se supprime avec la touche Suppr.',
       'Ctrl+Z annule la dernière modification, Ctrl+Y la rétablit.',
+      'Le bouton Réglages (⚙) adapte RéseauLab au niveau de la classe.',
       'Le plan s’ajuste à l’écran ; les boutons − / + / Ajuster changent le zoom.',
     ],
     related: ['guide-configurer', 'reseau', 'switch', 'liaison'],
