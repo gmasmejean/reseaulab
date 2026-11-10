@@ -31,7 +31,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/engine/**/*.ts'],
+    // The engine and the pedagogical logic are pure and deterministic (docs/REGLES.md).
+    files: ['src/engine/**/*.ts', 'src/learn/**/*.ts'],
     rules: {
       'no-restricted-globals': ['error', 'setTimeout', 'setInterval', 'window', 'document'],
       'no-restricted-properties': [

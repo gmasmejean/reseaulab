@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatIp } from '../../engine/core/ipv4';
 import type { Host } from '../../engine/devices/host';
 import { Terminal } from '../../engine/terminal/terminal';
+import { useSessionHandle } from '../context';
 
 const MAX_LINES = 1000;
 
@@ -10,20 +12,33 @@ export function TerminalApp({ host }: { host: Host }) {
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const session = useSessionHandle();
+  /** Destination of the last command that failed to reach it, to offer an explanation. */
+  const [unreached, setUnreached] = useState<string | null>(null);
   const history = useRef<string[]>([]);
   const historyIndex = useRef(0);
   const screenRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [term] = useState(
     () =>
-      new Terminal(host, {
-        print: (line) => {
-          setLines((prev) => [...prev, line].slice(-MAX_LINES));
+      new Terminal(
+        host,
+        {
+          print: (line) => {
+            setLines((prev) => [...prev, line].slice(-MAX_LINES));
+          },
+          clear: () => {
+            setLines([]);
+          },
         },
-        clear: () => {
-          setLines([]);
+        {
+          onEvent: (event) => {
+            if (event.kind === 'command') setUnreached(null);
+            else if (event.kind === 'resolve-failed') setUnreached(event.name);
+            else if (event.received < event.sent) setUnreached(formatIp(event.target));
+          },
         },
-      }),
+      ),
   );
 
   useEffect(() => {
@@ -98,6 +113,24 @@ export function TerminalApp({ host }: { host: Host }) {
         </div>
       </div>
       {busy && <p className="terminal-hint">Commande en cours… Ctrl+C pour l’interrompre.</p>}
+      {!busy && unreached !== null && session && (
+        <p className="terminal-hint">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              session.openWindow({
+                type: 'diagnose',
+                from: host.id,
+                to: unreached,
+                at: host.stack.scheduler.now,
+              });
+            }}
+          >
+            Pourquoi ça ne marche pas ?
+          </button>
+        </p>
+      )}
     </div>
   );
 }

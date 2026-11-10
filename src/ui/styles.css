@@ -1330,3 +1330,149 @@ input.narrow {
   align-items: center;
   gap: 6px;
 }
+
+/* ---------- vérification du réseau ---------- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.check-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.check-button .count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+.lint-mark circle {
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.lint-mark.error circle {
+  fill: var(--danger);
+}
+.lint-mark.warning circle {
+  fill: #b7791f;
+}
+.lint-mark text {
+  fill: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.diagnose h2 {
+  font-size: 1.05rem;
+  margin: 0 0 6px;
+}
+.diagnose section + section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.diagnose-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin: 8px 0;
+}
+.diagnose-form .field {
+  flex: 1 1 180px;
+  margin: 0;
+}
+.diagnose-path {
+  margin: 6px 0 0;
+}
+.findings {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.finding {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+.finding p {
+  margin: 0 0 3px;
+}
+.finding-title {
+  font-weight: 600;
+}
+.finding-sign {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+.finding.error {
+  border-left-color: var(--danger);
+}
+.finding.error .finding-sign {
+  background: var(--danger);
+}
+.finding.warning {
+  border-left-color: #b7791f;
+}
+.finding.warning .finding-sign {
+  background: #b7791f;
+}
+.finding.info {
+  border-left-color: var(--accent);
+}
+.finding.info .finding-sign {
+  background: var(--accent);
+}
+.finding.success {
+  border-left-color: var(--ok);
+}
+.finding.success .finding-sign {
+  background: var(--ok);
+}
+.finding-none {
+  color: var(--ok);
+  font-weight: 600;
+}
+.device-findings {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.device-findings li {
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 6px 0;
+}
+.device-findings .hint {
+  background: var(--accent-soft);
+}
+.terminal-hint button {
+  background: #2b3a52;
+  border-color: #4a5d7a;
+  color: #fff;
+}

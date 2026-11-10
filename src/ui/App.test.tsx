@@ -873,3 +873,136 @@ describe('Plan lisible', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
+
+describe('Diagnostic', () => {
+  /** Two computers on a switch, with addresses, in the session of a rendered App. */
+  function lan(session: Session) {
+    let a = '';
+    let b = '';
+    act(() => {
+      a = session.addDevice('computer');
+      b = session.addDevice('computer');
+      const sw = session.addDevice('switch');
+      session.network.host(a).updateConfig({ ip: ip('10.0.0.1'), mask: MASK_24 });
+      session.network.host(b).updateConfig({ ip: ip('10.0.0.2'), mask: MASK_24 });
+      session.network.connect(a, sw);
+      session.network.connect(b, sw);
+      session.select(null);
+    });
+    return { a, b };
+  }
+
+  test('signale un équipement mal configuré sur le plan, dans la barre d’outils et dans son panneau', () => {
+    const { session } = setup();
+    expect(screen.getByRole('button', { name: 'Vérifier' })).toBeInTheDocument();
+    act(() => {
+      session.addDevice('switch');
+      session.addDevice('computer');
+    });
+    // Ni adresse ni câble : deux erreurs pour le même poste.
+    expect(screen.getByRole('button', { name: 'Vérifier : 2 points repérés' })).toBeInTheDocument();
+    const device = screen.getByRole('button', { name: 'Ordinateur 1 (sans adresse)' });
+    expect(device.querySelector('.lint-mark.error title')).toHaveTextContent(
+      'Ordinateur 1 n’est relié à rien — Ordinateur 1 n’a pas d’adresse IP',
+    );
+    const points = screen.getByRole('list', { name: 'Points à vérifier' });
+    expect(points).toHaveTextContent('Ordinateur 1 n’a pas d’adresse IP. Donnez-lui une adresse IP');
+
+    commit('Adresse IP', '10.0.0.1');
+    expect(screen.getByRole('button', { name: 'Vérifier : 1 point repéré' })).toBeInTheDocument();
+    expect(points).not.toHaveTextContent('adresse IP');
+    expect(document.querySelectorAll('.lint-mark')).toHaveLength(1);
+  });
+
+  test('« Vérifier » liste les problèmes et montre l’équipement concerné', () => {
+    const { session } = setup();
+    const { a, b } = lan(session);
+    fireEvent.click(screen.getByRole('button', { name: 'Vérifier' }));
+    const dialog = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    expect(dialog).toHaveTextContent('Aucun problème repéré dans la configuration.');
+
+    act(() => {
+      session.network.host(b).updateConfig({ ip: ip('10.0.0.1') });
+    });
+    expect(dialog).toHaveTextContent('Un point repéré dans la configuration');
+    expect(dialog).toHaveTextContent('L’adresse 10.0.0.1 est utilisée plusieurs fois');
+    expect(dialog).toHaveTextContent('Que faire ? Donnez une adresse différente à chacun.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Montrer' }));
+    expect(session.selection).toEqual({ kind: 'device', id: a });
+  });
+
+  test('teste une communication sur une copie et signale un résultat périmé', () => {
+    const { session } = setup();
+    const { a, b } = lan(session);
+    act(() => {
+      session.select({ kind: 'device', id: a });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Vérifier' }));
+    const dialog = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    const submit = within(dialog).getByRole('button', { name: 'Tester' });
+    expect(submit).toBeDisabled();
+    // L'équipement sélectionné est proposé comme point de départ.
+    expect(within(dialog).getByRole('combobox', { name: 'Depuis' })).toHaveValue(a);
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Vers/ }), {
+      target: { value: 'Ordinateur 2' },
+    });
+    fireEvent.click(submit);
+    const result = within(dialog).getByRole('status');
+    // La destination est nommée comme l'élève l'a désignée.
+    expect(result).toHaveTextContent('Ordinateur 1 communique avec Ordinateur 2');
+    expect(result).toHaveTextContent('Trajet de la demande : Ordinateur 1 → Switch 1 → Ordinateur 2 ✔');
+    expect(session.mode).toBe('design');
+    expect(session.network.running).toBe(false);
+
+    act(() => {
+      session.network.host(b).updateConfig({ ip: ip('10.0.0.3') });
+    });
+    expect(result).toHaveTextContent('Le réseau a changé depuis ce test');
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Vers/ }), {
+      target: { value: '10.0.0.2' },
+    });
+    fireEvent.click(submit);
+    expect(result).not.toHaveTextContent('Le réseau a changé');
+    expect(result).toHaveTextContent('Personne n’a l’adresse 10.0.0.2');
+    expect(result).toHaveTextContent('Trajet de la demande : Ordinateur 1 ✘');
+  });
+
+  test('après un ping raté, le terminal propose « Pourquoi ça ne marche pas ? »', () => {
+    const { session, frames } = setup();
+    const { a } = lan(session);
+    act(() => {
+      session.setMode('simulation');
+      session.setSpeed(4);
+      session.openWindow({ type: 'app', deviceId: a, app: 'terminal' });
+    });
+    const terminal = screen.getByRole('dialog', { name: 'Ligne de commande — Ordinateur 1' });
+    const input = within(terminal).getByRole('textbox', { name: 'Commande' });
+    const run = (line: string) => {
+      fireEvent.change(input, { target: { value: line } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      elapse(frames, 6000);
+    };
+    run('ping -n 1 10.0.0.2');
+    expect(within(terminal).getByRole('log')).toHaveTextContent('reçus = 1, perdus = 0');
+    expect(screen.queryByRole('button', { name: 'Pourquoi ça ne marche pas ?' })).not.toBeInTheDocument();
+
+    run('ping -n 1 10.0.0.77');
+    expect(within(terminal).getByRole('log')).toHaveTextContent(
+      'Hôte de destination inaccessible : aucun équipement n’a répondu à cette adresse sur le réseau.',
+    );
+    fireEvent.click(within(terminal).getByRole('button', { name: 'Pourquoi ça ne marche pas ?' }));
+    const dialog = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Personne n’a l’adresse 10.0.0.77');
+    expect(within(dialog).getByRole('combobox', { name: /^Vers/ })).toHaveValue('10.0.0.77');
+
+    // La fenêtre de vérification reste ouverte en revenant à la conception.
+    fireEvent.click(screen.getByRole('radio', { name: /Conception/ }));
+    expect(screen.getByRole('dialog', { name: 'Vérifier mon réseau' })).toBeInTheDocument();
+    // Une nouvelle commande retire la proposition.
+    act(() => {
+      session.setMode('simulation');
+      session.openWindow({ type: 'app', deviceId: a, app: 'terminal' });
+    });
+    expect(screen.queryByRole('button', { name: 'Pourquoi ça ne marche pas ?' })).not.toBeInTheDocument();
+  });
+});

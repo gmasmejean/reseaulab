@@ -2,12 +2,10 @@ import { useId, useState } from 'react';
 import {
   IP_ANY,
   formatIp,
-  isUsableHostAddress,
   isValidMask,
   networkOf,
   parseIp,
   prefixToMask,
-  sameNetwork,
   type Ipv4,
 } from '../../engine/core/ipv4';
 import type { Device } from '../../engine/devices/device';
@@ -16,7 +14,9 @@ import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from '../../engi
 import { Switch } from '../../engine/devices/switch';
 import type { CableEnds, Network, Note } from '../../engine/network';
 import { DEVICE_LABEL } from '../../i18n/fr';
+import { bySeverity } from '../../learn/diagnose/findings';
 import { useSession } from '../context';
+import { findingText, useLint } from '../learn/hooks';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Checkbox, IpField, Section, TextField } from './Fields';
 import { FirewallEditor } from './FirewallEditor';
@@ -200,15 +200,6 @@ function SwitchProperties({ device }: { device: Switch }) {
 
 function HostProperties({ host }: { host: Host }) {
   const c = host.config;
-  const warnings: string[] = [];
-  if (!c.useDhcp) {
-    if (c.ip === IP_ANY) warnings.push('Aucune adresse IP : ce poste ne pourra pas communiquer.');
-    else if (c.mask === IP_ANY) warnings.push('Indiquez un masque de sous-réseau.');
-    else if (!isUsableHostAddress(c.ip, c.mask))
-      warnings.push(`${formatIp(c.ip)} est l’adresse du réseau ou de diffusion : choisissez-en une autre.`);
-    if (c.gateway !== IP_ANY && c.mask !== IP_ANY && !sameNetwork(c.ip, c.gateway, c.mask))
-      warnings.push('La passerelle doit appartenir au même réseau que le poste.');
-  }
   return (
     <div className="properties-grid">
       <Section title={DEVICE_LABEL[host.kind]}>
@@ -271,11 +262,6 @@ function HostProperties({ host }: { host: Host }) {
             }}
           />
         </div>
-        {warnings.map((w) => (
-          <p key={w} className="warning">
-            ⚠ {w}
-          </p>
-        ))}
       </Section>
     </div>
   );
@@ -662,6 +648,26 @@ function NoteProperties({ note }: { note: Note }) {
   );
 }
 
+/** What the verification of the network found about this device, with what to do. */
+function DeviceFindings({ deviceId }: { deviceId: string }) {
+  const session = useSession();
+  const findings = bySeverity(useLint().filter((f) => f.deviceIds.includes(deviceId)));
+  if (findings.length === 0) return null;
+  return (
+    <ul className="device-findings" aria-label="Points à vérifier">
+      {findings.map((finding, index) => {
+        const text = findingText(session.network, finding);
+        return (
+          <li key={`${finding.code}-${index}`} className={finding.severity === 'info' ? 'hint' : 'warning'}>
+            {finding.severity === 'info' ? 'Conseil : ' : '⚠ '}
+            <b>{text.title}.</b> {text.fix}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** In simulation mode the panel is a single line: what the selected device can show, and the windows. */
 function SimulationBar({ device }: { device: Device | null }) {
   const session = useSession();
@@ -823,6 +829,7 @@ export function PropertiesPanel() {
       {device instanceof Host && <HostProperties host={device} />}
       {device instanceof Router && <RouterProperties router={device} />}
       {device instanceof Switch && <SwitchProperties device={device} />}
+      <DeviceFindings deviceId={device.id} />
     </div>
   );
 }

@@ -355,7 +355,7 @@ export class Terminal {
           stopProbe = this.host.stack.icmp.ping(ip, { seq: sent }, (result) => {
             stopProbe = null;
             if (result.kind === 'reply') received++;
-            this.out.print(describePing(result));
+            this.out.print(describePing(result, this.host.addressing.ip));
             if (sent < count && result.kind !== 'no-route') {
               timer = scheduler.schedule(PING_INTERVAL, probe);
               return;
@@ -546,7 +546,15 @@ export class Terminal {
   }
 }
 
-export function describePing(result: PingResult): string {
+/**
+ * One line of `ping` output. `self` is the address of the computer that pings:
+ * when its own ARP request stays unanswered the error comes from itself, and
+ * « Réponse de <its own address> » would only confuse.
+ */
+export function describePing(result: PingResult, self?: Ipv4): string {
+  if (result.kind === 'unreachable' && result.code === 'host' && result.from === self) {
+    return 'Hôte de destination inaccessible : aucun équipement n’a répondu à cette adresse sur le réseau.';
+  }
   switch (result.kind) {
     case 'reply':
       return `Réponse de ${formatIp(result.from)} : temps=${result.rtt} ms TTL=${result.ttl}`;

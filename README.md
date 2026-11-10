@@ -78,6 +78,18 @@ Commandes du terminal : `ipconfig` (`/renew`), `ping`, `traceroute`, `arp`,
 `route`, `netstat`, `nslookup`, `hostname`, `ls`, `cd`, `pwd`, `cat`, `mkdir`,
 `rm`, `touch`, `echo`, `clear`, `help`.
 
+### Vérifier son réseau
+
+Le bouton **Vérifier** repère les erreurs de configuration les plus courantes
+(poste non relié, adresse manquante ou en double, passerelle absente ou mal
+choisie, serveur non démarré…) : un « ! » marque l'équipement sur le plan et
+son panneau indique quoi faire. La même fenêtre **teste une communication**
+entre deux équipements sur une copie du réseau, sans lancer la simulation, et
+explique un échec en langage simple (« Ordinateur 1 ne sait pas par où envoyer
+vers 10.0.2.10 : il n'a pas de passerelle »), avec le trajet parcouru par la
+demande. Après un `ping` raté, le terminal propose directement **Pourquoi ça
+ne marche pas ?**.
+
 ### Observer les échanges
 
 Le bouton **Échanges de données** d'un équipement liste les trames reçues et
@@ -103,7 +115,8 @@ pnpm run build      # produit le fichier unique dist/index.html
 
 En bref : `src/engine` contient le moteur de simulation (TypeScript pur,
 déterministe, sans DOM, couvert à plus de 90 % par les tests) ; `src/project`
-le format de fichier versionné et validé ; `src/ui` l'interface React.
+le format de fichier versionné et validé ; `src/learn` la logique pédagogique
+(diagnostic), pure et testée comme le moteur ; `src/ui` l'interface React.
 
 ## Licence
 

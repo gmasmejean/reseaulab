@@ -269,6 +269,11 @@ export function HelpWindow() {
           par couche.
         </li>
         <li>
+          Ça ne marche pas ? Le bouton <b>Vérifier</b> repère les erreurs de configuration (un « ! » marque
+          l’équipement sur le plan) et teste une communication en expliquant ce qui la bloque. Après un{' '}
+          <code>ping</code> raté, la ligne de commande propose <b>Pourquoi ça ne marche pas ?</b>
+        </li>
+        <li>
           Des trames passent parfois sans que vous ayez rien lancé : les ordinateurs en DHCP demandent leur
           adresse au démarrage et les routeurs en RIP s’échangent leurs routes toutes les 5 s. Cochez{' '}
           <b>Masquer le trafic automatique</b> pour ne voir que vos propres échanges ; ces trames restent

@@ -7,6 +7,7 @@ import type { AppId } from '../../engine/services/catalog';
 import { APP_INFO } from '../../i18n/fr';
 import { Window } from '../components/Window';
 import { useSession } from '../context';
+import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import type { OpenWindow } from '../session';
 import { BrowserApp } from './BrowserApp';
 import { EchoClientApp, FirewallApp } from './ClientApps';
@@ -55,6 +56,18 @@ function WindowContent({ w }: { w: OpenWindow }) {
     return (
       <Window window={w} title="Aide">
         <HelpWindow />
+      </Window>
+    );
+  }
+  if (spec.type === 'diagnose') {
+    return (
+      <Window window={w} title="Vérifier mon réseau">
+        {/* A new request (another ping failed) starts a new test. */}
+        <DiagnoseWindow
+          key={`${spec.from ?? ''}>${spec.to ?? ''}@${spec.at ?? 0}`}
+          from={spec.from}
+          to={spec.to}
+        />
       </Window>
     );
   }

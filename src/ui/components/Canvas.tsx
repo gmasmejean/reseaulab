@@ -13,7 +13,9 @@ import { IP_ANY, formatIp } from '../../engine/core/ipv4';
 import type { Device, DeviceKind } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { Switch } from '../../engine/devices/switch';
+import { worstFor, type Finding } from '../../learn/diagnose/findings';
 import { useSession } from '../context';
+import { findingText, useLint } from '../learn/hooks';
 import type { Session } from '../session';
 import { DeviceIcon } from './DeviceIcon';
 import { NoteShape } from './NoteShape';
@@ -80,6 +82,26 @@ function menuLabel(session: Session, target: OpenMenu['target']): string {
   return 'le câble';
 }
 
+/**
+ * « ! » on a device whose configuration has a problem. A separate element: the
+ * accessible name of the device stays its name and address.
+ */
+function LintMark({ findings, deviceId }: { findings: readonly Finding[]; deviceId: string }) {
+  const { network } = useSession();
+  const level = worstFor(findings, deviceId);
+  if (level !== 'error' && level !== 'warning') return null;
+  const shown = findings.filter((f) => f.severity === level);
+  return (
+    <g className={`lint-mark ${level}`} transform={`translate(${ICON / 2 + 2}, ${-ICON / 2 - 2})`}>
+      <title>
+        {shown.map((f) => findingText(network, f).title).join(' — ')} (bouton Vérifier pour les détails)
+      </title>
+      <circle r={10} />
+      <text y={5}>!</text>
+    </g>
+  );
+}
+
 export function Canvas() {
   const session = useSession();
   const net = session.network;
@@ -96,6 +118,7 @@ export function Canvas() {
   const { width, height } = session.planSize;
   const simulation = session.mode === 'simulation';
   const now = net.scheduler.now;
+  const lint = useLint();
 
   const toSvg = (clientX: number, clientY: number) => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -467,6 +490,7 @@ export function Canvas() {
                   {sub}
                 </text>
               )}
+              <LintMark findings={lint.filter((f) => f.deviceIds.includes(d.id))} deviceId={d.id} />
             </g>
           );
         })}

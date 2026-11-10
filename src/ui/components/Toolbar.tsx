@@ -5,6 +5,7 @@ import { downloadText } from '../files';
 import { SPEEDS } from '../session';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SaveDialog } from './SaveDialog';
+import { useLint } from '../learn/hooks';
 
 export function Toolbar() {
   const session = useSession();
@@ -18,6 +19,7 @@ export function Toolbar() {
     else setPendingReplace(() => action);
   };
   const simulation = session.mode === 'simulation';
+  const problems = useLint().filter((f) => f.severity === 'error' || f.severity === 'warning').length;
   const speedIndex = Math.max(
     0,
     SPEEDS.findIndex((s) => s === session.speed),
@@ -181,7 +183,26 @@ export function Toolbar() {
       )}
       <button
         type="button"
-        className="help-button"
+        className="check-button"
+        title="Tester une communication et repérer les erreurs de configuration"
+        aria-label={
+          problems === 0
+            ? 'Vérifier'
+            : `Vérifier : ${problems} ${problems === 1 ? 'point repéré' : 'points repérés'}`
+        }
+        onClick={() => {
+          session.openWindow({ type: 'diagnose' });
+        }}
+      >
+        Vérifier
+        {problems > 0 && (
+          <span className="count" aria-hidden>
+            {problems}
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
         onClick={() => {
           session.openWindow({ type: 'help' });
         }}

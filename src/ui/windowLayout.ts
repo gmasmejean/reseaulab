@@ -16,7 +16,7 @@ export interface Point {
 
 /** What a window shows; mirrors `WindowSpec` without importing the session. */
 export type WindowKind =
-  | { readonly type: 'desktop' | 'capture' | 'switch' | 'router' | 'help' }
+  | { readonly type: 'desktop' | 'capture' | 'switch' | 'router' | 'help' | 'diagnose' }
   | { readonly type: 'app'; readonly app: AppId | 'software' };
 
 const APP_SIZE: Partial<Record<AppId | 'software', Size>> = {
@@ -36,6 +36,7 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   switch: { width: 520, height: 380 },
   router: { width: 680, height: 460 },
   help: { width: 620, height: 480 },
+  diagnose: { width: 600, height: 520 },
 };
 
 const MIN_WIDTH = 320;

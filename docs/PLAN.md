@@ -169,9 +169,25 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       résultat d'un `ping` et un nom introuvable. `cloneNetwork` copie la
       conception d'un réseau pour la simuler hors écran. Aucun comportement du
       moteur n'est modifié : ce sont des observations.
-- [ ] **Étape 20 — Diagnostic** : « Vérifier mon réseau » (contrôles statiques,
-      repères sur le plan) et « Pourquoi ça ne marche pas ? » après un `ping`
-      raté, rejoué sur une copie du réseau.
+- [x] **Étape 20 — Diagnostic** (`src/learn/diagnose`, premier module du
+      volet pédagogique : TypeScript pur, soumis aux mêmes règles que le
+      moteur). **Vérification du réseau** : 19 contrôles de la conception, sans
+      simulation (poste non relié, adresse ou masque manquant, adresse en
+      double, équipements du même switch dans des réseaux différents,
+      passerelle hors réseau / inexistante / sur un ordinateur / manquante
+      près d'un routeur, DNS, serveur non démarré, DHCP sans serveur,
+      interfaces de routeur, boucle de switchs). Les règles tiennent compte
+      du contexte pour ne signaler que ce qui gêne. Un « ! » marque
+      l'équipement sur le plan, son panneau dit quoi faire, le bouton
+      **Vérifier** affiche le nombre de points repérés. **Tester une
+      communication** : un `ping` est rejoué par le vrai moteur sur une copie
+      du réseau (aucune seconde implémentation du routage), puis l'abandon
+      signalé par le moteur est traduit en cause : 21 explications, chacune
+      avec « que faire ? » et le trajet parcouru par la demande. Après un
+      `ping` raté, le terminal propose **Pourquoi ça ne marche pas ?**. Les
+      textes sont séparés des règles (`messages.fr.ts`) pour pouvoir être
+      reformulés. Garde-fous : pas de simulation s'il y a une boucle de
+      switchs, exécution bornée en temps virtuel et en nombre d'événements.
 - [ ] **Étape 21 — Lisibilité de la simulation** : étiquette et légende des
       trames, marque à l'endroit d'un abandon, pas-à-pas ; capture filtrable,
       trames ignorées signalées, vue « dialogue » ; tables d'un poste sans
@@ -235,6 +251,14 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Message de `ping` reformulé** (étape 20) : quand la demande ARP du poste
+  reste sans réponse, Windows affiche « Réponse de <sa propre adresse> :
+  hôte inaccessible », ce qui déroute. RéseauLab écrit « Hôte de destination
+  inaccessible : aucun équipement n'a répondu à cette adresse sur le
+  réseau. ». Les autres messages restent ceux de Windows.
+- **Adresse en double signalée dans un même réseau seulement** (étape 20) :
+  la même adresse de part et d'autre d'un routeur n'est pas signalée par la
+  vérification ; le test de communication l'explique si elle gêne.
 - **Pas d'abandon signalé à l'émission d'une trame** (étape 19) : un switch
   envoie sur ses ports libres quand il inonde, et un routeur en RIP diffuse
   sur ses interfaces non câblées ; signaler ces trames noierait les vrais

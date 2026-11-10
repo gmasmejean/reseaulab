@@ -20,7 +20,12 @@ export type WindowSpec =
   | { readonly type: 'capture'; readonly deviceId: string; readonly iface?: number }
   | { readonly type: 'switch'; readonly deviceId: string }
   | { readonly type: 'router'; readonly deviceId: string }
-  | { readonly type: 'help' };
+  | { readonly type: 'help' }
+  /**
+   * « Vérifier mon réseau ». With `from` and `to`, the communication between
+   * them is tested at once; `at` tells two requests for the same test apart.
+   */
+  | { readonly type: 'diagnose'; readonly from?: string; readonly to?: string; readonly at?: number };
 
 export interface OpenWindow {
   readonly id: string;
@@ -91,7 +96,8 @@ export interface Storage {
 function windowKey(spec: WindowSpec): string {
   switch (spec.type) {
     case 'help':
-      return 'help';
+    case 'diagnose':
+      return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
     default:
@@ -325,7 +331,8 @@ export class Session {
     if (mode === 'simulation' && this.selection?.kind !== 'device') this.selection = null;
     this.tool = 'select';
     this.cableStart = null;
-    this.windows = this.windows.filter((w) => w.spec.type === 'help');
+    // Windows about the whole network are useful in both modes.
+    this.windows = this.windows.filter((w) => w.spec.type === 'help' || w.spec.type === 'diagnose');
     this.inFlight = [];
     if (mode === 'simulation') {
       this.commitHistory();
@@ -630,7 +637,7 @@ export class Session {
   /** Side of the stage where a window hides its device the least: the opposite one. */
   private sideFor(spec: WindowSpec): 'left' | 'right' {
     if (spec.type === 'help' || !this.viewport) return 'right';
-    const device = this.network.device(spec.deviceId);
+    const device = this.network.device(spec.type === 'diagnose' ? (spec.from ?? '') : spec.deviceId);
     return device && device.position.x * this.zoom > this.viewport.width / 2 ? 'left' : 'right';
   }
 

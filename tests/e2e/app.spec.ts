@@ -437,3 +437,67 @@ test('plan lisible : zoom ajusté, fenêtres à côté de l’équipement, annul
   await expect(page.getByRole('dialog', { name: 'Bureau de Serveur mail' })).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: 'Bureau de Serveur web' })).toBeVisible();
 });
+
+test('diagnostic : un ping raté est expliqué, puis la correction est vérifiée', async ({ page }) => {
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+  await palette.getByRole('button', { name: /Routeur/ }).click();
+  // Erreur classique : le premier poste n'a pas de passerelle.
+  await configureHost(page, 'Ordinateur 1', '10.0.1.10', '');
+  await configureHost(page, 'Ordinateur 2', '10.0.2.10', '10.0.2.1');
+  await page.locator('[aria-label^="Routeur"]').click();
+  for (const [label, value] of [
+    ['IP eth0', '10.0.1.1'],
+    ['IP eth1', '10.0.2.1'],
+  ] as const) {
+    const field = page.getByRole('textbox', { name: label, exact: true });
+    await field.fill(value);
+    await field.press('Enter');
+  }
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Ordinateur 1', 'Routeur 1', 'Ordinateur 2', 'Routeur 1']) {
+    await page.locator(`[aria-label^="${name}"]`).click();
+  }
+  await palette.getByRole('button', { name: 'Câble' }).click();
+
+  // Le poste fautif est repéré sur le plan et dans son panneau.
+  await expect(page.locator('[aria-label^="Ordinateur 1"] .lint-mark')).toHaveCount(1);
+  await expect(page.locator('[aria-label^="Ordinateur 2"] .lint-mark')).toHaveCount(0);
+  await page.locator('[aria-label^="Ordinateur 1"]').click();
+  await expect(page.getByRole('list', { name: 'Points à vérifier' })).toContainText(
+    'Ordinateur 1 n’a pas de passerelle',
+  );
+  await shot(page, '25-repere-plan');
+
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5');
+  const terminal = await openTerminal(page, 'Ordinateur 1');
+  const input = terminal.getByRole('textbox', { name: 'Commande', exact: true });
+  await input.fill('ping -n 1 10.0.2.10');
+  await input.press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('Aucune route vers cet hôte');
+  await terminal.getByRole('button', { name: 'Pourquoi ça ne marche pas ?' }).click();
+  const check = page.getByRole('dialog', { name: 'Vérifier mon réseau' });
+  await expect(check.getByRole('status')).toContainText(
+    'Ordinateur 1 ne sait pas par où envoyer vers 10.0.2.10',
+  );
+  await expect(check.getByRole('status')).toContainText('Que faire ? Indiquez comme passerelle');
+  await shot(page, '26-pourquoi');
+
+  // Corriger, puis vérifier sans relancer la simulation.
+  await page.getByRole('radio', { name: /Conception/ }).click();
+  await page.locator('[aria-label^="Ordinateur 1"]').click();
+  const gateway = page.getByRole('textbox', { name: 'Passerelle', exact: true });
+  await gateway.fill('10.0.1.1');
+  await gateway.press('Enter');
+  await expect(page.locator('.lint-mark')).toHaveCount(0);
+  await expect(check.getByRole('status')).toContainText('Le réseau a changé depuis ce test');
+  await check.getByRole('button', { name: 'Tester' }).click();
+  await expect(check.getByRole('status')).toContainText('Ordinateur 1 communique avec 10.0.2.10');
+  await expect(check.getByRole('status')).toContainText(
+    'Trajet de la demande : Ordinateur 1 → Routeur 1 → Ordinateur 2 ✔',
+  );
+  await expect(check).toContainText('Aucun problème repéré dans la configuration.');
+  await shot(page, '27-corrige');
+});
