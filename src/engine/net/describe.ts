@@ -1,6 +1,13 @@
-import { IP_ANY, formatIp } from '../core/ipv4';
-import type { EthernetFrame, IcmpMessage, Ipv4Packet, TcpSegment, UdpDatagram } from './frames';
-import type { UdpData } from './messages';
+import { IP_ANY, formatIp, type Ipv4 } from '../core/ipv4';
+import type {
+  EthernetFrame,
+  IcmpMessage,
+  Ipv4Packet,
+  TcpSegment,
+  TransportPayload,
+  UdpDatagram,
+} from './frames';
+import type { DhcpOp, UdpData } from './messages';
 
 export type Layer = 'link' | 'network' | 'transport' | 'application';
 
@@ -25,6 +32,22 @@ const WELL_KNOWN_TCP: Record<number, string> = { 80: 'HTTP', 25: 'SMTP', 110: 'P
 function firstLine(text: string, max = 80): string {
   const line = text.split(/\r?\n/)[0] ?? '';
   return line.length > max ? `${line.slice(0, max)}…` : line;
+}
+
+/** A DHCP exchange told as a dialogue; the name of the message stays in brackets. */
+function describeDhcp(op: DhcpOp, offered: string, requested: Ipv4 | undefined): string {
+  switch (op) {
+    case 'DISCOVER':
+      return 'Qui peut me donner une adresse ? (DISCOVER)';
+    case 'OFFER':
+      return `Je propose${offered} (OFFER)`;
+    case 'REQUEST':
+      return `Je demande${requested === undefined ? ' cette adresse' : ` ${formatIp(requested)}`} (REQUEST)`;
+    case 'ACK':
+      return `Adresse${offered} accordée (ACK)`;
+    case 'NAK':
+      return 'Demande refusée (NAK)';
+  }
 }
 
 function describeIcmp(m: IcmpMessage): string {
@@ -66,7 +89,7 @@ function describeUdpData(data: UdpData): { protocol: string; info: string; field
       if (m.mask !== undefined) fields.push(['Masque', formatIp(m.mask)]);
       if (m.gateway !== undefined) fields.push(['Passerelle', formatIp(m.gateway)]);
       if (m.dns !== undefined) fields.push(['Serveur DNS', formatIp(m.dns)]);
-      return { protocol: 'DHCP', info: `${m.op}${offered}`, fields };
+      return { protocol: 'DHCP', info: describeDhcp(m.op, offered, m.requestedIp), fields };
     }
     case 'dns': {
       const m = data.msg;
@@ -242,8 +265,11 @@ export type ProtocolTag = 'arp' | 'icmp' | 'tcp' | 'tcp-data' | 'udp' | 'dhcp' |
 
 export function protocolTag(frame: EthernetFrame): ProtocolTag {
   const packet = frame.payload;
-  if (packet.kind === 'arp') return 'arp';
-  const transport = packet.payload;
+  return packet.kind === 'arp' ? 'arp' : transportTag(packet.payload);
+}
+
+/** Same as `protocolTag`, for the content of an IP packet. */
+export function transportTag(transport: TransportPayload): ProtocolTag {
   if (transport.kind === 'icmp') return 'icmp';
   if (transport.kind === 'udp') return transport.data.kind === 'text' ? 'udp' : transport.data.kind;
   // Segments that carry application data stand out from those that manage the connection.

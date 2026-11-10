@@ -1,3 +1,5 @@
+import type { DropReason, FrameVerdict } from '../../engine/net/drop';
+import type { ProtocolTag } from '../../engine/net/describe';
 import type { Finding, FindingCode } from './findings';
 
 /* Texts of the diagnosis, written for 13 to 15 year old pupils: what is
@@ -315,3 +317,40 @@ export function describeFinding(
     template.replace(/\{(\w+)\}/g, (whole, key: string) => values[key] ?? whole);
   return { title: fill(text.title), explain: fill(text.explain), fix: fill(text.fix), notion: text.notion };
 }
+
+/** Why a device gave up on a packet, in a few words (mark on the plan). */
+export const DROP_LABEL: Record<DropReason, string> = {
+  'no-address': 'pas d’adresse IP',
+  'no-route': 'aucun chemin vers la destination',
+  'no-link': 'rien n’est branché',
+  'arp-timeout': 'personne ne répond à cette adresse',
+  'ttl-expired': 'durée de vie (TTL) épuisée',
+  firewall: 'bloqué par le pare-feu',
+  'not-a-router': 'ce n’est pas un routeur',
+  'iface-unconfigured': 'interface sans adresse',
+  'port-closed': 'aucun logiciel n’écoute ce port',
+};
+
+/** What a device did with a received frame (data exchanges). */
+export const VERDICT_LABEL: Record<FrameVerdict, string> = {
+  accepted: 'acceptée',
+  forwarded: 'relayée',
+  ignored: 'ignorée',
+  filtered: 'bloquée par le pare-feu',
+};
+
+/** Legend of the frames drawn on the cables: name and role of each kind of traffic. */
+export const TRAFFIC_LEGEND: readonly {
+  readonly tag: ProtocolTag;
+  readonly name: string;
+  readonly role: string;
+}[] = [
+  { tag: 'arp', name: 'ARP', role: 'qui a cette adresse IP ?' },
+  { tag: 'icmp', name: 'ICMP', role: 'test de communication (ping)' },
+  { tag: 'dhcp', name: 'DHCP', role: 'adresse automatique' },
+  { tag: 'dns', name: 'DNS', role: 'nom → adresse IP' },
+  { tag: 'tcp', name: 'TCP', role: 'ouverture et fermeture d’une connexion' },
+  { tag: 'tcp-data', name: 'Données', role: 'page web, message… dans une connexion TCP' },
+  { tag: 'rip', name: 'RIP', role: 'les routeurs s’échangent leurs routes' },
+  { tag: 'udp', name: 'UDP', role: 'message sans connexion' },
+];

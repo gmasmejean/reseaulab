@@ -56,10 +56,14 @@ ensuite avec **Ouvrir…**.
   **Ranger les fenêtres** et **Tout fermer** sont dans la barre du bas. Les paquets sont animés sur les câbles, au
   ralenti pour qu'on puisse les suivre (0,4 s par câble à la vitesse par
   défaut) ; entre deux envois, le temps s'écoule normalement. Le
-  curseur **Vitesse** règle ce ralenti. La case **Masquer le trafic
-  automatique** cache les échanges que les équipements font seuls (adresses
-  DHCP, routes RIP) : ils ne sont plus animés ni ralentis, mais restent
-  listés dans les échanges de données.
+  curseur **Vitesse** règle ce ralenti. Chaque trame porte le nom de son
+  protocole ; la **légende**, en bas à gauche du plan, explique les couleurs.
+  **Pause** puis **Trame suivante** font avancer les trames câble par câble.
+  Quand un équipement abandonne un paquet, la raison s'affiche un moment à
+  côté de lui. La case **Masquer le trafic automatique** (près de la légende)
+  cache les échanges que les équipements font seuls (adresses DHCP, routes
+  RIP) : ils ne sont plus animés ni ralentis, mais restent listés dans les
+  échanges de données.
 - **Exemple** : charge un réseau de collège complet (salle élèves en DHCP,
   routeur, serveurs DNS, web et messagerie) pour une démonstration immédiate.
 
@@ -94,8 +98,12 @@ ne marche pas ?**.
 
 Le bouton **Échanges de données** d'un équipement liste les trames reçues et
 envoyées (Ethernet, ARP, IP, ICMP, UDP, TCP, DHCP, DNS, HTTP, SMTP, POP3, RIP),
-colorées par couche, avec le détail de chaque en-tête. Pour un switch, la
-**table des adresses MAC** montre l'apprentissage en direct.
+colorées par couche, avec le détail de chaque en-tête. On peut les filtrer par
+protocole ; les trames arrivées sans être destinées à l'équipement (diffusions,
+trames qu'un switch a envoyées partout) sont marquées « ignorée » et peuvent
+être masquées. Pour un switch, la **table des adresses MAC** montre
+l'apprentissage en direct ; pour un poste ou un routeur, **Afficher les
+tables** montre la table de routage et la table ARP.
 
 ## Développement
 

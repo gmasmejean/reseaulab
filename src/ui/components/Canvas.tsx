@@ -14,7 +14,8 @@ import type { Device, DeviceKind } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { Switch } from '../../engine/devices/switch';
 import { worstFor, type Finding } from '../../learn/diagnose/findings';
-import { useSession } from '../context';
+import { DROP_LABEL } from '../../learn/diagnose/messages.fr';
+import { useFrame, useSession } from '../context';
 import { findingText, useLint } from '../learn/hooks';
 import type { Session } from '../session';
 import { DeviceIcon } from './DeviceIcon';
@@ -104,6 +105,8 @@ function LintMark({ findings, deviceId }: { findings: readonly Finding[]; device
 
 export function Canvas() {
   const session = useSession();
+  // Frames move with the simulated time: the plan follows the animation frames.
+  useFrame();
   const net = session.network;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -426,25 +429,6 @@ export function Canvas() {
             </g>
           );
         })}
-        {simulation &&
-          session.inFlight.map((f, i) => {
-            const cable = net.cable(f.cableId);
-            if (!cable) return null;
-            const fromPos = net.device(f.from)?.position;
-            const toPos = (cable.a.owner.id === f.from ? cable.b : cable.a).owner.id;
-            const target = net.device(toPos)?.position;
-            if (!fromPos || !target) return null;
-            const t = Math.min(1, Math.max(0, (now - f.start) / (f.end - f.start || 1)));
-            return (
-              <circle
-                key={i}
-                cx={fromPos.x + (target.x - fromPos.x) * t}
-                cy={fromPos.y + (target.y - fromPos.y) * t}
-                r={6}
-                className={`packet ${f.protocol}`}
-              />
-            );
-          })}
         {devices.map((d) => {
           const isSelected = selected?.kind === 'device' && selected.id === d.id;
           const pending = session.cableStart === d.id;
@@ -494,6 +478,45 @@ export function Canvas() {
             </g>
           );
         })}
+        {/* Frames are drawn last, above the devices they leave and reach. */}
+        {simulation &&
+          session.inFlight.map((f, i) => {
+            const cable = net.cable(f.cableId);
+            if (!cable) return null;
+            const fromPos = net.device(f.from)?.position;
+            const toPos = (cable.a.owner.id === f.from ? cable.b : cable.a).owner.id;
+            const target = net.device(toPos)?.position;
+            if (!fromPos || !target) return null;
+            const t = Math.min(1, Math.max(0, (now - f.start) / (f.end - f.start || 1)));
+            const half = Math.max(16, f.label.length * 4 + 9);
+            return (
+              <g
+                key={i}
+                className={`packet ${f.protocol}`}
+                transform={`translate(${fromPos.x + (target.x - fromPos.x) * t}, ${fromPos.y + (target.y - fromPos.y) * t})`}
+              >
+                <rect x={-half} y={-10} width={half * 2} height={20} rx={10} />
+                <text y={4}>{f.label}</text>
+              </g>
+            );
+          })}
+        {simulation &&
+          session.dropMarks.map((mark) => {
+            const position = net.device(mark.deviceId)?.position;
+            if (!position) return null;
+            const text = DROP_LABEL[mark.reason];
+            const width = text.length * 6.4 + 34;
+            return (
+              <g
+                key={mark.deviceId}
+                className="drop-mark"
+                transform={`translate(${position.x}, ${position.y - ICON / 2 - 22})`}
+              >
+                <rect x={-width / 2} y={-12} width={width} height={24} rx={12} />
+                <text y={4}>✕ {text}</text>
+              </g>
+            );
+          })}
       </svg>
       {menu && entries.length > 0 && (
         <ContextMenu

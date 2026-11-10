@@ -385,7 +385,8 @@ test('plan lisible : zoom ajusté, fenêtres à côté de l’équipement, annul
         return el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight;
       })()`,
     );
-  expect(await fits()).toBe(true);
+  await expect.poll(fits).toBe(true);
+  expect((await page.getByRole('banner').boundingBox())?.height).toBeLessThan(60);
   for (const name of ['Poste 1', 'Portable', 'Serveur DHCP', 'Serveur mail']) {
     await expect(page.locator(`[aria-label^="${name}"]`)).toBeInViewport({ ratio: 1 });
   }
@@ -410,7 +411,10 @@ test('plan lisible : zoom ajusté, fenêtres à côté de l’équipement, annul
   // En simulation, la fenêtre s'ouvre du côté opposé à l'équipement : il reste visible.
   await page.getByRole('radio', { name: /Simulation/ }).click();
   await expect(page.getByRole('complementary', { name: 'Palette d’équipements' })).toHaveCount(0);
-  expect(await fits()).toBe(true);
+  // La zone du plan change de taille : il se réajuste.
+  await expect.poll(fits).toBe(true);
+  // La barre d'outils tient sur une ligne.
+  expect((await page.getByRole('banner').boundingBox())?.height).toBeLessThan(60);
   const apart = async (device: string, dialog: string) => {
     const d = await page.locator(`[aria-label^="${device}"]`).boundingBox();
     const w = await page.getByRole('dialog', { name: dialog }).boundingBox();
@@ -500,4 +504,61 @@ test('diagnostic : un ping raté est expliqué, puis la correction est vérifié
   );
   await expect(check).toContainText('Aucun problème repéré dans la configuration.');
   await shot(page, '27-corrige');
+});
+
+test('simulation lisible : trames nommées, pas à pas, abandon signalé, échanges filtrés', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'chargez le réseau d’exemple' }).click();
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+
+  // Au démarrage, les postes demandent leur adresse : les trames portent le nom du protocole.
+  await expect(page.locator('.packet.dhcp text').first()).toHaveText('DHCP');
+  await page.getByRole('button', { name: /Légende des trames/ }).click();
+  await expect(page.getByRole('list', { name: 'Légende des trames' })).toContainText(
+    'DHCP : adresse automatique',
+  );
+  await shot(page, '28-trames-nommees');
+  await page.getByRole('button', { name: /Légende des trames/ }).click();
+  await page.getByRole('slider').fill('5');
+  await expect(page.locator('[aria-label^="Poste 1 (192.168.1.10"]')).toBeVisible({ timeout: 20_000 });
+
+  // Pas à pas : en pause, chaque clic fait avancer les trames d'un câble.
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByText('Simulation en pause')).toBeVisible();
+  const terminal = await openTerminal(page, 'Poste 1');
+  const input = terminal.getByRole('textbox', { name: 'Commande', exact: true });
+  await input.fill('ping -n 1 172.16.0.1');
+  await input.press('Enter');
+  const next = page.getByRole('button', { name: 'Trame suivante' });
+  await next.click();
+  await expect(page.getByText('Simulation en pause')).toBeVisible();
+  await expect(page.locator('.packet').first()).toBeVisible();
+  await shot(page, '29-pas-a-pas');
+  await page.getByRole('button', { name: 'Reprendre' }).click();
+
+  // Le routeur ne connaît pas ce réseau : l'abandon est écrit sur le plan.
+  await expect(page.locator('.drop-mark text')).toHaveText('✕ aucun chemin vers la destination', {
+    timeout: 20_000,
+  });
+  await shot(page, '30-abandon');
+  await expect(terminal.getByRole('log')).toContainText('réseau de destination inaccessible', {
+    timeout: 20_000,
+  });
+
+  // Échanges de données : ce que le poste a ignoré, et le filtre par protocole.
+  await page.getByRole('button', { name: 'Tout fermer' }).click();
+  await page.locator('[aria-label^="Poste 1"]').click();
+  await page.getByRole('button', { name: 'Afficher les échanges de données' }).click();
+  const capture = page.getByRole('dialog', { name: 'Échanges de données — Poste 1' });
+  await expect(capture.getByRole('row').filter({ hasText: '← ignorée' }).first()).toBeVisible();
+  await capture.getByRole('combobox', { name: 'Protocole' }).selectOption('ICMP');
+  await expect(capture.getByRole('row').filter({ hasText: 'DHCP' })).toHaveCount(0);
+  await expect(capture.getByRole('row').filter({ hasText: 'ICMP' }).first()).toBeVisible();
+  await shot(page, '31-echanges-filtres');
+
+  // Tables d'un poste sans passer par la ligne de commande.
+  await page.getByRole('button', { name: 'Afficher les tables' }).click();
+  await expect(page.getByRole('dialog', { name: 'Tables — Poste 1' })).toContainText('toutes les autres');
 });

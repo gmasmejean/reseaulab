@@ -718,6 +718,17 @@ function SimulationBar({ device }: { device: Device | null }) {
               Afficher les échanges de données
             </button>
           )}
+          {device instanceof Host && (
+            <button
+              type="button"
+              title="Table de routage et table ARP de ce poste"
+              onClick={() => {
+                session.openWindow({ type: 'router', deviceId: device.id });
+              }}
+            >
+              Afficher les tables
+            </button>
+          )}
         </>
       ) : (
         <p className="muted">

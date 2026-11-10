@@ -10,6 +10,7 @@ import {
   AUTOMATIC_PROTOCOLS,
   AUTOSAVE_DATE_KEY,
   AUTOSAVE_KEY,
+  DROP_MARK_MS,
   HIDE_AUTOMATIC_KEY,
   HISTORY_DELAY_MS,
   HISTORY_LIMIT,
@@ -505,6 +506,129 @@ describe('Session : zoom du plan et fenêtres', () => {
     for (let i = 0; i < 600; i++) session.focusWindow(i % 2 === 0 ? `desktop:${a}` : `desktop:${b}`);
     expect(Math.max(...session.windows.map((w) => w.z))).toBeLessThanOrEqual(500);
     expect(session.topWindow?.id).toBe(`desktop:${b}`);
+  });
+});
+
+describe('Session : lecture de la simulation', () => {
+  test('l’animation a son propre signal : l’interface n’est pas redessinée à chaque image au repos', () => {
+    const frames = new ManualFrames();
+    const session = new Session(null, frames);
+    lan(session);
+    session.setMode('simulation');
+    const ticks = vi.fn();
+    const off = session.subscribeFrame(ticks);
+    const before = session.getVersion();
+    const frame = session.getFrame();
+    for (let i = 0; i < 10; i++) frames.step(16);
+    expect(ticks).toHaveBeenCalledTimes(10);
+    expect(session.getFrame()).toBe(frame + 10);
+    // Rien ne circule : aucun changement à afficher.
+    expect(session.getVersion()).toBe(before);
+    off();
+    frames.step(16);
+    expect(ticks).toHaveBeenCalledTimes(10);
+  });
+
+  test('les trames portent le nom de leur protocole', () => {
+    const frames = new ManualFrames();
+    const session = new Session(null, frames);
+    const { a } = lan(session);
+    session.setMode('simulation');
+    frames.step(0);
+    const labels = new Set<string>();
+    session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, () => undefined);
+    for (let i = 0; i < 60; i++) {
+      for (const f of session.inFlight) labels.add(`${f.protocol}:${f.label}`);
+      frames.step(100);
+    }
+    expect(labels).toEqual(new Set(['arp:ARP', 'icmp:ICMP']));
+  });
+
+  test('marque un moment l’équipement qui abandonne un paquet', () => {
+    const frames = new ManualFrames();
+    let clock = 1000;
+    const session = new Session(null, frames, () => clock);
+    const { a } = lan(session);
+    // En conception, rien n'est marqué (rien ne circule).
+    session.network.host(a).stack.icmp.ping(ip('172.16.0.1'), {}, () => undefined);
+    expect(session.dropMarks).toEqual([]);
+
+    session.setMode('simulation');
+    frames.step(0);
+    session.network.host(a).stack.icmp.ping(ip('172.16.0.1'), {}, () => undefined);
+    expect(session.dropMarks).toEqual([{ deviceId: a, reason: 'no-route', until: 1000 + DROP_MARK_MS }]);
+    // Un seul repère par équipement : le dernier abandon remplace le précédent.
+    clock += 500;
+    session.network.host(a).updateConfig({ ip: IP_ANY });
+    session.network.host(a).stack.icmp.ping(ip('172.16.0.1'), {}, () => undefined);
+    expect(session.dropMarks).toEqual([{ deviceId: a, reason: 'no-address', until: 1500 + DROP_MARK_MS }]);
+    clock += DROP_MARK_MS - 1;
+    frames.step(16);
+    expect(session.dropMarks).toHaveLength(1);
+    clock += 1;
+    frames.step(16);
+    expect(session.dropMarks).toEqual([]);
+
+    session.network.host(a).stack.icmp.ping(ip('172.16.0.1'), {}, () => undefined);
+    session.setMode('design');
+    expect(session.dropMarks).toEqual([]);
+  });
+
+  test('l’abandon d’un trafic automatique masqué n’est pas marqué', () => {
+    const frames = new ManualFrames();
+    const session = new Session(null, frames);
+    const { a } = lan(session);
+    session.setHideAutomatic(true);
+    session.setMode('simulation');
+    frames.step(0);
+    // Un datagramme RIP sans route : trafic automatique.
+    const rip = { kind: 'rip', msg: { command: 'request', routes: [] } } as const;
+    session.network.host(a).udp.send(520, ip('172.16.0.1'), 520, rip);
+    expect(session.dropMarks).toEqual([]);
+    session.setHideAutomatic(false);
+    session.network.host(a).udp.send(520, ip('172.16.0.1'), 520, rip);
+    expect(session.dropMarks).toHaveLength(1);
+  });
+
+  test('pas à pas : un clic fait traverser un câble aux trames, puis la simulation se remet en pause', () => {
+    const frames = new ManualFrames();
+    const session = new Session(null, frames);
+    const { a } = lan(session);
+    session.setMode('simulation');
+    frames.step(0);
+    session.togglePause();
+    const results: string[] = [];
+    session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, (r) => results.push(r.kind));
+    const run = () => {
+      session.stepFrame();
+      expect(session.stepping).toBe(true);
+      expect(session.paused).toBe(false);
+      for (let i = 0; i < 200 && frames.active; i++) frames.step(50);
+      expect(frames.active).toBe(false);
+      expect(session.paused).toBe(true);
+      expect(session.stepping).toBe(false);
+    };
+    // Demande ARP : A → switch.
+    run();
+    const first = session.network.scheduler.now;
+    expect(first).toBeGreaterThanOrEqual(LINK_DELAY);
+    expect(first).toBeLessThan(2 * LINK_DELAY);
+    expect(results).toEqual([]);
+    // switch → B, B → switch, switch → A (ARP) ; puis l'écho en quatre câbles.
+    for (let i = 0; i < 7; i++) run();
+    expect(results).toEqual(['reply']);
+    expect(session.network.scheduler.now).toBeLessThan(9 * LINK_DELAY);
+
+    // Sans trame en route, le pas à pas attend la prochaine ; Pause l'interrompt.
+    session.stepFrame();
+    frames.step(50);
+    expect(session.stepping).toBe(true);
+    session.togglePause();
+    expect(session.stepping).toBe(false);
+    expect(session.paused).toBe(true);
+    session.setMode('design');
+    session.stepFrame();
+    expect(session.stepping).toBe(false);
   });
 });
 

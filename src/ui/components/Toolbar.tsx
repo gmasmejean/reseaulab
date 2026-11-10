@@ -1,11 +1,22 @@
 import { useRef, useState } from 'react';
 import { MODE_LABEL, decimal, speedLabel } from '../../i18n/fr';
-import { useSession } from '../context';
+import { useFrame, useSession } from '../context';
 import { downloadText } from '../files';
 import { SPEEDS } from '../session';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SaveDialog } from './SaveDialog';
 import { useLint } from '../learn/hooks';
+
+/** Simulated time; alone to follow the animation frames. */
+function Clock() {
+  const session = useSession();
+  useFrame();
+  return (
+    <span className="clock" title="Temps simulé">
+      {decimal(session.network.scheduler.now / 1000, 1)} s
+    </span>
+  );
+}
 
 export function Toolbar() {
   const session = useSession();
@@ -146,6 +157,16 @@ export function Toolbar() {
           >
             {session.paused ? 'Reprendre' : 'Pause'}
           </button>
+          <button
+            type="button"
+            title="Avancer jusqu’à l’arrivée des trames en cours, puis s’arrêter"
+            disabled={session.stepping}
+            onClick={() => {
+              session.stepFrame();
+            }}
+          >
+            Trame suivante
+          </button>
           <label className="speed">
             Vitesse
             <input
@@ -160,25 +181,7 @@ export function Toolbar() {
             />
             <span className="speed-value">{speedLabel(session.speed)}</span>
           </label>
-          <label
-            className="hide-automatic"
-            title="Les échanges automatiques (adresses DHCP, routes RIP) ne sont plus animés ; ils restent listés dans les échanges de données."
-          >
-            <input
-              type="checkbox"
-              checked={session.hideAutomatic}
-              onChange={(e) => {
-                session.setHideAutomatic(e.target.checked);
-              }}
-            />
-            <span>
-              Masquer le trafic <br />
-              automatique
-            </span>
-          </label>
-          <span className="clock" title="Temps simulé">
-            {decimal(session.network.scheduler.now / 1000, 1)} s
-          </span>
+          <Clock />
         </div>
       )}
       <button

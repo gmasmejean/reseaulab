@@ -134,14 +134,32 @@ describe('Description des trames', () => {
       67,
       68,
     );
-    expect(summarizeFrame(dhcp)).toMatchObject({ protocol: 'DHCP', info: 'ACK 10.0.0.9' });
+    expect(summarizeFrame(dhcp)).toMatchObject({ protocol: 'DHCP', info: 'Adresse 10.0.0.9 accordée (ACK)' });
     expect(summarizeFrame(dhcp).fields).toHaveLength(9);
     expect(describeFrame(dhcp)[2]).toMatchObject({ protocol: 'UDP', info: 'port 67 → 68' });
     const discover = udp({
       kind: 'dhcp',
       msg: { op: 'DISCOVER', xid: 1, clientMac: MAC_A, yourIp: 0, serverIp: 0 },
     });
-    expect(summarizeFrame(discover).info).toBe('DISCOVER');
+    expect(summarizeFrame(discover).info).toBe('Qui peut me donner une adresse ? (DISCOVER)');
+    const message = (op: 'OFFER' | 'REQUEST' | 'NAK', requestedIp?: number) =>
+      summarizeFrame(
+        udp({
+          kind: 'dhcp',
+          msg: {
+            op,
+            xid: 1,
+            clientMac: MAC_A,
+            yourIp: op === 'OFFER' ? ip('10.0.0.9') : 0,
+            serverIp: 0,
+            ...(requestedIp === undefined ? {} : { requestedIp }),
+          },
+        }),
+      ).info;
+    expect(message('OFFER')).toBe('Je propose 10.0.0.9 (OFFER)');
+    expect(message('REQUEST', ip('10.0.0.9'))).toBe('Je demande 10.0.0.9 (REQUEST)');
+    expect(message('REQUEST')).toBe('Je demande cette adresse (REQUEST)');
+    expect(message('NAK')).toBe('Demande refusée (NAK)');
 
     const question = { name: 'www.x.fr', type: 'A' as const };
     const query = udp({ kind: 'dns', msg: { id: 1, response: false, question, answers: [], rcode: 'OK' } });

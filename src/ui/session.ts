@@ -1,6 +1,7 @@
 import { Emitter } from '../engine/core/emitter';
 import type { DeviceKind, Position } from '../engine/devices/device';
-import { protocolTag } from '../engine/net/describe';
+import { protocolTag, summarizeFrame, transportTag } from '../engine/net/describe';
+import type { DropReason } from '../engine/net/drop';
 import { ConnectError, Network } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
@@ -19,6 +20,7 @@ export type WindowSpec =
   /** `iface`: show only the frames of that interface (all when absent). */
   | { readonly type: 'capture'; readonly deviceId: string; readonly iface?: number }
   | { readonly type: 'switch'; readonly deviceId: string }
+  /** Routing and ARP tables, of a router or of a computer. */
   | { readonly type: 'router'; readonly deviceId: string }
   | { readonly type: 'help' }
   /**
@@ -50,7 +52,20 @@ export interface InFlight {
   readonly start: number;
   readonly end: number;
   readonly protocol: string;
+  /** Name written on the frame: its highest protocol (ARP, ICMP, DNS, HTTP…). */
+  readonly label: string;
 }
+
+/** A packet a device just gave up on, shown for a moment on the plan. */
+export interface DropMark {
+  readonly deviceId: string;
+  readonly reason: DropReason;
+  /** Real time (ms) when the mark disappears. */
+  readonly until: number;
+}
+
+/** How long (real ms) a drop stays marked on the plan. */
+export const DROP_MARK_MS = 4000;
 
 /** Shown after importing a Filius file, when something could not be converted. */
 export interface ImportReport {
@@ -175,6 +190,13 @@ export class Session {
   zoom = 1;
   /** The zoom follows the size of the stage until the pupil chooses one. */
   autoFit = true;
+  /** Packets given up on a moment ago, one per device. */
+  dropMarks: DropMark[] = [];
+  /** Step by step: the simulation runs until the frames on the cables arrive, then pauses. */
+  stepping = false;
+  private stepUntil: number | null = null;
+  private frameCount = 0;
+  private readonly frameEmitter = new Emitter<{ frame: undefined }>();
   /** Earlier and undone states of the design, as project files. */
   private past: string[] = [];
   private future: string[] = [];
@@ -202,7 +224,10 @@ export class Session {
       () => this.network.scheduler,
       () => {
         this.pruneInFlight();
-        this.touch();
+        this.pruneDropMarks();
+        this.endStep();
+        this.frameCount++;
+        this.frameEmitter.emit('frame', undefined);
       },
       frames,
       () => this.busyUntil(),
@@ -221,6 +246,15 @@ export class Session {
   subscribe = (listener: () => void): (() => void) => this.emitter.on('change', listener);
 
   getVersion = (): number => this.revision;
+
+  /**
+   * Animation frames. Only what moves with the simulated time (frames on the
+   * cables, the clock) listens to them: the rest of the interface is redrawn
+   * when something changes, not sixty times a second.
+   */
+  subscribeFrame = (listener: () => void): (() => void) => this.frameEmitter.on('frame', listener);
+
+  getFrame = (): number => this.frameCount;
 
   /* ---------- project ---------- */
 
@@ -334,6 +368,9 @@ export class Session {
     // Windows about the whole network are useful in both modes.
     this.windows = this.windows.filter((w) => w.spec.type === 'help' || w.spec.type === 'diagnose');
     this.inFlight = [];
+    this.dropMarks = [];
+    this.stepping = false;
+    this.stepUntil = null;
     if (mode === 'simulation') {
       this.commitHistory();
       this.network.start();
@@ -373,8 +410,35 @@ export class Session {
   togglePause(): void {
     if (this.mode !== 'simulation') return;
     this.paused = !this.paused;
+    this.stepping = false;
+    this.stepUntil = null;
     if (this.paused) this.clock.stop();
     else this.clock.start();
+    this.touch();
+  }
+
+  /**
+   * « Trame suivante » : lets the frames now on the cables (or the next ones
+   * to leave) reach the other end, then pauses again. One click, one cable.
+   */
+  stepFrame(): void {
+    if (this.mode !== 'simulation') return;
+    this.stepping = true;
+    this.stepUntil = this.busyUntil();
+    this.paused = false;
+    this.clock.start();
+    this.touch();
+  }
+
+  /** Pauses once the frames of the current step have arrived. */
+  private endStep(): void {
+    if (!this.stepping) return;
+    this.stepUntil ??= this.busyUntil();
+    if (this.stepUntil === null || this.network.scheduler.now < this.stepUntil) return;
+    this.stepping = false;
+    this.stepUntil = null;
+    this.paused = true;
+    this.clock.stop();
     this.touch();
   }
 
@@ -723,7 +787,14 @@ export class Session {
           start: event.time,
           end: event.time + net.ctx.linkDelay,
           protocol,
+          label: summarizeFrame(event.frame).protocol,
         });
+      }),
+      net.events.on('drop', (drop) => {
+        if (this.mode !== 'simulation') return;
+        if (this.hideAutomatic && AUTOMATIC_PROTOCOLS.has(transportTag(drop.payload))) return;
+        const mark = { deviceId: drop.deviceId, reason: drop.reason, until: this.now() + DROP_MARK_MS };
+        this.dropMarks = [...this.dropMarks.filter((m) => m.deviceId !== drop.deviceId), mark];
       }),
     ];
   }
@@ -739,6 +810,12 @@ export class Session {
     let until: number | null = null;
     for (const f of this.inFlight) if (f.end > now && (until === null || f.end > until)) until = f.end;
     return until;
+  }
+
+  private pruneDropMarks(): void {
+    const now = this.now();
+    if (this.dropMarks.some((m) => m.until <= now))
+      this.dropMarks = this.dropMarks.filter((m) => m.until > now);
   }
 
   private pruneInFlight(): void {

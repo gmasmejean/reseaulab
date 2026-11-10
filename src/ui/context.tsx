@@ -16,6 +16,16 @@ export function useSession(): Session {
 }
 
 /**
+ * Re-renders at every animation frame of the simulation. For the few
+ * components that draw what moves with the simulated time.
+ */
+export function useFrame(): void {
+  const session = useContext(SessionContext);
+  if (!session) throw new Error('useFrame doit être utilisé dans <SessionProvider>');
+  useSyncExternalStore(session.subscribeFrame, session.getFrame);
+}
+
+/**
  * The session, without re-rendering when it changes; null outside a provider
  * (a form control rendered alone in a test).
  */

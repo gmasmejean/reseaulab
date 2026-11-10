@@ -188,10 +188,22 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       textes sont séparés des règles (`messages.fr.ts`) pour pouvoir être
       reformulés. Garde-fous : pas de simulation s'il y a une boucle de
       switchs, exécution bornée en temps virtuel et en nombre d'événements.
-- [ ] **Étape 21 — Lisibilité de la simulation** : étiquette et légende des
-      trames, marque à l'endroit d'un abandon, pas-à-pas ; capture filtrable,
-      trames ignorées signalées, vue « dialogue » ; tables d'un poste sans
-      terminal ; animation découplée du reste de l'interface.
+- [x] **Étape 21 — Lisibilité de la simulation** : une trame est une pastille
+      qui porte le nom de son protocole (ARP, ICMP, DHCP, DNS, HTTP…), dessinée
+      au-dessus des équipements ; une légende repliable explique chaque
+      couleur. Quand un équipement abandonne un paquet, la raison s'écrit un
+      moment à côté de lui (« ✕ aucun chemin vers la destination »). **Trame
+      suivante** fait avancer les trames d'un câble puis remet la simulation
+      en pause ; la pause est signalée sur le plan. Échanges de données :
+      filtre par protocole, trames ignorées en italique (« ← ignorée »,
+      masquables), verdict de chaque trame reçue, défilement qui suit les
+      nouvelles trames, messages DHCP racontés (« Qui peut me donner une
+      adresse ? (DISCOVER) »). Les tables de routage et ARP d'un poste se
+      consultent sans la ligne de commande, avec leurs en-têtes et une phrase
+      d'explication. L'animation a son propre signal : seuls le plan et
+      l'horloge sont redessinés à chaque image, le reste de l'interface
+      seulement quand quelque chose change. « Masquer le trafic automatique »
+      rejoint la légende, sur le plan.
 - [ ] **Étape 22 — Connaissances** : fiches et lexique intégrés (pack par
       défaut calé sur le programme de cycle 4, modifiable par un fichier),
       libellés cliquables, fenêtre « Aide et connaissances ».
@@ -251,6 +263,10 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Pas de vue « dialogue »** (étape 21) : le diagramme d'échanges entre
+  équipements prévu à cette étape n'est pas réalisé ; la liste filtrable et
+  le pas-à-pas couvrent le besoin immédiat. À reprendre si l'usage en classe
+  le demande.
 - **Message de `ping` reformulé** (étape 20) : quand la demande ARP du poste
   reste sans réponse, Windows affiche « Réponse de <sa propre adresse> :
   hôte inaccessible », ce qui déroute. RéseauLab écrit « Hôte de destination

@@ -97,7 +97,8 @@ export class SimulationClock {
     const elapsed = this.last === null ? 0 : Math.min(time - this.last, MAX_FRAME_MS);
     this.last = time;
     this.advance(elapsed);
-    this.onFrame();
+    // Ask for the next frame first: `onFrame` may stop the clock (step by step).
     this.handle = this.frames.request(this.tick);
+    this.onFrame();
   };
 }

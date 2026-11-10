@@ -14,7 +14,7 @@ import { EchoClientApp, FirewallApp } from './ClientApps';
 import { Desktop, SoftwareInstaller } from './Desktop';
 import { FileExplorerApp, ImageViewerApp, TextEditorApp } from './FileApps';
 import { MailClientApp } from './MailClientApp';
-import { CaptureWindow, HelpWindow, RouterWindow, SwitchWindow } from './NetworkWindows';
+import { CaptureWindow, HelpWindow, SwitchWindow, TablesWindow } from './NetworkWindows';
 import { DhcpServerApp, DnsServerApp, EchoServerApp, MailServerApp, WebServerApp } from './ServerApps';
 import { TerminalApp } from './TerminalApp';
 
@@ -112,9 +112,9 @@ function WindowContent({ w }: { w: OpenWindow }) {
         </Window>
       ) : null;
     case 'router':
-      return device instanceof Router ? (
-        <Window window={w} title={`Routeur — ${device.name}`}>
-          <RouterWindow router={device} />
+      return device instanceof NetworkNode ? (
+        <Window window={w} title={`${device instanceof Router ? 'Routeur' : 'Tables'} — ${device.name}`}>
+          <TablesWindow node={device} />
         </Window>
       ) : null;
   }

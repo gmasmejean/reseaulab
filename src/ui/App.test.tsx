@@ -1006,3 +1006,136 @@ describe('Diagnostic', () => {
     expect(screen.queryByRole('button', { name: 'Pourquoi ça ne marche pas ?' })).not.toBeInTheDocument();
   });
 });
+
+describe('Lecture de la simulation', () => {
+  /** A — switch — B, plus C on the same switch, in simulation mode. */
+  function threeHosts(session: Session) {
+    const ids = { a: '', b: '', c: '' };
+    act(() => {
+      const sw = session.addDevice('switch');
+      for (const [key, address] of [
+        ['a', '10.0.0.1'],
+        ['b', '10.0.0.2'],
+        ['c', '10.0.0.3'],
+      ] as const) {
+        ids[key] = session.addDevice('computer');
+        session.network.host(ids[key]).updateConfig({ ip: ip(address), mask: MASK_24 });
+        session.network.connect(ids[key], sw);
+      }
+      session.setMode('simulation');
+      session.setSpeed(4);
+    });
+    return ids;
+  }
+
+  test('les trames portent le nom de leur protocole ; la légende les explique', () => {
+    const { session, frames } = setup();
+    const { a } = threeHosts(session);
+    act(() => {
+      session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, () => undefined);
+    });
+    elapse(frames, 100);
+    expect(document.querySelector('.packet.arp text')).toHaveTextContent('ARP');
+    // À × 4, un câble se traverse en 100 ms : après l'aller-retour ARP vient la demande d'écho.
+    elapse(frames, 500);
+    expect(document.querySelector('.packet.icmp text')).toHaveTextContent('ICMP');
+
+    expect(screen.queryByRole('list', { name: 'Légende des trames' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Légende des trames/ }));
+    const legend = screen.getByRole('list', { name: 'Légende des trames' });
+    expect(legend).toHaveTextContent('ARP : qui a cette adresse IP ?');
+    expect(legend).toHaveTextContent('Abandon : l’équipement n’a pas pu aller plus loin');
+    fireEvent.click(screen.getByRole('button', { name: /Légende des trames/ }));
+    expect(screen.queryByRole('list', { name: 'Légende des trames' })).not.toBeInTheDocument();
+  });
+
+  test('un abandon est écrit sur le plan, à côté de l’équipement', () => {
+    const { session, frames } = setup();
+    const { a } = threeHosts(session);
+    act(() => {
+      session.network.host(a).stack.icmp.ping(ip('172.16.0.1'), {}, () => undefined);
+    });
+    elapse(frames, 100);
+    expect(document.querySelector('.drop-mark text')).toHaveTextContent('✕ aucun chemin vers la destination');
+  });
+
+  test('pause signalée sur le plan ; « Trame suivante » avance d’un câble', () => {
+    const { session, frames } = setup();
+    const { a } = threeHosts(session);
+    expect(screen.queryByText(/Simulation en pause/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Simulation en pause');
+    act(() => {
+      session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, () => undefined);
+    });
+    const next = screen.getByRole('button', { name: 'Trame suivante' });
+    fireEvent.click(next);
+    expect(next).toBeDisabled();
+    expect(screen.queryByText(/Simulation en pause/)).not.toBeInTheDocument();
+    elapse(frames, 2000);
+    expect(next).toBeEnabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Simulation en pause');
+    expect(screen.getByRole('button', { name: 'Reprendre' })).toBeInTheDocument();
+    // La demande ARP est arrivée au switch, qui la diffuse aux deux autres postes.
+    expect(document.querySelectorAll('.packet.arp').length).toBeGreaterThanOrEqual(2);
+    expect(session.network.host(a).stack.arp.entries).toHaveLength(0);
+  });
+
+  test('échanges de données : trames ignorées signalées, filtres par protocole', () => {
+    const { session, frames } = setup();
+    const { a, c } = threeHosts(session);
+    act(() => {
+      session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, () => undefined);
+      session.openWindow({ type: 'capture', deviceId: c });
+    });
+    elapse(frames, 3000);
+    const capture = screen.getByRole('dialog', { name: 'Échanges de données — Ordinateur 3' });
+    // C n'a vu que la demande ARP diffusée à tous, qui ne le concerne pas.
+    const rows = () => within(capture).getAllByRole('row').slice(1);
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]).toHaveTextContent('← ignorée');
+    expect(rows()[0]).toHaveClass('ignored');
+    const hide = within(capture).getByRole('checkbox', { name: 'Masquer les trames ignorées (1)' });
+    fireEvent.click(hide);
+    expect(capture).toHaveTextContent('Aucune trame ne correspond aux filtres choisis.');
+    expect(capture).toHaveTextContent('0 trame(s) sur 1');
+    fireEvent.click(hide);
+
+    act(() => {
+      session.closeAllWindows();
+      session.openWindow({ type: 'capture', deviceId: a });
+    });
+    const own = screen.getByRole('dialog', { name: 'Échanges de données — Ordinateur 1' });
+    expect(own).toHaveTextContent('4 trame(s)');
+    expect(own).toHaveTextContent('→ envoyée');
+    expect(own).toHaveTextContent('← acceptée');
+    expect(own).toHaveTextContent('Cliquez sur une trame pour voir son contenu');
+    const protocol = within(own).getByRole('combobox', { name: 'Protocole' });
+    expect(
+      within(protocol)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Tous les protocoles', 'ARP', 'ICMP']);
+    fireEvent.change(protocol, { target: { value: 'ICMP' } });
+    expect(own).toHaveTextContent('2 trame(s) sur 4');
+    expect(within(own).getAllByRole('row').slice(1)).toHaveLength(2);
+  });
+
+  test('les tables d’un poste se consultent sans la ligne de commande', () => {
+    const { session, frames } = setup();
+    const { a } = threeHosts(session);
+    act(() => {
+      session.select({ kind: 'device', id: a });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher les tables' }));
+    const tables = screen.getByRole('dialog', { name: 'Tables — Ordinateur 1' });
+    expect(tables).toHaveTextContent('10.0.0.0');
+    expect(tables).toHaveTextContent('carte réseau');
+    expect(tables).toHaveTextContent('Vide : aucun échange pour l’instant.');
+    act(() => {
+      session.network.host(a).stack.icmp.ping(ip('10.0.0.2'), {}, () => undefined);
+    });
+    elapse(frames, 3000);
+    expect(within(tables).getByRole('cell', { name: '10.0.0.2' })).toBeInTheDocument();
+  });
+});

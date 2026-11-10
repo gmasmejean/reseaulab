@@ -4,6 +4,7 @@ import { ImportReportDialog } from './components/ImportReportDialog';
 import { Canvas } from './components/Canvas';
 import { Palette } from './components/Palette';
 import { PropertiesPanel } from './components/PropertiesPanel';
+import { SimulationOverlay } from './components/SimulationOverlay';
 import { Toolbar } from './components/Toolbar';
 import { ZoomControls } from './components/ZoomControls';
 import { SessionProvider, useSession } from './context';
@@ -134,6 +135,7 @@ function Layout() {
         <main className="stage">
           <Canvas />
           <WindowLayer />
+          <SimulationOverlay />
           <ZoomControls />
           <ResumeBanner />
           <Notice />
