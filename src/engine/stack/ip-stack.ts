@@ -1,6 +1,7 @@
 import { IP_ANY, IP_BROADCAST, broadcastOf, networkOf, type Ipv4 } from '../core/ipv4';
 import { MAC_BROADCAST, type Mac } from '../core/mac';
 import type { Scheduler } from '../core/scheduler';
+import type { FrameVerdict, StackDrop } from '../net/drop';
 import { DEFAULT_TTL, type EthernetFrame, type Ipv4Packet, type TransportPayload } from '../net/frames';
 import type { Port } from '../net/link';
 import { Arp } from './arp';
@@ -9,7 +10,8 @@ import { Icmp } from './icmp';
 import { isConfigured, type L3Interface } from './interface';
 import { lookupRoute, nextHop, type Route } from './routing';
 
-export type ProtocolHandler = (packet: Ipv4Packet, iface: L3Interface | null) => void;
+/** Returns false when no application took the packet. */
+export type ProtocolHandler = (packet: Ipv4Packet, iface: L3Interface | null) => boolean;
 
 export type SendStatus = 'sent' | 'no-route';
 
@@ -49,9 +51,16 @@ export class IpStack {
   constructor(
     readonly scheduler: Scheduler,
     onChange: () => void,
+    /** Told about every packet the stack gives up on (observation only). */
+    private readonly onDrop: (drop: StackDrop) => void = () => undefined,
   ) {
     this.arp = new Arp(scheduler, onChange);
     this.icmp = new Icmp(this);
+  }
+
+  /** Reports a packet that goes no further. Never changes what the stack does. */
+  reportDrop(drop: StackDrop): void {
+    this.onDrop(drop);
   }
 
   register(protocol: 'udp' | 'tcp', handler: ProtocolHandler): void {
@@ -144,30 +153,59 @@ export class IpStack {
       this.sendFrame(iface, MAC_BROADCAST, packet);
       return 'sent';
     }
-    const route = lookupRoute(this.routes(), dst);
+    const routes = this.routes();
+    const route = lookupRoute(routes, dst);
     const iface = route ? this.interfaces[route.iface] : undefined;
-    if (!route || !iface) return 'no-route';
+    if (!route || !iface) {
+      const gatewayIgnored = this.gateway !== IP_ANY && !routes.some((r) => r.source === 'default');
+      this.reportDrop({
+        reason: this.interfaces.some(isConfigured) ? 'no-route' : 'no-address',
+        stage: 'send',
+        iface: null,
+        src: options.src ?? IP_ANY,
+        dst,
+        payload,
+        ...(gatewayIgnored ? { gatewayIgnored } : {}),
+      });
+      return 'no-route';
+    }
     const packet = this.makePacket(options.src ?? iface.ip, dst, ttl, payload);
     this.firewall?.track(packet);
-    this.transmit(packet, iface, nextHop(route, dst), options.onFailure);
+    this.transmit(packet, iface, nextHop(route, dst), 'send', options.onFailure);
     return 'sent';
   }
 
-  receiveFrame(port: Port, frame: EthernetFrame): void {
+  /** Processes a received frame and tells what became of it. */
+  receiveFrame(port: Port, frame: EthernetFrame): FrameVerdict {
     const iface = this.interfaceFor(port);
-    if (!iface) return;
-    if (frame.dst !== port.mac && frame.dst !== MAC_BROADCAST) return;
+    if (!iface) return 'ignored';
+    // A switch floods the frames it cannot locate: most are for someone else.
+    if (frame.dst !== port.mac && frame.dst !== MAC_BROADCAST) return 'ignored';
     const payload = frame.payload;
     if (payload.kind === 'arp') {
+      const forUs = iface.ip !== IP_ANY && payload.targetIp === iface.ip;
       this.arp.handle(iface, payload);
-      return;
+      return forUs ? 'accepted' : 'ignored';
     }
+    const index = this.interfaces.indexOf(iface);
     if (this.isAddressedToUs(payload, iface)) {
-      if (this.firewallScope === 'input' && this.firewall && !this.firewall.allows(payload)) return;
-      this.deliver(payload, iface);
-    } else if (this.forwarding && isConfigured(iface) && frame.dst === port.mac) {
-      this.forward(payload, iface);
+      if (this.firewallScope === 'input' && this.firewall && !this.firewall.allows(payload)) {
+        this.reportDrop({ ...dropOf(payload), reason: 'firewall', stage: 'receive', iface: index });
+        return 'filtered';
+      }
+      return this.deliver(payload, iface) ? 'accepted' : 'ignored';
     }
+    // From here the frame was sent to our MAC address, but the packet is for someone else.
+    if (frame.dst !== port.mac) return 'ignored';
+    if (!this.forwarding) {
+      this.reportDrop({ ...dropOf(payload), reason: 'not-a-router', stage: 'receive', iface: index });
+      return 'ignored';
+    }
+    if (!isConfigured(iface)) {
+      this.reportDrop({ ...dropOf(payload), reason: 'iface-unconfigured', stage: 'receive', iface: index });
+      return 'ignored';
+    }
+    return this.forward(payload, iface, index);
   }
 
   reset(): void {
@@ -187,45 +225,73 @@ export class IpStack {
     return isConfigured(iface) && packet.dst === broadcastOf(iface.ip, iface.mask);
   }
 
-  private deliver(packet: Ipv4Packet, iface: L3Interface | null): void {
+  /** Hands a packet to its protocol; false when nothing took it. */
+  private deliver(packet: Ipv4Packet, iface: L3Interface | null): boolean {
     const kind = packet.payload.kind;
     if (kind === 'icmp') {
       this.icmp.handle(packet);
-      return;
+      return true;
     }
-    this.handlers.get(kind)?.(packet, iface);
+    return this.handlers.get(kind)?.(packet, iface) ?? false;
   }
 
-  private forward(packet: Ipv4Packet, incoming: L3Interface): void {
+  private forward(packet: Ipv4Packet, incoming: L3Interface, incomingIndex: number): FrameVerdict {
+    const drop = (reason: StackDrop['reason']): FrameVerdict => {
+      this.reportDrop({ ...dropOf(packet), reason, stage: 'forward', iface: incomingIndex });
+      return reason === 'firewall' ? 'filtered' : 'ignored';
+    };
     if (packet.ttl <= 1) {
       this.icmp.sendError(packet, 'time-exceeded', undefined, incoming.ip);
-      return;
+      return drop('ttl-expired');
     }
     const route = lookupRoute(this.routes(), packet.dst);
     const out = route ? this.interfaces[route.iface] : undefined;
     if (!route || !out) {
       this.icmp.sendError(packet, 'unreachable', 'net', incoming.ip);
-      return;
+      return drop('no-route');
     }
-    if (this.firewallScope === 'forward' && this.firewall && !this.firewall.allows(packet)) return;
+    if (this.firewallScope === 'forward' && this.firewall && !this.firewall.allows(packet)) {
+      return drop('firewall');
+    }
     const forwarded: Ipv4Packet = { ...packet, ttl: packet.ttl - 1 };
-    this.transmit(forwarded, out, nextHop(route, packet.dst), () => {
+    this.transmit(forwarded, out, nextHop(route, packet.dst), 'forward', () => {
       this.icmp.sendError(packet, 'unreachable', 'host', incoming.ip);
     });
+    return 'forwarded';
   }
 
-  private transmit(packet: Ipv4Packet, iface: L3Interface, hop: Ipv4, onFailure?: () => void): void {
+  private transmit(
+    packet: Ipv4Packet,
+    iface: L3Interface,
+    hop: Ipv4,
+    stage: 'send' | 'forward',
+    onFailure?: () => void,
+  ): void {
     if (isConfigured(iface) && packet.dst === broadcastOf(iface.ip, iface.mask)) {
       this.sendFrame(iface, MAC_BROADCAST, packet);
       return;
     }
     this.arp.resolve(iface, hop, (mac) => {
-      if (mac) this.sendFrame(iface, mac, packet);
-      else onFailure?.();
+      if (mac) {
+        this.sendFrame(iface, mac, packet);
+        return;
+      }
+      this.reportDrop({
+        ...dropOf(packet),
+        reason: iface.port.isConnected ? 'arp-timeout' : 'no-link',
+        stage,
+        iface: this.interfaces.indexOf(iface),
+        nextHop: hop,
+      });
+      onFailure?.();
     });
   }
 
   private sendFrame(iface: L3Interface, dst: Mac, packet: Ipv4Packet): void {
     iface.port.send({ src: iface.port.mac, dst, payload: packet });
   }
+}
+
+function dropOf(packet: Ipv4Packet): Pick<StackDrop, 'src' | 'dst' | 'payload'> {
+  return { src: packet.src, dst: packet.dst, payload: packet.payload };
 }

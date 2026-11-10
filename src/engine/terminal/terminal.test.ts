@@ -1,7 +1,7 @@
 import type { Host } from '../devices/host';
 import type { Network } from '../network';
 import { ip, routedNetwork } from '../testing';
-import { Terminal, tokenize } from './terminal';
+import { TERMINAL_COMMANDS, Terminal, tokenize, type TerminalEvent } from './terminal';
 
 function setup() {
   const ctx = routedNetwork();
@@ -204,5 +204,69 @@ describe('Terminal', () => {
     run(net, t, 'cd');
     expect(t.term.cwd).toBe('/');
     expect(run(net, t, 'ls /absent')).toContain('introuvable');
+  });
+});
+
+describe('Terminal : commandes autorisées et événements', () => {
+  test('ne propose que les commandes autorisées', () => {
+    const { net, a } = setup();
+    net.start();
+    const lines: string[] = [];
+    const term = new Terminal(
+      a,
+      { print: (l) => lines.push(l), clear: () => undefined },
+      { commands: new Set(['help', 'ipconfig', 'ping']) },
+    );
+    term.execute('help');
+    expect(lines.join('\n')).toContain('ping');
+    expect(lines.join('\n')).not.toContain('traceroute');
+    lines.length = 0;
+    term.execute('tracert 192.168.2.10');
+    expect(lines).toEqual(['Commande inconnue : tracert. Tapez « help » pour la liste des commandes.']);
+    // Un alias d'une commande autorisée reste utilisable.
+    lines.length = 0;
+    term.execute('ifconfig');
+    expect(lines.join('\n')).toContain('Adresse IPv4');
+  });
+
+  test('chaque commande a un nom principal unique', () => {
+    expect(new Set(TERMINAL_COMMANDS).size).toBe(TERMINAL_COMMANDS.length);
+    const { net, a } = setup();
+    net.start();
+    const lines: string[] = [];
+    const term = new Terminal(a, { print: (l) => lines.push(l), clear: () => undefined });
+    term.execute('help');
+    for (const name of TERMINAL_COMMANDS)
+      expect(lines.some((l) => l.trimStart().startsWith(name))).toBe(true);
+  });
+
+  test('signale les commandes lancées, le résultat d’un ping et un nom introuvable', () => {
+    const { net, a } = setup();
+    net.start();
+    const events: TerminalEvent[] = [];
+    const term = new Terminal(
+      a,
+      { print: () => undefined, clear: () => undefined },
+      { onEvent: (e) => events.push(e) },
+    );
+    const exec = (line: string) => {
+      term.execute(line);
+      net.scheduler.runUntilIdle();
+    };
+    exec('  IPCONFIG  ');
+    exec('inconnue');
+    exec('');
+    exec('ping -n 2 192.168.2.10');
+    exec('ping -n 1 192.168.1.77');
+    exec('ping absent.ecole.fr');
+    expect(events).toEqual([
+      { kind: 'command', name: 'ipconfig', line: 'IPCONFIG' },
+      { kind: 'command', name: 'ping', line: 'ping -n 2 192.168.2.10' },
+      { kind: 'ping-done', target: ip('192.168.2.10'), sent: 2, received: 2 },
+      { kind: 'command', name: 'ping', line: 'ping -n 1 192.168.1.77' },
+      { kind: 'ping-done', target: ip('192.168.1.77'), sent: 1, received: 0 },
+      { kind: 'command', name: 'ping', line: 'ping absent.ecole.fr' },
+      { kind: 'resolve-failed', name: 'absent.ecole.fr', error: 'nxdomain' },
+    ]);
   });
 });

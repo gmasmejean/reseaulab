@@ -1,5 +1,6 @@
 import type { Mac } from '../core/mac';
 import type { Scheduler } from '../core/scheduler';
+import type { StackDrop } from './drop';
 import type { EthernetFrame } from './frames';
 
 /** Services shared by every object of a simulated network. */
@@ -11,6 +12,8 @@ export interface SimContext {
   onTransmit(cable: Cable, from: Port, frame: EthernetFrame): void;
   /** Called when the observable state of a device changes. */
   changed(deviceId: string): void;
+  /** Called when a device gives up on a packet (observation only). */
+  dropped?(deviceId: string, drop: StackDrop): void;
 }
 
 /** Something that owns ports and processes the frames they receive. */

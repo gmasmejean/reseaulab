@@ -19,9 +19,7 @@ export class Udp {
   private readonly ephemeral = new EphemeralPorts();
 
   constructor(private readonly stack: IpStack) {
-    stack.register('udp', (packet, iface) => {
-      this.handle(packet, iface);
-    });
+    stack.register('udp', (packet, iface) => this.handle(packet, iface));
   }
 
   get boundPorts(): number[] {
@@ -55,15 +53,27 @@ export class Udp {
     this.ephemeral.reset();
   }
 
-  private handle(packet: Ipv4Packet, iface: L3Interface | null): void {
+  /** Hands a datagram to the application bound to its port; false when there is none. */
+  private handle(packet: Ipv4Packet, iface: L3Interface | null): boolean {
     const datagram = packet.payload;
-    if (datagram.kind !== 'udp') return;
+    if (datagram.kind !== 'udp') return false;
     const handler = this.bindings.get(datagram.dstPort);
     if (!handler) {
       // Broadcasts (DHCP, RIP…) to a closed port are silently ignored.
-      if (this.stack.isLocalAddress(packet.dst)) this.stack.icmp.sendError(packet, 'unreachable', 'port');
-      return;
+      if (this.stack.isLocalAddress(packet.dst)) {
+        this.stack.reportDrop({
+          reason: 'port-closed',
+          stage: 'receive',
+          iface: iface ? this.stack.interfaces.indexOf(iface) : null,
+          src: packet.src,
+          dst: packet.dst,
+          payload: datagram,
+        });
+        this.stack.icmp.sendError(packet, 'unreachable', 'port');
+      }
+      return false;
     }
     handler(datagram.data, { src: packet.src, srcPort: datagram.srcPort, dst: packet.dst, iface });
+    return true;
   }
 }

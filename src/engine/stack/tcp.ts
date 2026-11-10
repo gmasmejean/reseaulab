@@ -293,7 +293,9 @@ export class Tcp {
 
   constructor(private readonly stack: IpStack) {
     stack.register('tcp', (packet) => {
+      // TCP always reacts to a segment: a socket takes it, or a reset is sent.
       this.handle(packet);
+      return true;
     });
   }
 

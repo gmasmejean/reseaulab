@@ -1,5 +1,5 @@
 import { ip } from '../testing';
-import { describeFrame, summarizeFrame } from './describe';
+import { describeFrame, protocolTag, summarizeFrame } from './describe';
 import type { EthernetFrame, Ipv4Packet, TransportPayload } from './frames';
 import type { UdpData } from './messages';
 
@@ -165,5 +165,38 @@ describe('Description des trames', () => {
       'Demande de routes',
     );
     expect(summarizeFrame(udp({ kind: 'text', text: 'salut\nà tous' })).info).toBe('salut');
+  });
+});
+
+describe('Sorte de trafic d’une trame', () => {
+  test('distingue ARP, ICMP, les services UDP et les segments TCP avec ou sans données', () => {
+    const arp: EthernetFrame = {
+      src: MAC_A,
+      dst: MAC_B,
+      payload: {
+        kind: 'arp',
+        op: 'request',
+        senderMac: MAC_A,
+        senderIp: ip('10.0.0.1'),
+        targetMac: MAC_B,
+        targetIp: ip('10.0.0.2'),
+      },
+    };
+    expect(protocolTag(arp)).toBe('arp');
+    expect(protocolTag(ipFrame({ kind: 'icmp', type: 'echo-request', ident: 1, seq: 1 }))).toBe('icmp');
+    expect(protocolTag(udp({ kind: 'text', text: 'x' }))).toBe('udp');
+    expect(protocolTag(udp({ kind: 'rip', msg: { command: 'request', routes: [] } }))).toBe('rip');
+    const tcp = (data: string) =>
+      ipFrame({
+        kind: 'tcp',
+        srcPort: 50000,
+        dstPort: 80,
+        seq: 1,
+        ack: 0,
+        flags: data === '' ? { syn: true } : { ack: true, psh: true },
+        data,
+      });
+    expect(protocolTag(tcp(''))).toBe('tcp');
+    expect(protocolTag(tcp('GET / HTTP/1.1'))).toBe('tcp-data');
   });
 });

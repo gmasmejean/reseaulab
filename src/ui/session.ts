@@ -1,6 +1,7 @@
 import { Emitter } from '../engine/core/emitter';
 import type { DeviceKind, Position } from '../engine/devices/device';
-import { ConnectError, Network, type TransmitEvent } from '../engine/network';
+import { protocolTag } from '../engine/net/describe';
+import { ConnectError, Network } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
 import { importFilius } from '../project/filius';
@@ -96,15 +97,6 @@ function windowKey(spec: WindowSpec): string {
     default:
       return `${spec.type}:${spec.deviceId}`;
   }
-}
-
-function protocolOf(event: TransmitEvent): string {
-  const p = event.frame.payload;
-  if (p.kind === 'arp') return 'arp';
-  const t = p.payload;
-  if (t.kind === 'icmp') return 'icmp';
-  if (t.kind === 'udp') return t.data.kind === 'text' ? 'udp' : t.data.kind;
-  return t.data.length > 0 ? 'tcp-data' : 'tcp';
 }
 
 const DEFAULT_POSITION_STEP = 140;
@@ -716,7 +708,7 @@ export class Session {
         this.touch();
       }),
       net.events.on('transmit', (event) => {
-        const protocol = protocolOf(event);
+        const protocol = protocolTag(event.frame);
         if (this.hideAutomatic && AUTOMATIC_PROTOCOLS.has(protocol)) return;
         this.inFlight.push({
           cableId: event.cableId,

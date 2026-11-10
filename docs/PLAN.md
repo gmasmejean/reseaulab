@@ -156,9 +156,19 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       Ctrl+Maj+Z) sur 50 étapes : chaque étape est un instantané du projet,
       les modifications rapprochées (glisser un équipement) sont regroupées,
       ouvrir ou remplacer un réseau s'annule aussi.
-- [ ] **Étape 19 — Observabilité du moteur** : événement `drop` (raison de
-      l'abandon d'un paquet), verdict sur les entrées de capture, événements du
-      terminal, copie d'un réseau.
+- [x] **Étape 19 — Observabilité du moteur** : le moteur dit enfin pourquoi
+      une communication échoue. Événement `drop` du réseau, avec l'équipement,
+      l'instant, l'étape (envoi, réception, transfert) et une raison prise dans
+      une liste fermée : `no-address`, `no-route` (avec le cas de la passerelle
+      hors réseau, ignorée), `no-link`, `arp-timeout` (et l'adresse qui n'a pas
+      répondu), `ttl-expired`, `firewall`, `not-a-router`,
+      `iface-unconfigured`, `port-closed`. Chaque trame reçue porte un verdict
+      dans la capture : acceptée, relayée, ignorée (pas pour cet équipement,
+      ou personne n'écoute) ou filtrée par le pare-feu. Le terminal accepte une
+      liste de commandes autorisées et signale les commandes lancées, le
+      résultat d'un `ping` et un nom introuvable. `cloneNetwork` copie la
+      conception d'un réseau pour la simuler hors écran. Aucun comportement du
+      moteur n'est modifié : ce sont des observations.
 - [ ] **Étape 20 — Diagnostic** : « Vérifier mon réseau » (contrôles statiques,
       repères sur le plan) et « Pourquoi ça ne marche pas ? » après un `ping`
       raté, rejoué sur une copie du réseau.
@@ -225,6 +235,12 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Pas d'abandon signalé à l'émission d'une trame** (étape 19) : un switch
+  envoie sur ses ports libres quand il inonde, et un routeur en RIP diffuse
+  sur ses interfaces non câblées ; signaler ces trames noierait les vrais
+  échecs. L'absence de câble apparaît quand la résolution ARP échoue
+  (`no-link`), et sera aussi détectée par les contrôles statiques de
+  l'étape 20.
 - **Annulation par instantanés** (étape 18) : l'historique garde le projet
   sérialisé à chaque étape plutôt qu'une liste de commandes inverses ; c'est
   plus simple et couvre toutes les modifications, y compris celles des

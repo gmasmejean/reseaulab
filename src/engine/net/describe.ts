@@ -236,3 +236,16 @@ export function summarizeFrame(frame: EthernetFrame): LayerSummary {
   if (!top) throw new Error('trame vide');
   return top;
 }
+
+/** Kind of traffic a frame carries, for colours, filters and statistics. */
+export type ProtocolTag = 'arp' | 'icmp' | 'tcp' | 'tcp-data' | 'udp' | 'dhcp' | 'dns' | 'rip';
+
+export function protocolTag(frame: EthernetFrame): ProtocolTag {
+  const packet = frame.payload;
+  if (packet.kind === 'arp') return 'arp';
+  const transport = packet.payload;
+  if (transport.kind === 'icmp') return 'icmp';
+  if (transport.kind === 'udp') return transport.data.kind === 'text' ? 'udp' : transport.data.kind;
+  // Segments that carry application data stand out from those that manage the connection.
+  return transport.data.length > 0 ? 'tcp-data' : 'tcp';
+}

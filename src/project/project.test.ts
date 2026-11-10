@@ -2,6 +2,7 @@ import { Host as HostClass, type Host } from '../engine/devices/host';
 import { exampleNetwork } from './example';
 import { ip, ping, routedNetwork, settle } from '../engine/testing';
 import { httpGet, type HttpResult } from '../engine/services/http';
+import { cloneNetwork } from './clone';
 import { PROJECT_FORMAT } from './schema';
 import { ProjectError, parseProject, serializeProject, toProject } from './serialize';
 
@@ -300,5 +301,40 @@ describe('Projet', () => {
     const host: Host = loaded.host(a.id);
     expect(host.installed).toEqual([]);
     expect(host.fs.isDirectory('/docs')).toBe(true);
+  });
+});
+
+describe('Copie d’un réseau', () => {
+  test('même projet, mêmes identifiants, rien de partagé avec l’original', () => {
+    const { net, a, b, r } = richNetwork();
+    const before = serializeProject(net);
+    const copy = cloneNetwork(net);
+    expect(serializeProject(copy)).toBe(before);
+    expect(copy.device(a.id)?.name).toBe(a.name);
+
+    // Tout modifier dans la copie laisse l'original intact.
+    const twin = copy.host(b.id);
+    twin.fs.writeFile('/webserver/index.html', 'modifié');
+    twin.dnsServer.updateConfig({ records: [], recursion: true });
+    twin.mailServer.addAccount('z', 'z');
+    copy.host(a.id).mailClient.inbox.length = 0;
+    copy.host(a.id).firewall.setRules([]);
+    copy.router(r.id).setStaticRoutes([]);
+    copy.removeDevice(a.id);
+    expect(serializeProject(net)).toBe(before);
+  });
+
+  test('la copie se simule sans toucher à l’original, même s’il est en marche', () => {
+    const { net, a } = routedNetwork();
+    net.start();
+    net.scheduler.advance(1234);
+    const captured = net.host(a.id).capture.entries.length;
+    const copy = cloneNetwork(net);
+    expect(copy.running).toBe(false);
+    copy.start();
+    expect(ping(copy, copy.host(a.id), '192.168.2.10').kind).toBe('reply');
+    expect(net.scheduler.now).toBe(1234);
+    expect(net.host(a.id).capture.entries).toHaveLength(captured);
+    expect(net.host(a.id).stack.arp.entries).toHaveLength(0);
   });
 });

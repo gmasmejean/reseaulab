@@ -5,6 +5,7 @@ import type { Device, Position } from './devices/device';
 import { Host, type HostConfig } from './devices/host';
 import { MAX_ROUTER_INTERFACES, MIN_ROUTER_INTERFACES, Router } from './devices/router';
 import { Switch } from './devices/switch';
+import type { DropEvent } from './net/drop';
 import type { EthernetFrame } from './net/frames';
 import { Cable, type SimContext } from './net/link';
 
@@ -19,6 +20,8 @@ export interface TransmitEvent {
 export interface NetworkEvents extends Record<string, unknown> {
   change: undefined;
   transmit: TransmitEvent;
+  /** A device gave up on a packet: why a communication fails. */
+  drop: DropEvent;
 }
 
 export interface CableEnds {
@@ -97,6 +100,9 @@ export class Network {
       },
       changed: () => {
         this.touch();
+      },
+      dropped: (deviceId, drop) => {
+        this.events.emit('drop', { ...drop, deviceId, time: this.scheduler.now });
       },
     };
   }

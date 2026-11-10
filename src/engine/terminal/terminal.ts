@@ -3,7 +3,7 @@ import type { TimerId } from '../core/scheduler';
 import type { Host } from '../devices/host';
 import { FsError, normalizePath } from '../fs/filesystem';
 import type { DnsRecordType } from '../net/messages';
-import { DNS_ERROR_TEXT, type ResolveResult } from '../services/dns';
+import { DNS_ERROR_TEXT, type DnsError, type ResolveResult } from '../services/dns';
 import type { PingResult } from '../stack/icmp';
 import type { Route } from '../stack/routing';
 
@@ -16,8 +16,49 @@ type Done = () => void;
 /** A command runs synchronously or calls `done` later; it may return a cancel function. */
 type CommandFn = (args: string[], done: Done) => 'sync' | 'async' | (() => void);
 
+/** Every command, under its main name. */
+export const TERMINAL_COMMANDS = [
+  'help',
+  'ipconfig',
+  'ping',
+  'traceroute',
+  'arp',
+  'route',
+  'netstat',
+  'nslookup',
+  'hostname',
+  'ls',
+  'cd',
+  'pwd',
+  'cat',
+  'mkdir',
+  'rm',
+  'touch',
+  'echo',
+  'clear',
+] as const;
+export type TerminalCommand = (typeof TERMINAL_COMMANDS)[number];
+
+/** What the pupil did in a terminal, for whoever watches it (activity journal, help). */
+export type TerminalEvent =
+  | { readonly kind: 'command'; readonly name: TerminalCommand; readonly line: string }
+  | {
+      readonly kind: 'ping-done';
+      readonly target: Ipv4;
+      readonly sent: number;
+      readonly received: number;
+    }
+  | { readonly kind: 'resolve-failed'; readonly name: string; readonly error: DnsError };
+
+export interface TerminalOptions {
+  /** Commands the pupil may use (all of them when absent). */
+  readonly commands?: ReadonlySet<TerminalCommand>;
+  readonly onEvent?: (event: TerminalEvent) => void;
+}
+
 interface CommandSpec {
-  readonly names: readonly string[];
+  /** Main name first, then its aliases. */
+  readonly names: readonly [TerminalCommand, ...string[]];
   readonly usage: string;
   readonly help: string;
   readonly run: CommandFn;
@@ -55,8 +96,10 @@ export class Terminal {
   constructor(
     private readonly host: Host,
     private readonly out: TerminalOutput,
+    private readonly options: TerminalOptions = {},
   ) {
-    this.commands = this.buildCommands();
+    const allowed = options.commands;
+    this.commands = this.buildCommands().filter((c) => !allowed || allowed.has(c.names[0]));
   }
 
   get cwd(): string {
@@ -85,6 +128,7 @@ export class Terminal {
       onFinished();
       return;
     }
+    this.options.onEvent?.({ kind: 'command', name: spec.names[0], line: line.trim() });
     this.busyFlag = true;
     const token = ++this.runId;
     let finished = false;
@@ -272,6 +316,7 @@ export class Terminal {
     this.host.dns.resolve(target, (result: ResolveResult) => {
       if (result.kind === 'error') {
         this.out.print(`Hôte « ${target} » introuvable : ${DNS_ERROR_TEXT[result.error]}.`);
+        this.options.onEvent?.({ kind: 'resolve-failed', name: target, error: result.error });
         done();
         return;
       }
@@ -319,6 +364,7 @@ export class Terminal {
             this.out.print(
               `Statistiques : envoyés = ${sent}, reçus = ${received}, perdus = ${lost} (${Math.round((100 * lost) / sent)} % de perte)`,
             );
+            this.options.onEvent?.({ kind: 'ping-done', target: ip, sent, received });
             done();
           });
         };

@@ -11,14 +11,20 @@ export abstract class NetworkNode extends Device {
 
   protected constructor(id: string, kind: DeviceKind, name: string, position: Position, ctx: SimContext) {
     super(id, kind, name, position, ctx);
-    this.stack = new IpStack(ctx.scheduler, () => {
-      this.changed();
-    });
+    this.stack = new IpStack(
+      ctx.scheduler,
+      () => {
+        this.changed();
+      },
+      (drop) => {
+        ctx.dropped?.(id, drop);
+      },
+    );
   }
 
   receiveFrame(port: Port, frame: EthernetFrame): void {
-    this.capture.record(this.ctx.scheduler.now, port.index, 'in', frame);
-    this.stack.receiveFrame(port, frame);
+    const no = this.capture.record(this.ctx.scheduler.now, port.index, 'in', frame);
+    this.capture.setVerdict(no, this.stack.receiveFrame(port, frame));
     this.changed();
   }
 
