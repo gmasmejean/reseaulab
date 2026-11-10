@@ -562,3 +562,39 @@ test('simulation lisible : trames nommées, pas à pas, abandon signalé, échan
   await page.getByRole('button', { name: 'Afficher les tables' }).click();
   await expect(page.getByRole('dialog', { name: 'Tables — Poste 1' })).toContainText('toutes les autres');
 });
+
+test('connaissances : définition depuis un champ, fiches, recherche et lexique', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: /Ordinateur/ }).click();
+
+  // Le « ? » d'un champ : la définition, juste à côté.
+  await page.getByRole('button', { name: 'Qu’est-ce que : Passerelle ?' }).click();
+  const bubble = page.getByRole('note');
+  await expect(bubble).toContainText('La passerelle est l’adresse du routeur');
+  await expect(bubble).toBeInViewport({ ratio: 1 });
+  await shot(page, '32-definition');
+  await bubble.getByRole('button', { name: 'En savoir plus' }).click();
+
+  const help = page.getByRole('dialog', { name: 'Aide et connaissances' });
+  const card = help.getByRole('article', { name: 'Passerelle' });
+  await expect(card).toContainText('À retenir');
+  await shot(page, '33-fiche');
+  await card.getByRole('button', { name: 'routeur', exact: true }).first().click();
+  await expect(help.getByRole('article', { name: 'Routeur' })).toBeVisible();
+  await help.getByRole('button', { name: '← Retour' }).click();
+  await expect(card).toBeVisible();
+
+  const index = help.getByRole('navigation', { name: 'Fiches' });
+  await index.getByRole('searchbox', { name: 'Chercher une notion' }).fill('adresse mac');
+  await index.getByRole('button', { name: 'Adresse MAC et carte réseau' }).click();
+  await expect(help.getByRole('article', { name: 'Adresse MAC et carte réseau' })).toBeVisible();
+  await index.getByRole('searchbox', { name: 'Chercher une notion' }).fill('');
+  await index.getByRole('button', { name: 'Lexique' }).click();
+  await expect(index.getByRole('button', { name: /^commutateur/ })).toBeVisible();
+
+  // Le bouton Aide ouvre la prise en main.
+  await help.getByRole('button', { name: /Fermer/ }).click();
+  await page.getByRole('button', { name: 'Aide', exact: true }).click();
+  await expect(help.getByRole('article', { name: 'Construire un réseau' })).toBeVisible();
+});

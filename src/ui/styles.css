@@ -218,9 +218,6 @@ code {
 .clock {
   min-width: 3em;
 }
-.help-button {
-  margin-left: auto;
-}
 
 .workspace {
   display: grid;
@@ -1234,12 +1231,6 @@ input.narrow {
   background: var(--layer-application);
 }
 
-.help {
-  line-height: 1.5;
-}
-.help h2 {
-  margin-top: 0;
-}
 .firewall .table {
   margin: 6px 0;
 }
@@ -1588,4 +1579,193 @@ input.narrow {
 .capture-table tr.filtered:not(.selected) td:nth-child(3) {
   color: var(--danger);
   font-weight: 600;
+}
+
+/* ---------- aide et connaissances ---------- */
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.term-help {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+button.term-help:hover,
+button.term-help[aria-expanded='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.term-bubble {
+  position: fixed;
+  z-index: 950;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.term-bubble p {
+  margin: 0 0 6px;
+}
+.term-title {
+  font-weight: 600;
+}
+.knowledge {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+.knowledge-index {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.knowledge-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.knowledge-filters .segmented button {
+  flex: 1;
+}
+.segmented {
+  display: flex;
+}
+.segmented button {
+  border-radius: 0;
+  padding-inline: 8px;
+}
+.segmented button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.segmented button:last-child {
+  border-radius: 0 6px 6px 0;
+  border-left: 0;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.knowledge-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+.knowledge-list h3 {
+  margin: 10px 0 4px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.knowledge-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.knowledge-list li button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+.knowledge-list li button:hover {
+  background: var(--surface-2);
+}
+.knowledge-list li button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.knowledge-card {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 6px;
+  line-height: 1.5;
+}
+.notion header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notion h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.notion h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+.level-badge {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.notion-short {
+  margin: 8px 0;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+.rich-text p,
+.rich-text ul {
+  margin: 0 0 8px;
+}
+.rich-text ul,
+.notion-remember ul {
+  padding-left: 20px;
+}
+.notion-remember {
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: var(--warning-bg);
+  border-radius: 6px;
+}
+.notion-remember ul {
+  margin: 0;
+}
+.notion-example,
+.notion-in-app {
+  margin: 8px 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--border);
+}
+.notion-in-app {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+.notion-image {
+  display: block;
+  max-width: 100%;
+  margin: 8px 0;
 }

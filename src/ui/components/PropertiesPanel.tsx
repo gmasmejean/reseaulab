@@ -17,6 +17,7 @@ import { DEVICE_LABEL } from '../../i18n/fr';
 import { bySeverity } from '../../learn/diagnose/findings';
 import { useSession } from '../context';
 import { findingText, useLint } from '../learn/hooks';
+import { TermHelp } from '../learn/Term';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Checkbox, IpField, Section, TextField } from './Fields';
 import { FirewallEditor } from './FirewallEditor';
@@ -179,6 +180,7 @@ function SwitchProperties({ device }: { device: Switch }) {
       <Section title="Point d’accès Wi-Fi">
         <TextField
           label="Nom Wi-Fi (SSID)"
+          term="wifi"
           value={device.ssid}
           hint="Les postes en Wi-Fi rejoignent ce switch en choisissant ce nom. Le changer les déconnecte."
           onCommit={(value) => {
@@ -205,7 +207,10 @@ function HostProperties({ host }: { host: Host }) {
       <Section title={DEVICE_LABEL[host.kind]}>
         <NameField device={host} />
         <div className="field">
-          <span className="label">Adresse MAC</span>
+          <span className="field-label">
+            <span className="label">Adresse MAC</span>
+            <TermHelp term="adresse-mac" label="Adresse MAC" />
+          </span>
           <code>{host.mac}</code>
         </div>
         <Checkbox
@@ -220,6 +225,7 @@ function HostProperties({ host }: { host: Host }) {
       <Section title="Configuration IP">
         <Checkbox
           label="Configuration automatique (DHCP)"
+          term="dhcp"
           checked={c.useDhcp}
           onChange={(useDhcp) => {
             host.updateConfig({ useDhcp });
@@ -228,6 +234,7 @@ function HostProperties({ host }: { host: Host }) {
         <div className="field-row">
           <IpField
             label="Adresse IP"
+            term="adresse-ip"
             value={c.ip}
             disabled={c.useDhcp}
             onChange={(ip) => {
@@ -236,6 +243,7 @@ function HostProperties({ host }: { host: Host }) {
           />
           <IpField
             label="Masque"
+            term="masque"
             mask
             value={c.mask}
             disabled={c.useDhcp}
@@ -247,6 +255,7 @@ function HostProperties({ host }: { host: Host }) {
         <div className="field-row">
           <IpField
             label="Passerelle"
+            term="passerelle"
             value={c.gateway}
             disabled={c.useDhcp}
             onChange={(gateway) => {
@@ -255,6 +264,7 @@ function HostProperties({ host }: { host: Host }) {
           />
           <IpField
             label="Serveur DNS"
+            term="dns"
             value={c.dns}
             disabled={c.useDhcp}
             onChange={(dns) => {
@@ -506,6 +516,7 @@ function RouterProperties({ router }: { router: Router }) {
         <Section title="Routes statiques">
           <Checkbox
             label="Routage automatique (RIP) : les routeurs s’échangent leurs routes"
+            term="table-de-routage"
             checked={router.rip}
             onChange={(v) => {
               router.ripService.setEnabled(v);
@@ -656,7 +667,7 @@ function DeviceFindings({ deviceId }: { deviceId: string }) {
   return (
     <ul className="device-findings" aria-label="Points à vérifier">
       {findings.map((finding, index) => {
-        const text = findingText(session.network, finding);
+        const text = findingText(session, finding);
         return (
           <li key={`${finding.code}-${index}`} className={finding.severity === 'info' ? 'hint' : 'warning'}>
             {finding.severity === 'info' ? 'Conseil : ' : '⚠ '}

@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useState, type ReactNode } from 'react';
 import { IP_ANY, formatIp, isValidMask, parseIp, type Ipv4 } from '../../engine/core/ipv4';
 import { decimal } from '../../i18n/fr';
 import { useSessionHandle } from '../context';
+import { TermHelp } from '../learn/Term';
 
 interface TextFieldProps {
   readonly label: string;
@@ -12,6 +13,8 @@ interface TextFieldProps {
   readonly placeholder?: string | undefined;
   readonly hint?: ReactNode | undefined;
   readonly type?: 'text' | 'password' | 'number' | undefined;
+  /** Knowledge card that explains this field (a « ? » appears next to the label). */
+  readonly term?: string | undefined;
 }
 
 /** Text input committed on blur / Enter, with inline validation feedback. */
@@ -23,6 +26,7 @@ export function TextField({
   placeholder,
   hint,
   type = 'text',
+  term,
 }: TextFieldProps) {
   const id = useId();
   const session = useSessionHandle();
@@ -57,7 +61,11 @@ export function TextField({
   });
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      {/* The help button stays outside the label: the name of the field is its label alone. */}
+      <span className="field-label">
+        <label htmlFor={id}>{label}</label>
+        {term !== undefined && <TermHelp term={term} label={label} />}
+      </span>
       <input
         id={id}
         type={type}
@@ -102,13 +110,24 @@ interface IpFieldProps {
   readonly mask?: boolean | undefined;
   readonly allowEmpty?: boolean | undefined;
   readonly hint?: ReactNode | undefined;
+  readonly term?: string | undefined;
 }
 
 /** IPv4 address (or mask) input. An empty field means 0.0.0.0 when allowed. */
-export function IpField({ label, value, onChange, disabled, mask, allowEmpty = true, hint }: IpFieldProps) {
+export function IpField({
+  label,
+  value,
+  onChange,
+  disabled,
+  mask,
+  allowEmpty = true,
+  hint,
+  term,
+}: IpFieldProps) {
   return (
     <TextField
       label={label}
+      term={term}
       value={value === IP_ANY && allowEmpty ? '' : formatIp(value)}
       disabled={disabled}
       // Never a bare value: a greyed "255.255.255.0" looks like a filled field.
@@ -134,13 +153,15 @@ export function Checkbox({
   checked,
   onChange,
   disabled,
+  term,
 }: {
   readonly label: string;
   readonly checked: boolean;
   readonly onChange: (checked: boolean) => void;
   readonly disabled?: boolean | undefined;
+  readonly term?: string | undefined;
 }) {
-  return (
+  const box = (
     <label className="checkbox">
       <input
         type="checkbox"
@@ -152,6 +173,13 @@ export function Checkbox({
       />
       {label}
     </label>
+  );
+  if (term === undefined) return box;
+  return (
+    <span className="field-label">
+      {box}
+      <TermHelp term={term} label={label} />
+    </span>
   );
 }
 

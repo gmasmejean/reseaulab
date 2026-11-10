@@ -19,8 +19,9 @@ const SEVERITY_SIGN: Record<Severity, string> = { error: '✘', warning: '⚠', 
 /** One finding: what is wrong, why, what to do, and where. */
 function FindingCard({ network, finding }: { network: Network; finding: Finding }) {
   const session = useSession();
-  const text = findingText(network, finding);
+  const text = findingText(session, finding);
   const device = finding.deviceIds.find((id) => network.device(id));
+  const notion = session.notion(text.notion);
   return (
     <li className={`finding ${finding.severity}`}>
       <span className="finding-sign" title={SEVERITY_LABEL[finding.severity]} aria-hidden>
@@ -35,6 +36,19 @@ function FindingCard({ network, finding }: { network: Network; finding: Finding 
         {text.fix !== '' && (
           <p>
             <b>Que faire ?</b> {text.fix}
+          </p>
+        )}
+        {notion && (
+          <p>
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                session.openKnowledge(notion.id);
+              }}
+            >
+              Fiche : {notion.title}
+            </button>
           </p>
         )}
       </div>

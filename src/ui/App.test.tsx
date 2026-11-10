@@ -5,7 +5,8 @@ import { MASK_24, ip } from '../engine/testing';
 import { serializeProject } from '../project/serialize';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
-import { Session } from './session';
+import { serializePack } from '../learn/content/schema';
+import { PACK_KEY, Session } from './session';
 
 function setup() {
   const frames = new ManualFrames();
@@ -96,7 +97,7 @@ describe('App', () => {
   test('affiche l’aide et les messages', () => {
     const { session } = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
-    expect(screen.getByRole('dialog', { name: 'Aide' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Aide et connaissances' })).toBeInTheDocument();
     act(() => {
       session.notify('Bonjour');
     });
@@ -1137,5 +1138,146 @@ describe('Lecture de la simulation', () => {
     });
     elapse(frames, 3000);
     expect(within(tables).getByRole('cell', { name: '10.0.0.2' })).toBeInTheDocument();
+  });
+});
+
+describe('Aide et connaissances', () => {
+  test('s’ouvre sur la prise en main ; les fiches se lisent de lien en lien, avec un retour', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(help).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    // Les rubriques : prise en main puis notions.
+    const index = within(help).getByRole('navigation', { name: 'Fiches' });
+    expect(within(index).getByRole('heading', { name: 'Prise en main' })).toBeInTheDocument();
+    expect(within(index).getByRole('heading', { name: 'Adresses' })).toBeInTheDocument();
+
+    fireEvent.click(within(index).getByRole('button', { name: 'Passerelle' }));
+    const card = within(help).getByRole('article', { name: 'Passerelle' });
+    expect(card).toHaveTextContent('3e');
+    expect(card).toHaveTextContent('À retenir');
+    expect(card).toHaveTextContent('Dans RéseauLab.');
+    // Un lien dans le texte mène à une autre fiche.
+    const [link] = within(card).getAllByRole('button', { name: 'masque' });
+    expect(link).toBeDefined();
+    if (link) fireEvent.click(link);
+    expect(within(help).getByRole('article', { name: 'Masque et « même réseau »' })).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
+    expect(within(help).getByRole('article', { name: 'Passerelle' })).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
+    expect(within(help).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    expect(within(help).queryByRole('button', { name: '← Retour' })).not.toBeInTheDocument();
+  });
+
+  test('recherche sans accents, filtre par niveau et lexique', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    const index = within(help).getByRole('navigation', { name: 'Fiches' });
+    const search = within(index).getByRole('searchbox', { name: 'Chercher une notion' });
+    fireEvent.change(search, { target: { value: 'reseau' } });
+    expect(within(index).getAllByRole('listitem')[0]).toHaveTextContent('Réseau informatique');
+    fireEvent.change(search, { target: { value: 'zzz' } });
+    expect(index).toHaveTextContent('Aucune fiche ne correspond.');
+    fireEvent.change(search, { target: { value: '' } });
+
+    expect(within(index).getByRole('button', { name: 'Routeur' })).toBeInTheDocument();
+    fireEvent.change(within(index).getByRole('combobox', { name: 'Niveau' }), { target: { value: '4e' } });
+    expect(within(index).queryByRole('button', { name: 'Routeur' })).not.toBeInTheDocument();
+    expect(within(index).getByRole('button', { name: 'Adresse IP' })).toBeInTheDocument();
+    // La prise en main reste proposée à tous les niveaux.
+    expect(within(index).getByRole('button', { name: 'Lancer la simulation' })).toBeInTheDocument();
+
+    fireEvent.click(within(index).getByRole('button', { name: 'Lexique' }));
+    fireEvent.click(within(index).getByRole('button', { name: /^commutateur/ }));
+    expect(within(help).getByRole('article', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+  });
+
+  test('le « ? » d’un champ donne la définition et mène à la fiche, sans changer le nom du champ', () => {
+    setup();
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: /Ordinateur/ }));
+    // Le champ garde son nom : « Passerelle ».
+    expect(screen.getByRole('textbox', { name: 'Passerelle' })).toBeInTheDocument();
+    const help = screen.getByRole('button', { name: 'Qu’est-ce que : Passerelle ?' });
+    expect(help).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(help);
+    const bubble = screen.getByRole('note');
+    expect(bubble).toHaveTextContent('La passerelle est l’adresse du routeur');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+
+    fireEvent.click(help);
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    fireEvent.click(help);
+    fireEvent.click(within(screen.getByRole('note')).getByRole('button', { name: 'En savoir plus' }));
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(dialog).getByRole('article', { name: 'Passerelle' })).toBeInTheDocument();
+
+    // Demander une autre fiche l'ouvre dans la même fenêtre.
+    fireEvent.click(screen.getByRole('button', { name: 'Qu’est-ce que : Masque ?' }));
+    fireEvent.click(within(screen.getByRole('note')).getByRole('button', { name: 'En savoir plus' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(within(dialog).getByRole('article', { name: 'Masque et « même réseau »' })).toBeInTheDocument();
+  });
+
+  test('un constat du diagnostic renvoie à sa fiche', () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('switch');
+      session.addDevice('computer');
+      session.openWindow({ type: 'diagnose' });
+    });
+    const check = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    fireEvent.click(within(check).getByRole('button', { name: 'Fiche : Adresse IP' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(help).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
+  });
+
+  test('le pack de l’enseignant, gardé dans le navigateur, complète et reformule le contenu', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      PACK_KEY,
+      serializePack({
+        notions: [
+          {
+            id: 'passerelle',
+            title: 'Passerelle (porte de sortie)',
+            aliases: [],
+            level: '4e',
+            category: 'adressage',
+            short: 'La porte de sortie du réseau.',
+            body: 'Texte de l’enseignant, avec un lien vers une fiche masquée : [[box]].',
+            remember: [],
+            related: ['box', 'routeur'],
+            curriculum: 'Référence choisie par l’enseignant',
+          },
+        ],
+        hidden: ['box'],
+        messages: { 'ip-missing': { title: '{device} : adresse à compléter' } },
+      }),
+    );
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    act(() => {
+      session.addDevice('computer');
+      session.openKnowledge('passerelle');
+    });
+    const card = screen.getByRole('article', { name: 'Passerelle (porte de sortie)' });
+    expect(card).toHaveTextContent('4e');
+    expect(card).toHaveTextContent('Programme : Référence choisie par l’enseignant');
+    // La fiche masquée n'est plus proposée, ni en lien ni dans « Voir aussi ».
+    expect(within(card).queryByRole('button', { name: 'box' })).not.toBeInTheDocument();
+    expect(card).toHaveTextContent('Voir aussi : Routeur');
+    expect(screen.queryByRole('button', { name: 'Box Internet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Points à vérifier' })).toHaveTextContent(
+      'Ordinateur 1 : adresse à compléter',
+    );
+
+    // Un pack illisible est ignoré : le contenu par défaut reste disponible.
+    storage.setItem(PACK_KEY, '{cassé');
+    expect(new Session(storage).notion('box')?.title).toBe('Box Internet');
   });
 });

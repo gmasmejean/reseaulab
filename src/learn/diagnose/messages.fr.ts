@@ -18,6 +18,9 @@ export interface MessageText {
   readonly notion: string;
 }
 
+/** Rewording of a message by a teacher: only the parts given replace the original. */
+export type MessageOverride = { readonly [K in keyof MessageText]?: MessageText[K] | undefined };
+
 export const MESSAGES: Record<FindingCode, MessageText> = {
   'not-cabled': {
     title: '{device} n’est relié à rien',
@@ -302,9 +305,16 @@ export function enumerate(items: readonly string[]): string {
 export function describeFinding(
   finding: Finding,
   nameOf: (deviceId: string) => string,
-  overrides: Partial<Record<FindingCode, Partial<MessageText>>> = {},
+  overrides: Partial<Record<FindingCode, MessageOverride>> = {},
 ): MessageText {
-  const text = { ...MESSAGES[finding.code], ...overrides[finding.code] };
+  const original = MESSAGES[finding.code];
+  const reworded = overrides[finding.code] ?? {};
+  const text: MessageText = {
+    title: reworded.title ?? original.title,
+    explain: reworded.explain ?? original.explain,
+    fix: reworded.fix ?? original.fix,
+    notion: reworded.notion ?? original.notion,
+  };
   const names = finding.deviceIds.map(nameOf);
   const values: Record<string, string> = {
     device: names[0] ?? '',

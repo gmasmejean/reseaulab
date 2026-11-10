@@ -5,6 +5,10 @@ import type { DropReason } from '../engine/net/drop';
 import { ConnectError, Network } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
+import { DEFAULT_PACK } from '../learn/content/default-pack';
+import { mergePacks } from '../learn/content/merge';
+import { parsePack } from '../learn/content/schema';
+import type { Notion, Pack } from '../learn/content/types';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
@@ -22,7 +26,8 @@ export type WindowSpec =
   | { readonly type: 'switch'; readonly deviceId: string }
   /** Routing and ARP tables, of a router or of a computer. */
   | { readonly type: 'router'; readonly deviceId: string }
-  | { readonly type: 'help' }
+  /** « Aide et connaissances », opened on a knowledge card when `notion` is given. */
+  | { readonly type: 'help'; readonly notion?: string; readonly at?: number }
   /**
    * « Vérifier mon réseau ». With `from` and `to`, the communication between
    * them is tested at once; `at` tells two requests for the same test apart.
@@ -86,6 +91,8 @@ export const HISTORY_DELAY_MS = 400;
 export const AUTOSAVE_KEY = 'reseaulab:autosave';
 export const AUTOSAVE_DATE_KEY = 'reseaulab:autosave-date';
 export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
+/** Pedagogical pack of the teacher, kept in this browser. */
+export const PACK_KEY = 'reseaulab:pack';
 
 /**
  * Frames that devices send on their own, without any action of the pupil:
@@ -184,6 +191,8 @@ export class Session {
   resumed: Resumed | null = null;
   /** Validates the text field being edited; false when its value is refused. */
   private pendingEdit: (() => boolean) | null = null;
+  /** Knowledge cards and messages: the default pack, completed by the teacher's. */
+  pack: Pack = DEFAULT_PACK;
   /** Size of the stage (plan and windows), once known. */
   viewport: Size | null = null;
   /** Scale of the plan: 1 = real size. */
@@ -220,6 +229,7 @@ export class Session {
     this.network = this.restore() ?? new Network();
     this.present = this.serialize();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
+    this.pack = this.readPack();
     this.clock = new SimulationClock(
       () => this.network.scheduler,
       () => {
@@ -332,6 +342,28 @@ export class Session {
   keepResumedWork(): void {
     this.resumed = null;
     this.touch();
+  }
+
+  /* ---------- knowledge ---------- */
+
+  /** The knowledge card `id`, when it exists in the pack in use. */
+  notion(id: string): Notion | undefined {
+    return this.pack.notions.find((n) => n.id === id);
+  }
+
+  /** Opens « Aide et connaissances », on a card when one is given. */
+  openKnowledge(notion?: string): void {
+    this.openWindow({ type: 'help', ...(notion === undefined ? {} : { notion, at: this.revision }) });
+  }
+
+  /** The default pack, completed by the pack kept in this browser when it is valid. */
+  private readPack(): Pack {
+    try {
+      const saved = this.storage?.getItem(PACK_KEY);
+      return saved ? mergePacks(DEFAULT_PACK, parsePack(saved)) : DEFAULT_PACK;
+    } catch {
+      return DEFAULT_PACK;
+    }
   }
 
   /* ---------- text field being edited ---------- */

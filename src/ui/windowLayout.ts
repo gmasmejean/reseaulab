@@ -35,7 +35,7 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   capture: { width: 900, height: 520 },
   switch: { width: 520, height: 380 },
   router: { width: 680, height: 460 },
-  help: { width: 620, height: 480 },
+  help: { width: 780, height: 540 },
   diagnose: { width: 600, height: 520 },
 };
 

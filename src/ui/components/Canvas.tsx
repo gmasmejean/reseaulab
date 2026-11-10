@@ -88,14 +88,14 @@ function menuLabel(session: Session, target: OpenMenu['target']): string {
  * accessible name of the device stays its name and address.
  */
 function LintMark({ findings, deviceId }: { findings: readonly Finding[]; deviceId: string }) {
-  const { network } = useSession();
+  const session = useSession();
   const level = worstFor(findings, deviceId);
   if (level !== 'error' && level !== 'warning') return null;
   const shown = findings.filter((f) => f.severity === level);
   return (
     <g className={`lint-mark ${level}`} transform={`translate(${ICON / 2 + 2}, ${-ICON / 2 - 2})`}>
       <title>
-        {shown.map((f) => findingText(network, f).title).join(' — ')} (bouton Vérifier pour les détails)
+        {shown.map((f) => findingText(session, f).title).join(' — ')} (bouton Vérifier pour les détails)
       </title>
       <circle r={10} />
       <text y={5}>!</text>

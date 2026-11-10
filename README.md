@@ -82,6 +82,20 @@ Commandes du terminal : `ipconfig` (`/renew`), `ping`, `traceroute`, `arp`,
 `route`, `netstat`, `nslookup`, `hostname`, `ls`, `cd`, `pwd`, `cat`, `mkdir`,
 `rm`, `touch`, `echo`, `clear`, `help`.
 
+### Aide et connaissances
+
+Le bouton **Aide** ouvre la prise en main de RéseauLab et les **fiches de
+connaissances** : une trentaine de notions (adresse IP, masque, passerelle,
+switch, routeur, DNS, DHCP…), chacune avec une définition courte, une
+explication, un exemple, ce qu'il faut retenir et où l'observer dans
+RéseauLab. On peut chercher un mot, filtrer par niveau (5e, 4e, 3e) ou
+parcourir le lexique. Dans les panneaux de configuration, un **?** à côté
+d'un champ rappelle sa définition et mène à la fiche ; les explications du
+diagnostic renvoient aussi à la fiche concernée.
+
+Le contenu fourni est une proposition : le découpage par niveau et les textes
+sont à adapter à votre progression (voir « Pack pédagogique » plus bas).
+
 ### Vérifier son réseau
 
 Le bouton **Vérifier** repère les erreurs de configuration les plus courantes
@@ -124,7 +138,40 @@ pnpm run build      # produit le fichier unique dist/index.html
 En bref : `src/engine` contient le moteur de simulation (TypeScript pur,
 déterministe, sans DOM, couvert à plus de 90 % par les tests) ; `src/project`
 le format de fichier versionné et validé ; `src/learn` la logique pédagogique
-(diagnostic), pure et testée comme le moteur ; `src/ui` l'interface React.
+(diagnostic, fiches de connaissances), pure et testée comme le moteur ;
+`src/ui` l'interface React.
+
+### Pack pédagogique
+
+Les fiches et les messages du diagnostic sont des données
+(`src/learn/content/default-pack.ts`, `src/learn/diagnose/messages.fr.ts`).
+Un fichier de pack au format `reseaulab-pack` peut remplacer ou ajouter des
+fiches, en masquer, et reformuler des messages, sans toucher au code :
+
+```json
+{
+  "format": "reseaulab-pack",
+  "version": 1,
+  "notions": [
+    {
+      "id": "passerelle",
+      "title": "Passerelle",
+      "level": "4e",
+      "category": "adressage",
+      "short": "La porte de sortie du réseau.",
+      "body": "Texte libre, avec **gras**, *italique*, `code`, listes et liens [[routeur]].",
+      "remember": ["Une phrase à retenir."],
+      "related": ["routeur"],
+      "curriculum": "Référence au programme, à votre convenance"
+    }
+  ],
+  "hidden": ["box"],
+  "messages": { "ip-missing": { "title": "{device} : adresse à compléter" } }
+}
+```
+
+Une fiche dont l'identifiant existe déjà remplace celle fournie. L'import et
+l'export depuis l'interface sont prévus (étape 28 du plan).
 
 ## Licence
 

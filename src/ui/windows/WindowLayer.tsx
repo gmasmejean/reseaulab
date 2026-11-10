@@ -8,13 +8,14 @@ import { APP_INFO } from '../../i18n/fr';
 import { Window } from '../components/Window';
 import { useSession } from '../context';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
+import { KnowledgeWindow } from '../learn/KnowledgeWindow';
 import type { OpenWindow } from '../session';
 import { BrowserApp } from './BrowserApp';
 import { EchoClientApp, FirewallApp } from './ClientApps';
 import { Desktop, SoftwareInstaller } from './Desktop';
 import { FileExplorerApp, ImageViewerApp, TextEditorApp } from './FileApps';
 import { MailClientApp } from './MailClientApp';
-import { CaptureWindow, HelpWindow, SwitchWindow, TablesWindow } from './NetworkWindows';
+import { CaptureWindow, SwitchWindow, TablesWindow } from './NetworkWindows';
 import { DhcpServerApp, DnsServerApp, EchoServerApp, MailServerApp, WebServerApp } from './ServerApps';
 import { TerminalApp } from './TerminalApp';
 
@@ -54,8 +55,9 @@ function WindowContent({ w }: { w: OpenWindow }) {
   const spec = w.spec;
   if (spec.type === 'help') {
     return (
-      <Window window={w} title="Aide">
-        <HelpWindow />
+      <Window window={w} title="Aide et connaissances">
+        {/* Asking for another card opens it, whatever was being read. */}
+        <KnowledgeWindow key={`${spec.notion ?? ''}@${spec.at ?? 0}`} notion={spec.notion} />
       </Window>
     );
   }

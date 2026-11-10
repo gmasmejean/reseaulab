@@ -204,9 +204,26 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       l'horloge sont redessinés à chaque image, le reste de l'interface
       seulement quand quelque chose change. « Masquer le trafic automatique »
       rejoint la légende, sur le plan.
-- [ ] **Étape 22 — Connaissances** : fiches et lexique intégrés (pack par
-      défaut calé sur le programme de cycle 4, modifiable par un fichier),
-      libellés cliquables, fenêtre « Aide et connaissances ».
+- [x] **Étape 22 — Connaissances** : RéseauLab explique ce qu'il montre. Un
+      **pack pédagogique** par défaut contient 34 fiches en français (6 de
+      prise en main, 28 notions réparties en 5e / 4e / 3e : réseau, terminal,
+      client et serveur, switch, liaisons, Wi-Fi, box, réseau local et
+      Internet, topologie ; adresse IP, masque, adresse MAC, DHCP, ping, objet
+      connecté ; routeur, passerelle, table de routage, trame et paquet,
+      protocole, couches, ARP, DNS, web, messagerie, TTL, pare-feu, chemin
+      d'une information). Chaque fiche : définition en une phrase,
+      explication, exemple, « à retenir », « dans RéseauLab », renvois. La
+      fenêtre **Aide et connaissances** remplace l'ancienne aide : rubriques,
+      recherche sans accents, filtre par niveau, lexique alphabétique,
+      navigation de lien en lien avec retour. Un **« ? »** à côté des champs
+      (adresse IP, masque, passerelle, DNS, DHCP, adresse MAC, SSID, RIP)
+      donne la définition sur place et mène à la fiche ; chaque constat du
+      diagnostic renvoie à la sienne. Le texte des fiches utilise une mise en
+      forme minimale (`src/learn/richtext.ts`) transformée en éléments
+      d'interface, jamais insérée comme HTML. Un fichier de pack
+      (`reseaulab-pack`, validé comme un projet) peut remplacer, ajouter ou
+      masquer des fiches et reformuler les messages du diagnostic ; il est lu
+      depuis le navigateur du poste (clé `reseaulab:pack`).
 - [ ] **Étape 23 — Profils par niveau** : préréglages 5e / 4e / 3e / complet qui
       masquent équipements, onglets, logiciels, commandes et couches.
 - [ ] **Étape 24 — Box et objets connectés** : équipement « Box » (routeur,
@@ -263,6 +280,15 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
   une taille illisible. Les fenêtres restent donc superposées au plan, du côté
   opposé à leur équipement ; les réseaux construits par les élèves (quelques
   équipements placés à gauche) restent entièrement visibles.
+- **Contenu des fiches à valider** (étape 22) : le découpage par niveau et
+  la rédaction sont une proposition. Aucune fiche ne cite le programme
+  officiel (son texte n'a pas pu être consulté pendant la rédaction) ; le
+  champ `curriculum` d'une fiche est laissé à l'enseignant. L'import et
+  l'export d'un pack depuis l'interface arrivent à l'étape 28 ; d'ici là le
+  mécanisme existe et est testé, mais sans bouton.
+- **Pas de schémas intégrés aux fiches** (étape 22) : une fiche peut porter
+  une image fournie par l'enseignant ; les schémas dessinés par RéseauLab
+  restent à faire.
 - **Pas de vue « dialogue »** (étape 21) : le diagramme d'échanges entre
   équipements prévu à cette étape n'est pas réalisé ; la liste filtrable et
   le pas-à-pas couvrent le besoin immédiat. À reprendre si l'usage en classe
