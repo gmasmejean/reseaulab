@@ -63,7 +63,7 @@ const EXCERPT_AFTER = 60;
 
 /** The whole text of a card, without its formatting. */
 function cardText(notion: Notion): string {
-  return [plainText(notion.body), ...notion.remember, notion.example ?? '', notion.inApp ?? '']
+  return [plainText(notion.body), ...notion.remember.map(plainText), notion.example ?? '', notion.inApp ?? '']
     .filter(Boolean)
     .join(' ');
 }

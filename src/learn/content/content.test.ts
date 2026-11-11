@@ -4,6 +4,7 @@ import { DEFAULT_PACK } from './default-pack';
 import { excerptOf, fold, lexicon, lexiconByLetter, mergePacks, searchHits, searchNotions } from './merge';
 import { nextNotion, readingOrder, shownAt } from './order';
 import { DEVICE_NOTION, contextualNotion } from './context';
+import { SCREEN_ELEMENTS } from './screen';
 import { PackError, parsePack, serializePack } from './schema';
 import type { Question } from '../quiz/types';
 import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Notion, type Pack } from './types';
@@ -408,5 +409,42 @@ describe('Aide selon le contexte', () => {
 
   test('chaque sorte d’équipement a sa fiche dans le pack par défaut', () => {
     for (const id of Object.values(DEVICE_NOTION)) expect(exists(id)).toBe(true);
+  });
+});
+
+describe('Touches et éléments de l’écran dans le texte', () => {
+  test('[touche:…] donne des touches, [[ecran:…]] un élément connu ou du texte simple', () => {
+    expect(parseInline('Annuler : [touche:Ctrl+Z], zoom : [touche:Ctrl++], [touche:+]')).toEqual([
+      { type: 'text', text: 'Annuler : ' },
+      { type: 'keys', keys: ['Ctrl', 'Z'] },
+      { type: 'text', text: ', zoom : ' },
+      { type: 'keys', keys: ['Ctrl', '+'] },
+      { type: 'text', text: ', ' },
+      { type: 'keys', keys: ['+'] },
+    ]);
+    expect(parseInline('[[ecran:simulation]] ou [[ecran:legende|la légende]] ou [[ecran:inconnu]]')).toEqual([
+      { type: 'screen', target: 'simulation', text: 'Simulation', known: true },
+      { type: 'text', text: ' ou ' },
+      { type: 'screen', target: 'legende', text: 'la légende', known: true },
+      { type: 'text', text: ' ou ' },
+      { type: 'screen', target: 'inconnu', text: 'inconnu', known: false },
+    ]);
+    expect(plainText('Cliquez sur [[ecran:verifier]] ou tapez [touche:Ctrl+Z].')).toBe(
+      'Cliquez sur Vérifier ou tapez Ctrl+Z.',
+    );
+    // Un élément de l’écran n’est pas un lien vers une fiche.
+    expect(linkedNotions('[[ecran:aide]] et [[masque]]')).toEqual(['masque']);
+  });
+
+  test('les fiches fournies ne citent que des éléments connus', () => {
+    const screens = DEFAULT_PACK.notions.flatMap((n) =>
+      [n.body, ...n.remember].flatMap((text) =>
+        parseRich(text).flatMap((b) => (b.type === 'paragraph' ? b.content : b.items.flat())),
+      ),
+    );
+    const named = screens.filter((i) => i.type === 'screen');
+    expect(named.length).toBeGreaterThan(10);
+    expect(named.filter((i) => !i.known)).toEqual([]);
+    expect(Object.keys(SCREEN_ELEMENTS).length).toBeGreaterThan(20);
   });
 });

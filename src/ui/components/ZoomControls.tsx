@@ -7,7 +7,7 @@ export function ZoomControls() {
   const zoom = session.zoom;
   const percent = `${String(Math.round(zoom * 100))} %`;
   return (
-    <div className="zoom-controls" role="group" aria-label="Zoom du plan">
+    <div className="zoom-controls" data-ui="zoom" role="group" aria-label="Zoom du plan">
       <button
         type="button"
         aria-label="Réduire le plan"

@@ -3,7 +3,7 @@ import { lexiconByLetter, searchHits, type Excerpt } from '../../learn/content/m
 import { nextNotion, readingOrder, type LevelFilter } from '../../learn/content/order';
 import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
-import { RichText } from './RichText';
+import { RichLine, RichText } from './RichText';
 
 /** Cards remembered for « Retour ». */
 const MAX_TRAIL = 30;
@@ -19,6 +19,7 @@ const FILTER_LABEL: Record<LevelFilter, string> = {
 function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void }) {
   const session = useSession();
   const related = notion.related.map((id) => session.notion(id)).filter((n): n is Notion => n !== undefined);
+  const titleOf = (id: string) => session.notion(id)?.title ?? null;
   return (
     <article className="notion" aria-label={notion.title}>
       <header>
@@ -35,16 +36,14 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
           <h3>À retenir</h3>
           <ul>
             {notion.remember.map((line) => (
-              <li key={line}>{line}</li>
+              <li key={line}>
+                <RichLine source={line} onOpenNotion={onOpen} titleOf={titleOf} />
+              </li>
             ))}
           </ul>
         </section>
       )}
-      <RichText
-        source={notion.body}
-        onOpenNotion={onOpen}
-        titleOf={(id) => session.notion(id)?.title ?? null}
-      />
+      <RichText source={notion.body} onOpenNotion={onOpen} titleOf={titleOf} />
       {notion.image && <img className="notion-image" src={notion.image.data} alt={notion.image.alt} />}
       {notion.example !== undefined && (
         <p className="notion-example">

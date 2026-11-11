@@ -149,7 +149,7 @@ function Layout() {
         </main>
         <ActivityPanel />
       </div>
-      <footer className="panel">
+      <footer className="panel" data-ui="panneau">
         <PropertiesPanel />
       </footer>
       <ImportReportDialog />

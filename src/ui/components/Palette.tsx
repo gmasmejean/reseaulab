@@ -25,7 +25,7 @@ export function Palette() {
   const disabled = session.mode === 'simulation';
   const [menu, setMenu] = useState<PaletteMenu | null>(null);
   return (
-    <aside className="palette" aria-label="Palette d’équipements">
+    <aside className="palette" data-ui="palette" aria-label="Palette d’équipements">
       <h2>Équipements</h2>
       {DEVICE_KINDS.filter((kind) => session.can(`device:${kind}`)).map((kind) => (
         <button
@@ -81,6 +81,7 @@ export function Palette() {
       <button
         type="button"
         className={`palette-item tool ${session.tool === 'cable' ? 'active' : ''}`}
+        data-ui="cable"
         disabled={disabled}
         aria-pressed={session.tool === 'cable'}
         onClick={() => {
@@ -100,6 +101,7 @@ export function Palette() {
             type="button"
             className="palette-item tool"
             disabled={disabled}
+            data-ui="texte"
             title="Ajouter un texte sur le plan"
             onClick={() => {
               session.addNote('text');
@@ -114,6 +116,7 @@ export function Palette() {
             type="button"
             className="palette-item tool"
             disabled={disabled}
+            data-ui="zone"
             title="Ajouter une zone colorée (pour regrouper des équipements)"
             onClick={() => {
               session.addNote('zone');

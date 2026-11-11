@@ -31,7 +31,7 @@ export function SimulationOverlay() {
         />
         Masquer le trafic automatique
       </label>
-      <div className="legend">
+      <div className="legend" data-ui="legende">
         <button
           type="button"
           aria-expanded={open}

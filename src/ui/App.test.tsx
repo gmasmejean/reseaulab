@@ -7,6 +7,7 @@ import { serializeProject } from '../project/serialize';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
 import { serializePack } from '../learn/content/schema';
+import { SCREEN_ELEMENTS } from '../learn/content/screen';
 import { PACK_KEY, PROFILE_KEY, Session } from './session';
 
 function setup() {
@@ -1244,6 +1245,37 @@ describe('Aide et connaissances', () => {
     fireEvent.contextMenu(within(palette).getByRole('button', { name: /Routeur/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Ajouter au plan' }));
     expect(session.network.devices.map((d) => d.kind)).toEqual(['switch', 'router']);
+  });
+
+  test('chaque élément d’écran cité par les fiches existe dans l’un des deux modes', () => {
+    const { session } = setup();
+    const marked = () => [...document.querySelectorAll<HTMLElement>('[data-ui]')].map((e) => e.dataset.ui);
+    act(() => {
+      session.openKnowledge();
+    });
+    const design = marked();
+    act(() => {
+      session.setMode('simulation');
+    });
+    const seen = new Set([...design, ...marked()]);
+    expect(Object.keys(SCREEN_ELEMENTS).filter((id) => !seen.has(id))).toEqual([]);
+  });
+
+  test('un élément d’écran cité dans une fiche clignote ; absent, la fiche dit où le trouver', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    const card = within(help).getByRole('article', { name: 'Construire un réseau' });
+    expect(within(card).getAllByText('Ctrl')[0]?.tagName).toBe('KBD');
+    fireEvent.click(within(card).getByRole('button', { name: 'Câble (me montrer à l’écran)' }));
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    expect(within(palette).getByRole('button', { name: 'Câble' })).toHaveClass('ui-flash');
+
+    fireEvent.click(within(help).getByRole('button', { name: 'Observer les échanges' }));
+    fireEvent.click(screen.getByRole('button', { name: 'légende (me montrer à l’écran)' }));
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '« légende » : en bas à gauche du plan, en mode Simulation.',
+    );
   });
 
   test('recherche sans accents, filtre par niveau et lexique', () => {

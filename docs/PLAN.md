@@ -386,12 +386,18 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       surligné, coupé à des mots entiers. Chaque mot cherché doit commencer
       un mot de la fiche : « port » trouve « ports » et « portée », plus
       « transporte » ni « Portable ».
-- [ ] **Étape 33 — Montrer l'écran** : dans le texte des fiches, `[touche:…]`
-      dessine une touche du clavier et `[[ecran:…|…]]` un élément de
-      l'interface (bouton « Simulation », outil « Câble »…) ; un clic sur ce
-      dernier le fait clignoter à l'écran (« Me montrer »). Les fiches de
-      prise en main les utilisent. Un nom d'élément inconnu (fichier
-      enseignant) reste du texte simple.
+- [x] **Étape 33 — Montrer l'écran** : dans le texte des fiches,
+      `[touche:Ctrl+Z]` dessine des touches du clavier et `[[ecran:cable]]`
+      (ou `[[ecran:legende|la légende]]`) un élément de l'interface, comme
+      une petite étiquette ; un clic le fait clignoter à l'écran, ou dit où
+      le trouver quand il n'est pas affiché (« légende : en bas à gauche du
+      plan, en mode Simulation »). 22 éléments sont connus
+      (`src/learn/content/screen.ts`) et repérés dans l'interface par
+      `data-ui` ; un test vérifie que chacun existe dans l'un des deux modes.
+      Un nom inconnu (fichier enseignant) reste du texte simple. Les six
+      fiches de prise en main les utilisent, et citent F1 et « Qu'est-ce que
+      c'est ? ». Les lignes « À retenir » acceptent désormais la même mise en
+      forme que l'explication (gras, liens, touches, éléments d'écran).
 - [ ] **Étape 34 — Vérifier sur place** : une question du quiz, posée et
       corrigée en bas de la fiche, sans ouvrir d'autre fenêtre ; « une autre
       question » en tire une nouvelle. Les fiches lues sont cochées dans la

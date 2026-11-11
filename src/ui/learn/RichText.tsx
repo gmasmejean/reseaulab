@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react';
-import { parseRich, type Inline } from '../../learn/richtext';
+import { Fragment, type ReactNode } from 'react';
+import { parseInline, parseRich, type Inline } from '../../learn/richtext';
+import { useSessionHandle } from '../context';
+import { showOnScreen } from './screen';
 
 interface Props {
   readonly source: string;
@@ -9,11 +11,41 @@ interface Props {
   readonly titleOf?: ((id: string) => string | null) | undefined;
 }
 
-/**
- * Displays a formatted text (see learn/richtext.ts) as React elements. The
- * source may come from a teacher's file: it is never inserted as HTML.
- */
-export function RichText({ source, onOpenNotion, titleOf }: Props) {
+/** Keys of the keyboard: Ctrl + Z. */
+function Keys({ keys }: { keys: readonly string[] }) {
+  return (
+    <span className="keys">
+      {keys.map((key, index) => (
+        <Fragment key={index}>
+          {index > 0 && '+'}
+          <kbd>{key}</kbd>
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
+/** An element of the screen named in a text: a click makes it blink where it is. */
+function ScreenChip({ target, text }: { target: string; text: string }) {
+  const session = useSessionHandle();
+  return (
+    <button
+      type="button"
+      className="screen-chip"
+      title="Me montrer à l’écran"
+      aria-label={`${text} (me montrer à l’écran)`}
+      onClick={() => {
+        const result = showOnScreen(target);
+        if (!result.shown) session?.notify(`« ${text} » : ${result.where}.`);
+      }}
+    >
+      {text}
+    </button>
+  );
+}
+
+/** Turns the formatted pieces of a text into elements. */
+function useInline(onOpenNotion: Props['onOpenNotion'], titleOf: Props['titleOf']) {
   const inline = (item: Inline, key: number): ReactNode => {
     switch (item.type) {
       case 'text':
@@ -42,8 +74,22 @@ export function RichText({ source, onOpenNotion, titleOf }: Props) {
           </button>
         );
       }
+      case 'keys':
+        return <Keys key={key} keys={item.keys} />;
+      case 'screen':
+        // A name the application does not know (teacher's file) stays plain text.
+        return item.known ? <ScreenChip key={key} target={item.target} text={item.text} /> : item.text;
     }
   };
+  return inline;
+}
+
+/**
+ * Displays a formatted text (see learn/richtext.ts) as React elements. The
+ * source may come from a teacher's file: it is never inserted as HTML.
+ */
+export function RichText({ source, onOpenNotion, titleOf }: Props) {
+  const inline = useInline(onOpenNotion, titleOf);
   return (
     <div className="rich-text">
       {parseRich(source).map((block, index) =>
@@ -59,4 +105,10 @@ export function RichText({ source, onOpenNotion, titleOf }: Props) {
       )}
     </div>
   );
+}
+
+/** One line of formatted text, without paragraphs (« À retenir »). */
+export function RichLine({ source, onOpenNotion, titleOf }: Props) {
+  const inline = useInline(onOpenNotion, titleOf);
+  return <>{parseInline(source).map(inline)}</>;
 }

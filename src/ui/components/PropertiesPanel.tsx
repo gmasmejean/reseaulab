@@ -946,6 +946,7 @@ function SimulationBar({ device }: { device: Device | null }) {
         <div className="window-actions">
           <button
             type="button"
+            data-ui="ranger"
             title="Replacer les fenêtres en cascade, à droite du plan"
             onClick={() => {
               session.arrangeWindows();

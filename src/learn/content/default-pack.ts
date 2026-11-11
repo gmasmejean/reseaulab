@@ -15,16 +15,17 @@ const GUIDES: readonly Notion[] = [
     level: '5e',
     category: 'guide',
     short: 'En mode Conception, on pose des équipements sur le plan puis on les relie.',
-    body: `Cliquez sur un équipement de la **palette** (à gauche) pour l’ajouter au plan, ou faites-le glisser à l’endroit voulu. Déplacez-le ensuite à la souris.
+    body: `Cliquez sur un équipement de la [[ecran:palette]] (à gauche) pour l’ajouter au plan, ou faites-le glisser à l’endroit voulu. Déplacez-le ensuite à la souris.
 
-Pour relier deux équipements, choisissez l’outil **Câble**, cliquez sur le premier équipement puis sur le second. L’outil reste actif pour poser d’autres câbles ; la touche Échap l’arrête.
+Pour relier deux équipements, choisissez l’outil [[ecran:cable]], cliquez sur le premier équipement puis sur le second. L’outil reste actif pour poser d’autres câbles ; la touche [touche:Échap] l’arrête.
 
-Les outils **Texte** et **Zone** servent à annoter le plan : nommer une salle, entourer un réseau.`,
+Les outils [[ecran:texte]] et [[ecran:zone]] servent à annoter le plan : nommer une salle, entourer un réseau.`,
     remember: [
-      'Un équipement sélectionné se supprime avec la touche Suppr.',
-      'Ctrl+Z annule la dernière modification, Ctrl+Y la rétablit.',
-      'Le bouton Réglages (⚙) adapte RéseauLab au niveau de la classe.',
-      'Le plan s’ajuste à l’écran ; les boutons − / + / Ajuster changent le zoom.',
+      'Un équipement sélectionné se supprime avec la touche [touche:Suppr].',
+      '[touche:Ctrl+Z] annule la dernière modification, [touche:Ctrl+Y] la rétablit.',
+      'La touche [touche:F1] ouvre la fiche de l’équipement sélectionné ; le clic droit sur un équipement propose « Qu’est-ce que c’est ? ».',
+      'Le bouton [[ecran:reglages]] (⚙) adapte RéseauLab au niveau de la classe.',
+      'Le plan s’ajuste à l’écran ; les boutons du [[ecran:zoom]] (− / + / Ajuster) changent sa taille.',
     ],
     related: ['guide-configurer', 'reseau', 'switch', 'liaison'],
   },
@@ -35,9 +36,9 @@ Les outils **Texte** et **Zone** servent à annoter le plan : nommer une salle, 
     level: '5e',
     category: 'guide',
     short: 'Un équipement sélectionné se règle dans le panneau du bas.',
-    body: `Cliquez sur un équipement : son panneau s’ouvre en bas de l’écran. Pour un ordinateur, on y règle son nom, sa carte réseau (filaire ou Wi-Fi) et sa **configuration IP** : [[adresse-ip|adresse IP]], [[masque]], [[passerelle]], [[dns|serveur DNS]], ou bien la configuration automatique ([[dhcp|DHCP]]).
+    body: `Cliquez sur un équipement : son [[ecran:panneau|panneau]] s’ouvre en bas de l’écran. Pour un ordinateur, on y règle son nom, sa carte réseau (filaire ou Wi-Fi) et sa **configuration IP** : [[adresse-ip|adresse IP]], [[masque]], [[passerelle]], [[dns|serveur DNS]], ou bien la configuration automatique ([[dhcp|DHCP]]).
 
-Une valeur tapée est prise en compte dès que vous quittez le champ : touche Entrée, touche Tab ou clic ailleurs. Si elle est incorrecte, un message rouge apparaît sous le champ.
+Une valeur tapée est prise en compte dès que vous quittez le champ : touche [touche:Entrée], touche [touche:Tab] ou clic ailleurs. Si elle est incorrecte, un message rouge apparaît sous le champ.
 
 Le petit bouton **?** à côté d’un champ rappelle à quoi il sert.`,
     remember: [
@@ -53,11 +54,11 @@ Le petit bouton **?** à côté d’un champ rappelle à quoi il sert.`,
     level: '5e',
     category: 'guide',
     short: 'En mode Simulation, les équipements fonctionnent : on ouvre leur bureau et on les utilise.',
-    body: `Cliquez sur **Simulation** en haut de l’écran. Cliquez ensuite sur un ordinateur pour ouvrir son **bureau** : on y lance la ligne de commande, le navigateur web, la messagerie… et on y installe d’autres logiciels.
+    body: `Cliquez sur [[ecran:simulation]] en haut de l’écran. Cliquez ensuite sur un ordinateur pour ouvrir son **bureau** : on y lance la ligne de commande, le navigateur web, la messagerie… et on y installe d’autres logiciels.
 
 Dans la **ligne de commande**, tapez \`help\` pour voir les commandes. Les plus utiles : \`ipconfig\` (voir sa configuration), \`ping\` (tester une communication), \`traceroute\` (voir les routeurs traversés).
 
-Les fenêtres se déplacent par leur barre de titre. Échap ferme celle du dessus ; **Ranger les fenêtres** et **Tout fermer** sont en bas de l’écran.`,
+Les fenêtres se déplacent par leur barre de titre. [touche:Échap] ferme celle du dessus ; [[ecran:ranger]] et **Tout fermer** sont en bas de l’écran.`,
     remember: [
       'Revenir en mode Conception arrête la simulation : les fenêtres se ferment.',
       'Un serveur installé doit être démarré depuis sa fenêtre.',
@@ -72,9 +73,9 @@ Les fenêtres se déplacent par leur barre de titre. Échap ferme celle du dessu
     category: 'guide',
     short:
       'Les messages échangés circulent sur les câbles, au ralenti, et sont listés pour chaque équipement.',
-    body: `Pendant la simulation, chaque message qui passe sur un câble est dessiné comme une pastille qui porte le nom de son [[protocole]]. La **légende**, en bas à gauche du plan, explique les couleurs. Le curseur **Vitesse** règle le ralenti.
+    body: `Pendant la simulation, chaque message qui passe sur un câble est dessiné comme une pastille qui porte le nom de son [[protocole]]. La [[ecran:legende|légende]], en bas à gauche du plan, explique les couleurs. Le curseur [[ecran:vitesse]] règle le ralenti.
 
-**Pause** puis **Trame suivante** font avancer les messages câble par câble : pratique pour suivre un échange pas à pas.
+[[ecran:pause]] puis [[ecran:trame-suivante]] font avancer les messages câble par câble : pratique pour suivre un échange pas à pas.
 
 La fenêtre **Échanges de données** d’un équipement liste tout ce qu’il a envoyé et reçu. Cliquez sur une ligne pour voir son contenu, [[couches|couche par couche]].`,
     remember: [
@@ -90,7 +91,7 @@ La fenêtre **Échanges de données** d’un équipement liste tout ce qu’il a
     level: '5e',
     category: 'guide',
     short: 'Le bouton Vérifier repère les erreurs de réglage et explique pourquoi une communication échoue.',
-    body: `Le bouton **Vérifier** ouvre deux outils.
+    body: `Le bouton [[ecran:verifier]] ouvre deux outils.
 
 **Vérification du réseau** : la liste de ce qui semble mal réglé (équipement non relié, adresse manquante ou en double, passerelle mal choisie…). Chaque point dit pourquoi c’est gênant et quoi faire ; **Montrer** sélectionne l’équipement concerné.
 
@@ -110,15 +111,15 @@ Dans la ligne de commande, après un \`ping\` raté, le bouton **Pourquoi ça ne
     level: '5e',
     category: 'guide',
     short: 'Enregistrer télécharge un fichier que l’on rouvre plus tard avec Ouvrir.',
-    body: `**Enregistrer** demande un nom (par exemple le vôtre et celui de l’activité), puis place un fichier \`.reseaulab.json\` dans les téléchargements du navigateur. C’est ce fichier qu’il faut garder ou rendre.
+    body: `[[ecran:enregistrer]] demande un nom (par exemple le vôtre et celui de l’activité), puis place un fichier \`.reseaulab.json\` dans les téléchargements du navigateur. C’est ce fichier qu’il faut garder ou rendre.
 
-**Ouvrir…** recharge un fichier enregistré. Il accepte aussi les projets du logiciel Filius (\`.fls\`).
+[[ecran:ouvrir]] recharge un fichier enregistré. Il accepte aussi les projets du logiciel Filius (\`.fls\`).
 
 Le travail en cours est aussi gardé automatiquement dans le navigateur du poste. À l’ouverture, RéseauLab signale le travail retrouvé : sur un ordinateur partagé, c’est peut-être celui d’un autre élève.`,
     remember: [
       'La sauvegarde automatique ne remplace pas Enregistrer : elle reste sur ce poste.',
-      'Exemple charge un réseau de collège complet pour s’entraîner.',
-      'Activités propose des exercices guidés ; le fichier enregistré garde ce qui a été réussi.',
+      '[[ecran:exemple]] charge un réseau de collège complet pour s’entraîner.',
+      '[[ecran:activites]] propose des exercices guidés ; le fichier enregistré garde ce qui a été réussi.',
     ],
     related: ['guide-construire'],
   },

@@ -62,7 +62,7 @@ export function Toolbar() {
             >
               Nouveau
             </button>
-            <button type="button" onClick={() => fileInput.current?.click()}>
+            <button type="button" data-ui="ouvrir" onClick={() => fileInput.current?.click()}>
               Ouvrir…
             </button>
           </>
@@ -89,6 +89,7 @@ export function Toolbar() {
         />
         <button
           type="button"
+          data-ui="enregistrer"
           onClick={() => {
             session.commitEdit();
             setSaving(true);
@@ -98,6 +99,7 @@ export function Toolbar() {
         </button>
         <button
           type="button"
+          data-ui="compte-rendu"
           title="Compte rendu à imprimer : plan, table d’adressage, objectifs atteints"
           onClick={() => {
             session.commitEdit();
@@ -110,6 +112,7 @@ export function Toolbar() {
           <>
             <button
               type="button"
+              data-ui="exemple"
               onClick={() => {
                 replaceNetwork(() => {
                   session.loadExample();
@@ -120,6 +123,7 @@ export function Toolbar() {
             </button>
             <button
               type="button"
+              data-ui="activites"
               title="Activités guidées, avec des objectifs vérifiés automatiquement"
               onClick={() => {
                 session.openWindow({ type: 'activities' });
@@ -137,6 +141,7 @@ export function Toolbar() {
             type="button"
             className="icon-button"
             aria-label="Annuler"
+            data-ui="annuler"
             title="Annuler la dernière modification (Ctrl+Z)"
             disabled={!session.canUndo}
             onClick={() => {
@@ -165,6 +170,7 @@ export function Toolbar() {
             key={mode}
             type="button"
             role="radio"
+            data-ui={mode === 'design' ? 'conception' : 'simulation'}
             aria-checked={session.mode === mode}
             className={session.mode === mode ? `active ${mode}` : ''}
             onClick={() => {
@@ -180,6 +186,7 @@ export function Toolbar() {
         <div className="toolbar-group sim-controls">
           <button
             type="button"
+            data-ui="pause"
             onClick={() => {
               session.togglePause();
             }}
@@ -188,6 +195,7 @@ export function Toolbar() {
           </button>
           <button
             type="button"
+            data-ui="trame-suivante"
             title="Avancer jusqu’à l’arrivée des trames en cours, puis s’arrêter"
             disabled={session.stepping}
             onClick={() => {
@@ -196,7 +204,7 @@ export function Toolbar() {
           >
             Trame suivante
           </button>
-          <label className="speed">
+          <label className="speed" data-ui="vitesse">
             Vitesse
             <input
               type="range"
@@ -216,6 +224,7 @@ export function Toolbar() {
       <button
         type="button"
         className="check-button"
+        data-ui="verifier"
         title="Tester une communication et repérer les erreurs de configuration"
         aria-label={
           problems === 0
@@ -235,6 +244,7 @@ export function Toolbar() {
       </button>
       <button
         type="button"
+        data-ui="aide"
         title="Prise en main de RéseauLab et fiches de connaissances (F1 : fiche de l’équipement sélectionné)"
         onClick={() => {
           session.openKnowledge();
@@ -246,6 +256,7 @@ export function Toolbar() {
         type="button"
         className="icon-button"
         aria-label="Réglages"
+        data-ui="reglages"
         title={`Réglages de la classe (niveau : ${PROFILE_LABEL[session.profile.base]})`}
         onClick={() => {
           session.openWindow({ type: 'settings' });

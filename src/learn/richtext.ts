@@ -7,13 +7,44 @@
  *   - A line starting with « - » is an item of a list.
  *   **gras**, *italique*, `code`
  *   [[passerelle]] or [[passerelle|sa passerelle]] : link to a knowledge card.
+ *   [touche:Ctrl+Z] : keys of the keyboard, drawn as keys.
+ *   [[ecran:simulation]] or [[ecran:simulation|le mode Simulation]] : an
+ *   element of the screen (see content/screen.ts), shown on demand.
  */
+
+import { screenElement } from './content/screen';
 
 export type Inline =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'bold' | 'italic'; readonly children: readonly Inline[] }
   | { readonly type: 'code'; readonly text: string }
-  | { readonly type: 'link'; readonly notion: string; readonly text: string };
+  | { readonly type: 'link'; readonly notion: string; readonly text: string }
+  | { readonly type: 'keys'; readonly keys: readonly string[] }
+  /** `known`: false for a name that is not in the list (the text stays plain). */
+  | { readonly type: 'screen'; readonly target: string; readonly text: string; readonly known: boolean };
+
+/** Prefix of a link to an element of the screen. */
+const SCREEN_PREFIX = 'ecran:';
+
+/** « Ctrl+Z » → Ctrl, Z ; « + » alone is the key +. */
+function splitKeys(source: string): string[] {
+  const text = source.trim();
+  if (text === '+') return ['+'];
+  return text
+    .split(/\s*\+\s*(?=.)/)
+    .map((k) => k.trim())
+    .filter(Boolean);
+}
+
+function linkOrScreen(id: string, label?: string): Inline {
+  const target = id.trim();
+  if (target.startsWith(SCREEN_PREFIX)) {
+    const name = target.slice(SCREEN_PREFIX.length).trim();
+    const element = screenElement(name);
+    return { type: 'screen', target: name, text: (label ?? element?.label ?? name).trim(), known: !!element };
+  }
+  return { type: 'link', notion: target, text: (label ?? id).trim() };
+}
 
 export type Block =
   | { readonly type: 'paragraph'; readonly content: readonly Inline[] }
@@ -24,11 +55,11 @@ const MARKS = [
   { pattern: /^`([^`]+)`/, build: (m: string): Inline => ({ type: 'code', text: m }) },
   {
     pattern: /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/,
-    build: (id: string, label?: string): Inline => ({
-      type: 'link',
-      notion: id.trim(),
-      text: (label ?? id).trim(),
-    }),
+    build: linkOrScreen,
+  },
+  {
+    pattern: /^\[touche:([^\]]+)\]/,
+    build: (keys: string): Inline => ({ type: 'keys', keys: splitKeys(keys) }),
   },
   {
     pattern: /^\*\*([^*]+(?:\*[^*]+)*?)\*\*/,
@@ -124,10 +155,17 @@ export function linkedNotions(source: string): string[] {
 
 /** The text without its marks, for search and for tooltips. */
 export function plainText(source: string): string {
-  const flat = (inline: Inline): string =>
-    inline.type === 'text' || inline.type === 'code' || inline.type === 'link'
-      ? inline.text
-      : inline.children.map(flat).join('');
+  const flat = (inline: Inline): string => {
+    switch (inline.type) {
+      case 'bold':
+      case 'italic':
+        return inline.children.map(flat).join('');
+      case 'keys':
+        return inline.keys.join('+');
+      default:
+        return inline.text;
+    }
+  };
   return parseRich(source)
     .map((block) =>
       block.type === 'paragraph'
