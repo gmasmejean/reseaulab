@@ -440,9 +440,15 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       Chemin d'une information en ont un — **à faire valider par
       l'enseignant**. L'exemple de la fiche ARP passe à 192.168.1.20, comme
       le schéma.
-- [ ] **Étape 38 — Fiches imprimables** : imprimer la fiche affichée, ou
-      toutes les fiches d'un niveau, pour le cahier (une fiche par demi-page
-      quand elle tient).
+- [x] **Étape 38 — Fiches imprimables** : **Imprimer**, au-dessus d'une
+      fiche, l'imprime seule (ou l'enregistre en PDF) ; sur l'accueil,
+      « Imprimer » à côté d'un parcours imprime toutes ses fiches, à la
+      suite. Sur papier : définition, à retenir, explication, schéma en
+      couleur, exemple, erreurs fréquentes et renvois en texte simple, sans
+      la question ni les boutons ; une fiche n'est jamais coupée entre deux
+      pages et un trait pointillé les sépare (pour découper et coller). La
+      copie n'existe que le temps de l'impression ; si le compte rendu est
+      ouvert, il n'est pas imprimé avec. Le README décrit la nouvelle aide.
 
 Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
 activités qui la travaillent, et un bouton « Essayer » qui chargerait un
@@ -574,6 +580,10 @@ réseau prêt à l'emploi depuis une fiche.
 - **Pas de schémas intégrés aux fiches** (étape 22) : une fiche peut porter
   une image fournie par l'enseignant ; les schémas dessinés par RéseauLab
   arrivent à l'étape 37.
+- **Pas de mise en page « demi-page »** (étape 38) : la feuille de route
+  parlait d'une fiche par demi-page. Les fiches ont des longueurs très
+  différentes ; elles sont donc imprimées à la suite, sans être coupées,
+  plusieurs par page quand elles tiennent.
 - **Schémas fixes** (étape 37) : un schéma est un dessin fourni avec
   l'application ; l'enseignant peut le placer dans ses fiches mais pas en
   créer un (il garde l'image d'une fiche pour cela).

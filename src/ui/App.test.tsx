@@ -1385,6 +1385,42 @@ describe('Aide et connaissances', () => {
     ).toBeInTheDocument();
   });
 
+  test('imprimer une fiche, ou toutes celles d’un parcours, seules sur la page', () => {
+    const print = vi.fn();
+    vi.stubGlobal('print', print);
+    try {
+      const { session } = setup();
+      act(() => {
+        session.openWindow({ type: 'report' });
+        session.openKnowledge('adresse-ip');
+      });
+      const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+      fireEvent.click(within(help).getByRole('button', { name: 'Imprimer' }));
+      expect(print).toHaveBeenCalledTimes(1);
+      const copy = document.querySelector<HTMLElement>('body > .print-root.print-cards');
+      expect(copy?.querySelectorAll('.print-card')).toHaveLength(1);
+      expect(copy).toHaveTextContent('Adresse IP');
+      // Sur papier : le schéma, sans la question ni les boutons.
+      expect(copy?.querySelector('figure')).not.toBeNull();
+      expect(copy?.querySelector('button.link')).toBeNull();
+      expect(copy).not.toHaveTextContent('Pour vérifier');
+      // Le compte rendu, ouvert lui aussi, n’est pas imprimé avec.
+      expect(document.body.dataset.print).toBe('cards');
+      act(() => {
+        window.dispatchEvent(new Event('afterprint'));
+      });
+      expect(document.querySelector('.print-cards')).toBeNull();
+      expect(document.body.dataset.print).toBeUndefined();
+
+      fireEvent.click(within(help).getByRole('button', { name: '⌂ Accueil' }));
+      fireEvent.click(within(help).getByRole('button', { name: 'Imprimer les fiches : Les notions de 5e' }));
+      expect(print).toHaveBeenCalledTimes(2);
+      expect(document.querySelectorAll('.print-cards .print-card')).toHaveLength(9);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test('recherche sans accents, filtre par niveau et lexique', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Aide' }));

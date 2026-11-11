@@ -99,22 +99,31 @@ Commandes du terminal : `ipconfig` (`/renew`), `ping`, `traceroute`, `arp`,
 
 ### Aide et connaissances
 
-Le bouton **Aide** ouvre la prise en main de RéseauLab et les **fiches de
+Le bouton **Aide** (ou la touche **F1**, qui ouvre la fiche de l'équipement
+sélectionné) ouvre la prise en main de RéseauLab et les **fiches de
 connaissances** : une trentaine de notions (adresse IP, masque, passerelle,
-switch, routeur, DNS, DHCP…), chacune avec une définition courte, une
-explication, un exemple, ce qu'il faut retenir et où l'observer dans
-RéseauLab. On peut chercher un mot, filtrer par niveau (5e, 4e, 3e) ou
-parcourir le lexique. Dans les panneaux de configuration, un **?** à côté
-d'un champ rappelle sa définition et mène à la fiche ; les explications du
+switch, routeur, DNS, DHCP…), chacune avec une définition courte, ce qu'il
+faut retenir, une explication, souvent un schéma, un exemple, les erreurs
+fréquentes et où l'observer dans RéseauLab. Les fiches de prise en main
+montrent les boutons dont elles parlent : un clic les fait clignoter à
+l'écran.
+
+L'accueil de l'aide propose **Premiers pas** et un parcours par niveau
+(5e, 4e, 3e) avec les fiches déjà lues ; « Fiche suivante » suit le
+parcours. On peut aussi chercher un mot (dans tout le texte des fiches),
+filtrer par niveau ou parcourir le lexique. Une fiche, ou tout un parcours,
+s'imprime pour le cahier. Dans les panneaux de configuration, un **?** à
+côté d'un champ rappelle sa définition et mène à la fiche ; le clic droit
+sur un équipement propose « Qu'est-ce que c'est ? » ; les explications du
 diagnostic renvoient aussi à la fiche concernée.
 
-Depuis cette fenêtre, **Quiz d'entraînement** pose huit questions du niveau
-(choix, liste à ordonner, réponse courte, « même réseau ? » avec des adresses
-tirées au hasard). Chaque réponse est corrigée tout de suite avec une
-explication ; le bilan indique, notion par notion, ce qui est acquis et ce
-qui est à revoir, avec un lien vers la fiche. Une fiche propose aussi
-**S'entraîner sur cette notion**. Rien n'est noté ; les scores apparaissent
-sur le compte rendu.
+Sous chaque fiche, **Pour vérifier** pose une question corrigée sur place.
+**Quiz d'entraînement** pose huit questions du niveau (choix, liste à
+ordonner, réponse courte, « même réseau ? » avec des adresses tirées au
+hasard). Chaque réponse est corrigée tout de suite avec une explication ; le
+bilan indique, notion par notion, ce qui est acquis et ce qui est à revoir,
+avec un lien vers la fiche. Rien n'est noté ; les scores apparaissent sur le
+compte rendu.
 
 Le contenu fourni est une proposition : le découpage par niveau, les textes
 et les questions sont à adapter à votre progression (voir « Pack

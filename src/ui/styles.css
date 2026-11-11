@@ -1839,8 +1839,10 @@ button.term-help[aria-expanded='true'] {
   height: 8px;
   accent-color: var(--ok);
 }
-.path-card button {
-  align-self: flex-start;
+.path-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .knowledge-card {
   flex: 1;
@@ -2457,6 +2459,38 @@ button.screen-chip:focus-visible {
   }
   .print-root {
     display: block;
+  }
+  /* Cards printed from the help: alone, even when the report is open. */
+  body[data-print='cards'] .print-root:not(.print-cards) {
+    display: none;
+  }
+  .print-card {
+    break-inside: avoid;
+    padding: 6mm 0;
+    border-bottom: 1px dashed #999;
+    line-height: 1.4;
+    font-size: 11pt;
+  }
+  .print-card header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .print-card h2 {
+    margin: 0;
+    font-size: 15pt;
+  }
+  .print-card h3 {
+    margin: 0 0 2px;
+    font-size: 11pt;
+  }
+  /* The colours of « À retenir » and of the figures are part of the card. */
+  .print-cards {
+    print-color-adjust: exact;
+  }
+  .print-card .notion-figure svg {
+    max-width: 150mm !important;
   }
   html,
   body {

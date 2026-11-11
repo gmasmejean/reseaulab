@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { lexiconByLetter, searchHits, type Excerpt } from '../../learn/content/merge';
 import {
   nextNotion,
@@ -12,6 +12,7 @@ import {
 import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
 import { CardCheck } from './CardCheck';
+import { PrintCards } from './PrintCards';
 import { RichLine, RichText } from './RichText';
 
 /** The home page of the help, in the reading history. */
@@ -34,7 +35,13 @@ const PATH_TEXT: Record<PathId, string> = {
  * The home page: the first steps, then a path for each school year up to the
  * class's, with what has been read.
  */
-function Home({ onFollow }: { onFollow: (path: PathId) => void }) {
+function Home({
+  onFollow,
+  onPrint,
+}: {
+  onFollow: (path: PathId) => void;
+  onPrint: (cards: readonly Notion[]) => void;
+}) {
   const session = useSession();
   const paths = pathsUpTo(session.profile.base)
     .map((path) => ({ path, cards: pathCards(session.pack.notions, path) }))
@@ -60,16 +67,29 @@ function Home({ onFollow }: { onFollow: (path: PathId) => void }) {
                   {read} / {cards.length} fiches lues
                 </span>
               </div>
-              <button
-                type="button"
-                className={read < cards.length ? 'primary' : ''}
-                aria-label={`${label} : ${PATH_TITLE[path]}`}
-                onClick={() => {
-                  onFollow(path);
-                }}
-              >
-                {label}
-              </button>
+              <div className="path-actions">
+                <button
+                  type="button"
+                  className={read < cards.length ? 'primary' : ''}
+                  aria-label={`${label} : ${PATH_TITLE[path]}`}
+                  onClick={() => {
+                    onFollow(path);
+                  }}
+                >
+                  {label}
+                </button>
+                <button
+                  type="button"
+                  className="link"
+                  aria-label={`Imprimer les fiches : ${PATH_TITLE[path]}`}
+                  title="Pour le cahier : les fiches les unes après les autres, sans couper une fiche"
+                  onClick={() => {
+                    onPrint(cards);
+                  }}
+                >
+                  Imprimer
+                </button>
+              </div>
             </li>
           );
         })}
@@ -228,6 +248,11 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
     setTrail(trail.slice(0, -1));
     setCurrent(previous);
   };
+  /** Cards being printed, if any. */
+  const [printing, setPrinting] = useState<readonly Notion[] | null>(null);
+  const printed = useCallback(() => {
+    setPrinting(null);
+  }, []);
   const follow = (to: PathId) => {
     const card = resumeAt(pathCards(notions, to), session.readCards);
     if (!card) return;
@@ -397,6 +422,17 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
           >
             ⌂ Accueil
           </button>
+          {shown && (
+            <button
+              type="button"
+              title="Imprimer cette fiche (ou l’enregistrer en PDF) pour le cahier"
+              onClick={() => {
+                setPrinting([shown]);
+              }}
+            >
+              Imprimer
+            </button>
+          )}
           {next && (
             <button
               type="button"
@@ -409,8 +445,9 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             </button>
           )}
         </div>
+        {printing && <PrintCards notions={printing} onDone={printed} />}
         <div className="knowledge-card" ref={reader}>
-          {shown ? <Card notion={shown} onOpen={open} /> : <Home onFollow={follow} />}
+          {shown ? <Card notion={shown} onOpen={open} /> : <Home onFollow={follow} onPrint={setPrinting} />}
         </div>
       </div>
     </div>
