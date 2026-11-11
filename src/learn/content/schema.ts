@@ -37,6 +37,10 @@ const notion = z.object({
   body: z.string().max(6000),
   remember: z.array(z.string().max(400)).max(10).default([]),
   example: z.string().max(1500).optional(),
+  mistakes: z
+    .array(z.object({ belief: z.string().trim().min(1).max(400), truth: z.string().trim().min(1).max(600) }))
+    .max(10)
+    .optional(),
   inApp: z.string().max(1500).optional(),
   image: image.optional(),
   related: z.array(id).max(20).default([]),

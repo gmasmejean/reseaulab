@@ -134,7 +134,8 @@ describe('Pack pédagogique par défaut', () => {
     for (const n of notions) {
       for (const id of n.related) expect(ids.has(id), `${n.id} → ${id}`).toBe(true);
       expect(n.related, n.id).not.toContain(n.id);
-      for (const id of linkedNotions(n.body)) expect(ids.has(id), `${n.id} cite ${id}`).toBe(true);
+      const texts = [n.body, ...n.remember, ...(n.mistakes ?? []).flatMap((m) => [m.belief, m.truth])];
+      for (const id of texts.flatMap(linkedNotions)) expect(ids.has(id), `${n.id} cite ${id}`).toBe(true);
     }
   });
 
@@ -438,7 +439,7 @@ describe('Touches et éléments de l’écran dans le texte', () => {
 
   test('les fiches fournies ne citent que des éléments connus', () => {
     const screens = DEFAULT_PACK.notions.flatMap((n) =>
-      [n.body, ...n.remember].flatMap((text) =>
+      [n.body, ...n.remember, ...(n.mistakes ?? []).flatMap((m) => [m.belief, m.truth])].flatMap((text) =>
         parseRich(text).flatMap((b) => (b.type === 'paragraph' ? b.content : b.items.flat())),
       ),
     );
@@ -446,5 +447,19 @@ describe('Touches et éléments de l’écran dans le texte', () => {
     expect(named.length).toBeGreaterThan(10);
     expect(named.filter((i) => !i.known)).toEqual([]);
     expect(Object.keys(SCREEN_ELEMENTS).length).toBeGreaterThan(20);
+  });
+});
+
+describe('Erreurs fréquentes', () => {
+  test('les fiches clés en ont ; un pack peut en ajouter, une erreur incomplète est refusée', () => {
+    const withMistakes = DEFAULT_PACK.notions.filter((n) => (n.mistakes ?? []).length > 0).map((n) => n.id);
+    for (const id of ['adresse-ip', 'masque', 'passerelle', 'switch', 'routeur', 'dhcp', 'dns', 'arp'])
+      expect(withMistakes).toContain(id);
+    const mine = card('perso', { mistakes: [{ belief: 'une idée fausse.', truth: 'la bonne idée.' }] });
+    expect(parsePack(serializePack({ notions: [mine] })).notions?.[0]?.mistakes).toEqual(mine.mistakes);
+    const broken = serializePack({ notions: [mine] }).replace('"truth": "la bonne idée."', '"truth": ""');
+    expect(() => parsePack(broken)).toThrow('notions.0.mistakes.0.truth');
+    // La recherche les lit aussi.
+    expect(searchNotions(DEFAULT_PACK.notions, 'antivirus').map((n) => n.id)).toEqual(['pare-feu']);
   });
 });

@@ -22,7 +22,13 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   securite: 'Sécurité',
 };
 
-/** A knowledge card. Texts are plain, except `body` (see richtext.ts). */
+/** A frequent misconception: « On croit que… » / « En fait… ». */
+export interface Mistake {
+  readonly belief: string;
+  readonly truth: string;
+}
+
+/** A knowledge card. Texts are plain, except `body`, `remember` and `mistakes` (see richtext.ts). */
 export interface Notion {
   /** Stable identifier, used by links: « passerelle ». */
   readonly id: string;
@@ -40,6 +46,8 @@ export interface Notion {
   /** What must be remembered. */
   readonly remember: readonly string[];
   readonly example?: string | undefined;
+  /** Frequent misconceptions, each set right (formatted lines, like `remember`). */
+  readonly mistakes?: readonly Mistake[] | undefined;
   /** Where to see or try it in RéseauLab. */
   readonly inApp?: string | undefined;
   /** An illustration provided by the teacher (data: URL of an image). */

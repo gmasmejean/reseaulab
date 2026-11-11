@@ -51,6 +51,26 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
           <b>Exemple.</b> {notion.example}
         </p>
       )}
+      {notion.mistakes && notion.mistakes.length > 0 && (
+        <section className="notion-mistakes" aria-label="Erreurs fréquentes">
+          <h3>Erreurs fréquentes</h3>
+          <ul>
+            {notion.mistakes.map((mistake) => (
+              <li key={mistake.belief}>
+                <p className="mistake-belief">
+                  <span aria-hidden>✘ </span>
+                  <b>On croit que</b>{' '}
+                  <RichLine source={mistake.belief} onOpenNotion={onOpen} titleOf={titleOf} />
+                </p>
+                <p className="mistake-truth">
+                  <span aria-hidden>✔ </span>
+                  <b>En fait,</b> <RichLine source={mistake.truth} onOpenNotion={onOpen} titleOf={titleOf} />
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {notion.inApp !== undefined && (
         <p className="notion-in-app">
           <b>Dans RéseauLab.</b> {notion.inApp}

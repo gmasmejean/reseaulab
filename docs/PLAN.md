@@ -409,10 +409,15 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       fiches lues sur M » sous la liste, avec « effacer » pour un autre
       élève sur le même poste (clé `reseaulab:fiches-lues`). Une fiche
       s'affiche désormais depuis son début.
-- [ ] **Étape 35 — Erreurs fréquentes** : champ facultatif `mistakes` d'une
-      fiche (« On croit que… / En fait… »), affiché en encadré, validé dans
-      un fichier de pack et exporté avec lui ; rédigé pour les fiches clés
-      (adresse IP, masque, passerelle, switch, routeur, DHCP, DNS, ARP…).
+- [x] **Étape 35 — Erreurs fréquentes** : champ facultatif `mistakes` d'une
+      fiche (`belief` / `truth`), affiché sous l'exemple dans l'encadré
+      **Erreurs fréquentes** : « ✘ On croit que… / ✔ En fait, … », avec la
+      mise en forme de l'explication (liens, éléments d'écran). Validé dans
+      un fichier de pack (10 au plus par fiche) et exporté avec lui ; lu par
+      la recherche ; documenté dans le README. 22 erreurs rédigées pour 14
+      fiches : adresse IP, masque, passerelle, switch, routeur, DHCP, DNS,
+      ARP, adresse MAC, ping, Wi-Fi, client et serveur, pare-feu, réseau
+      local et Internet — **à faire valider par l'enseignant**.
 - [ ] **Étape 36 — Parcours par niveau** : une page d'accueil de l'aide :
       « Premiers pas » (les fiches de prise en main dans l'ordre) et un
       parcours 5e, 4e, 3e, avec la progression (fiches lues) ; « Fiche

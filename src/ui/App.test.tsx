@@ -1164,6 +1164,9 @@ describe('Aide et connaissances', () => {
     expect(card).toHaveTextContent('3e');
     expect(card).toHaveTextContent('À retenir');
     expect(card).toHaveTextContent('Dans RéseauLab.');
+    expect(within(card).getByRole('region', { name: 'Erreurs fréquentes' })).toHaveTextContent(
+      'On croit que la passerelle est l’adresse de la destination',
+    );
     // Un lien dans le texte mène à une autre fiche.
     const [link] = within(card).getAllByRole('button', { name: 'masque' });
     expect(link).toBeDefined();

@@ -178,6 +178,13 @@ Un serveur est un ordinateur comme un autre, sur lequel fonctionne un logiciel q
     ],
     inApp:
       'En simulation, « Installer des logiciels » sur le bureau d’un poste propose les serveurs ; chacun se démarre depuis sa fenêtre.',
+    mistakes: [
+      {
+        belief: 'un serveur est forcément un gros ordinateur spécial.',
+        truth:
+          'un serveur, c’est d’abord un logiciel qui rend un service. N’importe quel ordinateur peut en faire fonctionner un.',
+      },
+    ],
     related: ['web-http', 'messagerie', 'dns', 'dhcp'],
   },
   {
@@ -195,6 +202,18 @@ Pour cela il **apprend** : en lisant l’[[adresse-mac|adresse MAC]] de l’éme
       'Il apprend sur quel port se trouve chaque adresse MAC.',
     ],
     inApp: 'En simulation, cliquez sur un switch : sa table des adresses MAC se remplit au fil des échanges.',
+    mistakes: [
+      {
+        belief: 'un switch a besoin d’une adresse IP pour fonctionner.',
+        truth:
+          'il aiguille les trames grâce aux [[adresse-mac|adresses MAC]] ; il n’a pas besoin d’adresse IP pour faire son travail.',
+      },
+      {
+        belief: 'un switch relie deux réseaux différents.',
+        truth:
+          'il relie les équipements d’un même réseau. Relier deux réseaux, c’est le rôle du [[routeur]].',
+      },
+    ],
     related: ['adresse-mac', 'reseau', 'routeur', 'wifi'],
   },
   {
@@ -230,6 +249,13 @@ Un terminal en Wi-Fi rejoint un réseau en choisissant son SSID (et, en vrai, en
     ],
     inApp:
       'La box et chaque switch sont aussi des points d’accès avec un nom Wi-Fi (SSID). Réglez un poste en « Sans fil (Wi-Fi) » puis choisissez ce nom.',
+    mistakes: [
+      {
+        belief: 'Wi-Fi et Internet, c’est la même chose.',
+        truth:
+          'le Wi-Fi relie seulement l’appareil au point d’accès (souvent la box). L’accès à Internet passe ensuite par la box et le fournisseur d’accès.',
+      },
+    ],
     related: ['liaison', 'box', 'switch'],
   },
   {
@@ -267,6 +293,13 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
     ],
     inApp:
       'Le réseau d’exemple contient deux réseaux locaux (salle des élèves, salle des serveurs) reliés par un routeur.',
+    mistakes: [
+      {
+        belief: 'Internet est un seul grand réseau.',
+        truth:
+          'Internet est un réseau de réseaux : des milliers de réseaux reliés entre eux par des routeurs.',
+      },
+    ],
     related: ['reseau', 'routeur', 'passerelle', 'chemin-internet'],
   },
   {
@@ -308,6 +341,17 @@ Dans un même réseau, deux équipements ne peuvent pas avoir la même adresse.`
       'Dans 192.168.1.10 avec le masque 255.255.255.0, le réseau est 192.168.1 et l’équipement est le numéro 10.',
     inApp:
       'Sélectionnez un ordinateur en mode Conception : son adresse IP se règle dans le panneau du bas. En simulation, la commande ipconfig l’affiche.',
+    mistakes: [
+      {
+        belief: 'un ordinateur garde la même adresse IP partout.',
+        truth:
+          'l’adresse IP dépend du réseau où il est branché : à la maison et au collège, un portable n’a pas la même. C’est son [[adresse-mac|adresse MAC]] qui ne change pas.',
+      },
+      {
+        belief: '192.168.1.300 est une adresse IP possible.',
+        truth: 'chacun des 4 nombres va de 0 à 255.',
+      },
+    ],
     related: ['masque', 'adresse-mac', 'dhcp', 'passerelle'],
   },
   {
@@ -330,6 +374,18 @@ Avec le masque \`255.255.255.0\`, un réseau peut contenir 254 équipements : le
       '192.168.1.10 et 192.168.1.25 (masque 255.255.255.0) sont dans le même réseau. 192.168.1.10 et 192.168.2.10 ne le sont pas.',
     inApp:
       'RéseauLab propose le masque 255.255.255.0 avec la première adresse. Vérifier signale des équipements reliés au même switch mais placés dans des réseaux différents.',
+    mistakes: [
+      {
+        belief: 'deux adresses qui se ressemblent sont dans le même réseau.',
+        truth:
+          'c’est le masque qui décide. Avec 255.255.255.0, 192.168.1.10 et 192.168.2.10 sont dans deux réseaux différents : leurs trois premiers nombres ne sont pas identiques.',
+      },
+      {
+        belief: 'le masque est l’adresse d’un équipement.',
+        truth:
+          'il ne désigne aucun équipement : il dit seulement où s’arrête la partie « réseau » d’une adresse.',
+      },
+    ],
     related: ['adresse-ip', 'passerelle', 'routeur'],
   },
   {
@@ -348,6 +404,13 @@ L’[[adresse-ip|adresse IP]] et l’adresse MAC ne servent pas à la même chos
     ],
     inApp:
       'Le panneau d’un ordinateur affiche son adresse MAC ; la commande ipconfig aussi (« adresse physique »).',
+    mistakes: [
+      {
+        belief: 'l’adresse MAC permet de retrouver un ordinateur sur Internet.',
+        truth:
+          'elle ne sert que dans le réseau local. D’un réseau à l’autre, c’est l’[[adresse-ip|adresse IP]] qui guide le message.',
+      },
+    ],
     related: ['adresse-ip', 'switch', 'arp'],
   },
   {
@@ -368,6 +431,17 @@ Avec la configuration **automatique**, l’équipement demande à son démarrage
     ],
     inApp:
       'Cochez « Configuration automatique (DHCP) » sur un poste. Au lancement de la simulation, suivez les trames DHCP ; ipconfig montre l’adresse obtenue.',
+    mistakes: [
+      {
+        belief: 'en configuration automatique, l’ordinateur choisit lui-même son adresse.',
+        truth: 'il la demande : c’est le serveur DHCP qui la lui attribue, pour un temps limité (le bail).',
+      },
+      {
+        belief: 'un serveur peut recevoir n’importe quelle adresse par DHCP.',
+        truth:
+          'les autres doivent le retrouver toujours à la même adresse : on lui donne en général une adresse fixe.',
+      },
+    ],
     related: ['adresse-ip', 'box', 'client-serveur'],
   },
   {
@@ -388,6 +462,13 @@ Si la réponse revient, les deux équipements peuvent communiquer. Sinon, le mes
     example: 'ping 192.168.1.10 — ou ping www.college.fr si un serveur DNS est configuré.',
     inApp:
       'En simulation, ouvrez la ligne de commande d’un poste et tapez ping suivi d’une adresse. Après un échec, « Pourquoi ça ne marche pas ? » explique où le message s’est arrêté.',
+    mistakes: [
+      {
+        belief: 'si le ping échoue, c’est que la destination est éteinte.',
+        truth:
+          'la panne peut être n’importe où : câble, adresse, masque, passerelle, pare-feu… et même sur le chemin du retour. Le bouton [[ecran:verifier]] aide à la trouver.',
+      },
+    ],
     related: ['guide-verifier', 'adresse-ip', 'ttl'],
   },
   {
@@ -424,6 +505,17 @@ Quand un message arrive, le routeur lit l’adresse de destination et consulte s
     ],
     inApp:
       'Posez un routeur entre deux switchs, donnez une adresse à chacune de ses interfaces (eth0, eth1), puis indiquez ces adresses comme passerelle des postes.',
+    mistakes: [
+      {
+        belief: 'un routeur a une seule adresse IP.',
+        truth: 'il a une adresse dans chaque réseau auquel il est relié : une par interface.',
+      },
+      {
+        belief: 'routeur et box, c’est la même chose.',
+        truth:
+          'la [[box]] contient un routeur, mais aussi un switch, un point d’accès Wi-Fi et un serveur DHCP.',
+      },
+    ],
     related: ['passerelle', 'table-de-routage', 'switch', 'reseau-local-internet'],
   },
   {
@@ -445,6 +537,18 @@ La passerelle est donc l’adresse de l’interface du [[routeur]] qui se trouve
     example:
       'Poste 192.168.1.10, routeur 192.168.1.1 sur ce réseau : la passerelle du poste est 192.168.1.1.',
     inApp: 'Champ « Passerelle » dans la configuration IP d’un poste. La commande ipconfig l’affiche.',
+    mistakes: [
+      {
+        belief: 'la passerelle est l’adresse de la destination, ou du serveur que l’on veut joindre.',
+        truth:
+          'c’est l’adresse du [[routeur]] **dans le réseau de l’équipement** : elle a donc la même partie réseau que son adresse IP.',
+      },
+      {
+        belief: 'il faut une passerelle pour parler à un voisin du même réseau.',
+        truth:
+          'dans le même réseau, la communication est directe. La passerelle ne sert que pour sortir du réseau.',
+      },
+    ],
     related: ['routeur', 'masque', 'table-de-routage'],
   },
   {
@@ -543,6 +647,18 @@ La réponse est gardée en mémoire dans la **table ARP**, pour ne pas reposer l
     ],
     inApp:
       'Le premier ping entre deux postes commence par deux trames ARP. Commande arp, ou « Afficher les tables », pour voir la table ARP.',
+    mistakes: [
+      {
+        belief: 'ARP sert à trouver l’adresse IP d’un équipement.',
+        truth:
+          'l’adresse IP est déjà connue : ARP trouve l’adresse MAC qui lui correspond, dans le réseau local.',
+      },
+      {
+        belief: 'une demande ARP traverse les routeurs.',
+        truth:
+          'elle reste dans le réseau local. Pour une destination dans un autre réseau, l’ordinateur demande l’adresse MAC de sa [[passerelle]].',
+      },
+    ],
     related: ['adresse-mac', 'adresse-ip', 'trame-paquet'],
   },
   {
@@ -558,6 +674,17 @@ Chaque équipement doit donc connaître l’adresse de son serveur DNS. S’il n
     remember: ['DNS : nom → adresse IP.', 'Sans serveur DNS, seules les adresses IP fonctionnent.'],
     inApp:
       'Champ « Serveur DNS » d’un poste. Le logiciel « Serveur DNS » contient la liste des noms. Commande nslookup pour l’interroger.',
+    mistakes: [
+      {
+        belief: 'sans DNS, plus aucun échange n’est possible.',
+        truth:
+          'les échanges se font toujours avec des adresses IP. Sans DNS, on peut encore joindre un serveur par son adresse IP, mais plus par son nom.',
+      },
+      {
+        belief: 'le serveur DNS envoie la page web demandée.',
+        truth: 'il donne seulement l’adresse IP du serveur ; la page vient ensuite du serveur web.',
+      },
+    ],
     related: ['adresse-ip', 'client-serveur', 'web-http'],
   },
   {
@@ -632,6 +759,13 @@ Un pare-feu activé sans aucune règle bloque toutes les nouvelles demandes venu
     ],
     inApp:
       'Onglet « Pare-feu » d’un routeur, ou logiciel « Pare-feu » sur un poste. Un message bloqué est signalé sur le plan.',
+    mistakes: [
+      {
+        belief: 'un pare-feu protège contre les virus.',
+        truth:
+          'il filtre les échanges selon ses règles (adresses, ports) ; il ne regarde pas si un fichier contient un virus. C’est le rôle d’un antivirus.',
+      },
+    ],
     related: ['routeur', 'protocole', 'web-http'],
   },
   {

@@ -246,6 +246,12 @@ fiches, en masquer, et reformuler des messages, sans toucher au code :
       "short": "La porte de sortie du réseau.",
       "body": "Texte libre, avec **gras**, *italique*, `code`, listes et liens [[routeur]].",
       "remember": ["Une phrase à retenir."],
+      "mistakes": [
+        {
+          "belief": "la passerelle est l'adresse du serveur.",
+          "truth": "c'est l'adresse du [[routeur]] dans mon réseau."
+        }
+      ],
       "related": ["routeur"],
       "curriculum": "Référence au programme, à votre convenance"
     }
@@ -259,6 +265,11 @@ fiches, en masquer, et reformuler des messages, sans toucher au code :
 éditeur de texte), importe un pack sur le poste et permet de revenir au
 contenu d'origine. Un fichier d'activité peut emporter votre pack : cochez
 « Joindre mon pack pédagogique au fichier » en l'enregistrant.
+
+Dans le texte, `[touche:Ctrl+Z]` dessine des touches du clavier et
+`[[ecran:simulation]]` un élément de l'écran que l'élève peut faire
+clignoter (liste dans `src/learn/content/screen.ts`). `mistakes` (facultatif)
+affiche des « erreurs fréquentes » : « On croit que… » / « En fait, … ».
 
 Une fiche dont l'identifiant existe déjà remplace celle fournie. Le pack peut
 aussi contenir des questions de quiz (`questions`), par exemple :

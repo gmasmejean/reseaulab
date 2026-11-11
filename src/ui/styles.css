@@ -1858,6 +1858,33 @@ button.term-help[aria-expanded='true'] {
   border-left-color: var(--accent);
   background: var(--accent-soft);
 }
+.notion-mistakes {
+  margin: 10px 0;
+}
+.notion-mistakes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.notion-mistakes li {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.notion-mistakes p {
+  margin: 0;
+}
+.mistake-belief {
+  color: var(--muted);
+}
+.mistake-belief span {
+  color: var(--danger);
+}
+.mistake-truth span {
+  color: var(--ok);
+}
 .notion-image {
   display: block;
   max-width: 100%;
