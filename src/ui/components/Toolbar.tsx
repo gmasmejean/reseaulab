@@ -235,7 +235,7 @@ export function Toolbar() {
       </button>
       <button
         type="button"
-        title="Prise en main de RéseauLab et fiches de connaissances"
+        title="Prise en main de RéseauLab et fiches de connaissances (F1 : fiche de l’équipement sélectionné)"
         onClick={() => {
           session.openKnowledge();
         }}

@@ -3,6 +3,7 @@ import { linkedNotions, parseInline, parseRich, plainText } from '../richtext';
 import { DEFAULT_PACK } from './default-pack';
 import { fold, lexicon, mergePacks, searchNotions } from './merge';
 import { nextNotion, readingOrder, shownAt } from './order';
+import { DEVICE_NOTION, contextualNotion } from './context';
 import { PackError, parsePack, serializePack } from './schema';
 import type { Question } from '../quiz/types';
 import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Notion, type Pack } from './types';
@@ -345,5 +346,24 @@ describe('Ordre de lecture', () => {
     expect(nextNotion(order, 'inconnue')).toBeUndefined();
     // Toutes les fiches du pack par défaut se lisent d’un bout à l’autre.
     expect(order).toHaveLength(DEFAULT_PACK.notions.length);
+  });
+});
+
+describe('Aide selon le contexte', () => {
+  const exists = (id: string) => DEFAULT_PACK.notions.some((n) => n.id === id);
+
+  test('l’équipement sélectionné, sinon la dernière fiche lue, sinon la prise en main du mode', () => {
+    expect(contextualNotion({ device: 'router', lastRead: 'dns', mode: 'design', exists })).toBe('routeur');
+    expect(contextualNotion({ lastRead: 'dns', mode: 'design', exists })).toBe('dns');
+    expect(contextualNotion({ mode: 'design', exists })).toBe('guide-construire');
+    expect(contextualNotion({ mode: 'simulation', exists })).toBe('guide-simuler');
+    // Une fiche masquée par l’enseignant est sautée.
+    expect(contextualNotion({ device: 'box', mode: 'simulation', exists: (id) => id !== 'box' })).toBe(
+      'guide-simuler',
+    );
+  });
+
+  test('chaque sorte d’équipement a sa fiche dans le pack par défaut', () => {
+    for (const id of Object.values(DEVICE_NOTION)) expect(exists(id)).toBe(true);
   });
 });

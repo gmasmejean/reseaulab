@@ -92,6 +92,12 @@ function Shortcuts() {
   const session = useSession();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // F1, as in most software: the help about the selected device, even from a text field.
+      if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        session.openContextHelp();
+        return;
+      }
       // Text fields keep their own keys (Escape restores the value, Ctrl+Z undoes the typing).
       if (isTyping(e.target)) return;
       const inWindow = e.target instanceof Element ? e.target.closest<HTMLElement>('.window') : null;

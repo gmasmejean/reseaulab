@@ -311,7 +311,12 @@ test('clic droit : menus contextuels comme dans Filius', async ({ page }) => {
   await computer.click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'Menu de « Ordinateur 1 »' });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('menuitem')).toHaveText(['Configurer', 'Supprimer le câble', 'Supprimer']);
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    'Configurer',
+    'Supprimer le câble',
+    'Supprimer',
+    'Qu’est-ce que c’est ?',
+  ]);
   await shot(page, '10-menu-conception');
   await menu.getByRole('menuitem', { name: 'Configurer' }).click();
   await expect(page.getByRole('textbox', { name: 'Nom' })).toBeFocused();
@@ -328,6 +333,7 @@ test('clic droit : menus contextuels comme dans Filius', async ({ page }) => {
   await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
     'Afficher le bureau',
     'Afficher les échanges de données (192.168.0.1)',
+    'Qu’est-ce que c’est ?',
   ]);
   await shot(page, '11-menu-simulation');
   await page.getByRole('menuitem', { name: 'Afficher les échanges de données (192.168.0.1)' }).click();
@@ -636,10 +642,15 @@ test('connaissances : définition depuis un champ, fiches, recherche et lexique'
   await index.getByRole('button', { name: 'Lexique' }).click();
   await expect(index.getByRole('button', { name: /^commutateur/ })).toBeVisible();
 
-  // Le bouton Aide ouvre la prise en main.
+  // Fermée puis rouverte : la dernière fiche lue. F1 : la fiche de l'équipement sélectionné.
   await help.getByRole('button', { name: /Fermer/ }).click();
   await page.getByRole('button', { name: 'Aide', exact: true }).click();
-  await expect(help.getByRole('article', { name: 'Construire un réseau' })).toBeVisible();
+  await expect(help.getByRole('article', { name: 'Adresse MAC et carte réseau' })).toBeVisible();
+  await help.getByRole('button', { name: /Fermer/ }).click();
+  await page.keyboard.press('F1');
+  await expect(help.getByRole('article', { name: 'Terminal' })).toBeVisible();
+  await help.getByRole('button', { name: '← Retour' }).click();
+  await expect(help.getByRole('article', { name: 'Adresse MAC et carte réseau' })).toBeVisible();
 });
 
 test('profil par niveau : en 4e, l’interface se limite au programme du niveau', async ({ page }) => {

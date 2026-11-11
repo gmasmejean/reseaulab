@@ -5,6 +5,7 @@ import { NetworkNode } from '../../engine/devices/node';
 import type { Note } from '../../engine/network';
 import { interfaceLabel } from '../../i18n/fr';
 import type { Session } from '../session';
+import { DEVICE_NOTION } from '../../learn/content/context';
 import type { MenuEntry } from './ContextMenu';
 
 /* Right-click menus of the plan, after those of Filius:
@@ -56,7 +57,30 @@ export const FONT_SIZES = [
   { label: 'Très grande', size: 24 },
 ] as const;
 
+/** « Qu'est-ce que c'est ? » : the knowledge card of a kind of device, when it exists. */
+export function explainEntries(session: Session, kind: Device['kind']): MenuEntry[] {
+  const notion = DEVICE_NOTION[kind];
+  if (!session.notion(notion)) return [];
+  return [
+    { kind: 'separator' },
+    {
+      kind: 'action',
+      label: 'Qu’est-ce que c’est ?',
+      onSelect: () => {
+        session.openKnowledge(notion);
+      },
+    },
+  ];
+}
+
 export function deviceMenu(session: Session, device: Device, configure: () => void): MenuEntry[] {
+  const actions = actionsOf(session, device, configure);
+  const explain = explainEntries(session, device.kind);
+  // No separator above the only entry.
+  return actions.length > 0 ? [...actions, ...explain] : explain.slice(1);
+}
+
+function actionsOf(session: Session, device: Device, configure: () => void): MenuEntry[] {
   const net = session.network;
   if (session.mode === 'simulation') return simulationMenu(session, device);
   const cables = device.ports.flatMap((p) => (p.cable ? [p.cable.id] : []));

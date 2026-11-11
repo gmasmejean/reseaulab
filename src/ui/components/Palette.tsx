@@ -1,8 +1,19 @@
+import { useState } from 'react';
 import type { DeviceKind } from '../../engine/devices/device';
 import { DEVICE_ALIAS, DEVICE_KINDS, DEVICE_LABEL } from '../../i18n/fr';
 import { useSession } from '../context';
 import { DEVICE_DRAG_TYPE } from './Canvas';
+import { explainEntries } from './canvasMenus';
+import { ContextMenu, anchorOf, isMenuKey } from './ContextMenu';
 import { DeviceIcon } from './DeviceIcon';
+
+/** Right-click menu of a palette item. */
+interface PaletteMenu {
+  readonly kind: DeviceKind;
+  readonly x: number;
+  readonly y: number;
+  readonly opener: HTMLElement;
+}
 
 function alias(kind: DeviceKind): string {
   const other = DEVICE_ALIAS[kind];
@@ -12,6 +23,7 @@ function alias(kind: DeviceKind): string {
 export function Palette() {
   const session = useSession();
   const disabled = session.mode === 'simulation';
+  const [menu, setMenu] = useState<PaletteMenu | null>(null);
   return (
     <aside className="palette" aria-label="Palette d’équipements">
       <h2>Équipements</h2>
@@ -30,11 +42,41 @@ export function Palette() {
           onClick={() => {
             session.addDevice(kind);
           }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu({ kind, x: e.clientX, y: e.clientY, opener: e.currentTarget });
+          }}
+          onKeyDown={(e) => {
+            if (!isMenuKey(e)) return;
+            e.preventDefault();
+            setMenu({ kind, ...anchorOf(e.currentTarget), opener: e.currentTarget });
+          }}
         >
           <DeviceIcon kind={kind} size={30} />
           <span>{DEVICE_LABEL[kind]}</span>
         </button>
       ))}
+      {menu && (
+        <ContextMenu
+          label={DEVICE_LABEL[menu.kind]}
+          x={menu.x}
+          y={menu.y}
+          entries={[
+            {
+              kind: 'action',
+              label: 'Ajouter au plan',
+              onSelect: () => {
+                session.addDevice(menu.kind);
+              },
+            },
+            ...explainEntries(session, menu.kind),
+          ]}
+          onClose={(reason) => {
+            if (reason === 'cancel') menu.opener.focus();
+            setMenu(null);
+          }}
+        />
+      )}
       <h2>Outils</h2>
       <button
         type="button"

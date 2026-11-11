@@ -366,12 +366,17 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       rien avant) et « Fiche suivante → » sont de vrais boutons, au-dessus
       de la fiche ; la suivante est celle de la liste, au niveau choisi. Le
       quiz d'entraînement descend sous la liste.
-- [ ] **Étape 31 — Aide selon le contexte** : la touche **F1** ouvre l'aide ;
-      elle s'ouvre sur la fiche de l'équipement sélectionné, sinon sur la
-      prise en main du mode en cours, sinon sur la dernière fiche lue. La
-      fiche lue et l'historique « Retour » survivent à la fermeture de la
-      fenêtre. Le menu du clic droit d'un équipement (plan et palette) propose
-      « Qu'est-ce que c'est ? ».
+- [x] **Étape 31 — Aide selon le contexte** : le bouton **Aide** rouvre la
+      dernière fiche lue (la première fois : la prise en main du mode en
+      cours) ; la touche **F1**, même depuis un champ, ouvre la fiche de
+      l'équipement sélectionné (terminal, client et serveur, objet connecté,
+      switch, routeur, box), sinon fait comme le bouton. La fiche lue et
+      l'historique « Retour » survivent à la fermeture de la fenêtre ; une
+      fiche demandée (F1, « ? », diagnostic) se place par-dessus, « Retour »
+      ramène à la lecture en cours. Le clic droit d'un équipement, sur le
+      plan (conception et simulation) ou dans la palette, propose
+      « Qu'est-ce que c'est ? » ; celui de la palette propose aussi
+      « Ajouter au plan ». Règles dans `src/learn/content/context.ts`.
 - [ ] **Étape 32 — Lexique et recherche** : le lexique ne répète plus le
       titre d'une fiche, il est découpé par lettre ; la recherche lit aussi
       l'explication (classée après le titre et les autres noms) et montre un
@@ -516,6 +521,11 @@ réseau prêt à l'emploi depuis une fiche.
   champ `curriculum` d'une fiche est laissé à l'enseignant. L'import et
   l'export d'un pack depuis l'interface arrivent à l'étape 28 ; d'ici là le
   mécanisme existe et est testé, mais sans bouton.
+- **Le bouton Aide ignore la sélection** (étape 31) : la feuille de route
+  prévoyait d'ouvrir l'aide sur l'équipement sélectionné. En conception, un
+  équipement reste presque toujours sélectionné : le bouton Aide aurait
+  ramené sans cesse à sa fiche. Seule la touche F1 (l'aide « sur ce que je
+  regarde ») suit la sélection.
 - **« À retenir » garde son nom** (étape 30) : la feuille de route proposait
   « L'essentiel » ; « À retenir » est le mot du cahier, connu des élèves.
 - **Pas de schémas intégrés aux fiches** (étape 22) : une fiche peut porter

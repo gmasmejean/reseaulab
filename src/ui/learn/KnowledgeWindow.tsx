@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { lexicon, searchNotions } from '../../learn/content/merge';
 import { nextNotion, readingOrder, type LevelFilter } from '../../learn/content/order';
 import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
 import { RichText } from './RichText';
+
+/** Cards remembered for « Retour ». */
+const MAX_TRAIL = 30;
 
 const FILTER_LABEL: Record<LevelFilter, string> = {
   all: 'Tous niveaux',
@@ -101,16 +104,26 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
   const base = session.profile.base;
   const [filter, setFilter] = useState<LevelFilter>(base === '5e' || base === '4e' ? base : 'all');
   const [view, setView] = useState<'cards' | 'lexicon'>('cards');
-  const [current, setCurrent] = useState<string | undefined>(() =>
-    asked !== undefined && session.notion(asked) ? asked : notions[0]?.id,
-  );
+  // Where the pupil was when the help was last closed: the card asked for
+  // comes on top of it, so that « Retour » leads back there.
+  const [start] = useState(() => {
+    const before = session.reading;
+    const last = before.current !== undefined && session.notion(before.current) ? before.current : undefined;
+    const target = asked !== undefined && session.notion(asked) ? asked : (last ?? notions[0]?.id);
+    const trail = last !== undefined && last !== target ? [...before.trail, last] : before.trail;
+    return { current: target, trail: trail.filter((id) => session.notion(id)).slice(-MAX_TRAIL) };
+  });
+  const [current, setCurrent] = useState<string | undefined>(start.current);
   /** Cards read before the current one, for the « Retour » button. */
-  const [trail, setTrail] = useState<readonly string[]>([]);
+  const [trail, setTrail] = useState<readonly string[]>(start.trail);
   const shown = session.notion(current ?? '') ?? notions[0];
+  useEffect(() => {
+    session.rememberReading({ ...(shown ? { current: shown.id } : {}), trail });
+  }, [session, shown, trail]);
 
   const open = (id: string) => {
     if (id === shown?.id || !session.notion(id)) return;
-    if (shown) setTrail([...trail, shown.id]);
+    if (shown) setTrail([...trail, shown.id].slice(-MAX_TRAIL));
     setCurrent(id);
   };
   const back = () => {

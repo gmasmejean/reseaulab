@@ -5,6 +5,7 @@ import type { DropReason } from '../engine/net/drop';
 import { ConnectError, Network } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
+import { contextualNotion } from '../learn/content/context';
 import { DEFAULT_PACK } from '../learn/content/default-pack';
 import { mergePacks } from '../learn/content/merge';
 import { parsePack } from '../learn/content/schema';
@@ -145,6 +146,12 @@ export interface Resumed {
   readonly savedAt: number | null;
 }
 
+/** Where the pupil is in the help: the card read, and those before it. */
+export interface Reading {
+  readonly current?: string;
+  readonly trail: readonly string[];
+}
+
 export interface Storage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -238,6 +245,8 @@ export class Session {
   private filePack: PackOverride | null = null;
   /** Activity being written by the teacher (kept while the window is closed). */
   authorDraft: Draft | null = null;
+  /** Card read last in the help, and those read before it (« Retour »), kept while it is closed. */
+  reading: Reading = { trail: [] };
   /** Activity being done, with its instructions and objectives. */
   activity: Activity | null = null;
   /** What the pupil did in the activity. */
@@ -582,9 +591,39 @@ export class Session {
     return this.pack.notions.find((n) => n.id === id);
   }
 
-  /** Opens « Aide et connaissances », on a card when one is given. */
+  /**
+   * Opens « Aide et connaissances » on the card asked for, or else where the
+   * pupil left it (the guide of the current mode the first time).
+   */
   openKnowledge(notion?: string): void {
-    this.openWindow({ type: 'help', ...(notion === undefined ? {} : { notion, at: this.revision }) });
+    this.openHelpOn(notion ?? this.helpTarget(false));
+  }
+
+  /** F1: the help about the selected device, or else as the Aide button. */
+  openContextHelp(): void {
+    this.openHelpOn(this.helpTarget(true));
+  }
+
+  private helpTarget(aboutSelection: boolean): string | undefined {
+    const selected =
+      aboutSelection && this.selection?.kind === 'device'
+        ? this.network.device(this.selection.id)
+        : undefined;
+    return contextualNotion({
+      device: selected?.kind,
+      lastRead: this.reading.current,
+      mode: this.mode,
+      exists: (id) => this.notion(id) !== undefined,
+    });
+  }
+
+  private openHelpOn(card: string | undefined): void {
+    this.openWindow({ type: 'help', ...(card === undefined ? {} : { notion: card }), at: this.revision });
+  }
+
+  /** Remembers where the pupil is in the help; nothing to redraw. */
+  rememberReading(reading: Reading): void {
+    this.reading = reading;
   }
 
   /** Opens the quiz, about one knowledge card when it is given. */

@@ -214,7 +214,7 @@ describe('Clic droit (menus contextuels)', () => {
       const { pc, sw, router } = lan(session);
       fireEvent.contextMenu(screen.getByRole('button', { name: /^Ordinateur 1/ }));
       expect(screen.getByRole('menu', { name: 'Menu de « Ordinateur 1 »' })).toBeInTheDocument();
-      expect(menuItems()).toEqual(['Configurer', 'Supprimer le câble', 'Supprimer']);
+      expect(menuItems()).toEqual(['Configurer', 'Supprimer le câble', 'Supprimer', 'Qu’est-ce que c’est ?']);
       expect(session.selection).toEqual({ kind: 'device', id: pc });
       expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
 
@@ -265,11 +265,11 @@ describe('Clic droit (menus contextuels)', () => {
     fireEvent.keyDown(menu, { key: 'ArrowDown' });
     expect(screen.getByRole('menuitem', { name: 'Supprimer tous les câbles' })).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'End' });
-    expect(screen.getByRole('menuitem', { name: 'Supprimer' })).toHaveFocus();
+    expect(screen.getByRole('menuitem', { name: 'Qu’est-ce que c’est ?' })).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'ArrowDown' });
     expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'ArrowUp' });
-    expect(screen.getByRole('menuitem', { name: 'Supprimer' })).toHaveFocus();
+    expect(screen.getByRole('menuitem', { name: 'Qu’est-ce que c’est ?' })).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'Home' });
     expect(screen.getByRole('menuitem', { name: 'Configurer' })).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'Escape' });
@@ -351,7 +351,11 @@ describe('Clic droit (menus contextuels)', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Simulation/ }));
 
     fireEvent.contextMenu(screen.getByRole('button', { name: /^Ordinateur 1/ }));
-    expect(menuItems()).toEqual(['Afficher le bureau', 'Afficher les échanges de données (10.0.0.1)']);
+    expect(menuItems()).toEqual([
+      'Afficher le bureau',
+      'Afficher les échanges de données (10.0.0.1)',
+      'Qu’est-ce que c’est ?',
+    ]);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Afficher le bureau' }));
     expect(screen.getByRole('dialog', { name: 'Bureau de Ordinateur 1' })).toBeInTheDocument();
 
@@ -360,6 +364,7 @@ describe('Clic droit (menus contextuels)', () => {
       'Afficher les tables du routeur',
       'Afficher les échanges de données (eth0 – sans adresse)',
       'Afficher les échanges de données (eth1 – 10.0.0.254)',
+      'Qu’est-ce que c’est ?',
     ]);
     fireEvent.click(screen.getByRole('menuitem', { name: /eth1/ }));
     const capture = screen.getByRole('dialog', { name: 'Échanges de données — Routeur 1' });
@@ -1196,6 +1201,51 @@ describe('Aide et connaissances', () => {
     expect(within(help).queryByRole('button', { name: 'Fiche suivante →' })).not.toBeInTheDocument();
   });
 
+  test('F1 ouvre l’aide selon le contexte ; la fiche lue et le retour survivent à la fermeture', () => {
+    const { session } = setup();
+    fireEvent.keyDown(window, { key: 'F1' });
+    const help = () => screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(help()).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    fireEvent.click(within(help()).getByRole('button', { name: 'Adresse IP' }));
+    fireEvent.click(within(help()).getByRole('button', { name: /Fermer/ }));
+
+    // Rouverte : la dernière fiche lue.
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    expect(within(help()).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
+    fireEvent.click(within(help()).getByRole('button', { name: /Fermer/ }));
+
+    // Un routeur sélectionné : sa fiche, et « Retour » ramène à la lecture en cours.
+    act(() => {
+      session.addDevice('router');
+    });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Nom' }), { key: 'F1' });
+    expect(within(help()).getByRole('article', { name: 'Routeur' })).toBeInTheDocument();
+    fireEvent.click(within(help()).getByRole('button', { name: '← Retour' }));
+    expect(within(help()).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
+    fireEvent.click(within(help()).getByRole('button', { name: '← Retour' }));
+    expect(within(help()).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+  });
+
+  test('« Qu’est-ce que c’est ? » au clic droit d’un équipement, sur le plan et dans la palette', () => {
+    const { session } = setup();
+    act(() => {
+      session.addDevice('switch');
+    });
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Switch 1/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Qu’est-ce que c’est ?' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(help).getByRole('article', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.contextMenu(within(palette).getByRole('button', { name: /Imprimante/ }));
+    expect(screen.getByRole('menu', { name: 'Imprimante' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Qu’est-ce que c’est ?' }));
+    expect(within(help).getByRole('article', { name: 'Terminal' })).toBeInTheDocument();
+    fireEvent.contextMenu(within(palette).getByRole('button', { name: /Routeur/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ajouter au plan' }));
+    expect(session.network.devices.map((d) => d.kind)).toEqual(['switch', 'router']);
+  });
+
   test('recherche sans accents, filtre par niveau et lexique', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
@@ -1555,6 +1605,7 @@ describe('Box Internet', () => {
       'Afficher les tables de la box',
       'Afficher les échanges de données (Internet – sans adresse)',
       'Afficher les échanges de données (Maison – 192.168.1.1)',
+      'Qu’est-ce que c’est ?',
     ]);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Afficher les tables de la box' }));
     const tables = screen.getByRole('dialog', { name: 'Box — Box 1' });
