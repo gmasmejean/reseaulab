@@ -94,6 +94,32 @@ export function givenText(answer: QuestionAnswer): string {
   return given.map(String).join(' → ');
 }
 
+/** A piece of an answer, and whether it is right. */
+export interface GivenPart {
+  readonly text: string;
+  readonly right: boolean;
+}
+
+/**
+ * What the pupil answered, piece by piece: each choice ticked (right if it
+ * is one of the expected ones), each item of an order (right if in its
+ * place), or the whole text. Empty for an open question.
+ */
+export function givenParts(answer: QuestionAnswer): GivenPart[] {
+  const { item, given } = answer;
+  if (item === undefined) return [];
+  if (typeof given === 'string') return [{ text: given, right: answer.right === true }];
+  if (item.kind === 'choice') {
+    return given.map((index) =>
+      typeof index === 'number'
+        ? { text: item.choices[index] ?? '', right: item.correct.includes(index) }
+        : { text: index, right: false },
+    );
+  }
+  const solution: readonly string[] = item.kind === 'order' ? item.solution : [];
+  return given.map((value, i) => ({ text: String(value), right: solution[i] === value }));
+}
+
 /** The question objectives of some steps. */
 export function questionsOf(steps: readonly Step[]): Objective[] {
   return steps.flatMap((s) => s.objectives).filter((o) => o.check.type === 'question');

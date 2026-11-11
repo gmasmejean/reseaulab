@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import type { Outcome } from '../../learn/activity/evaluate';
-import { askQuestion, drawSalt, givenText } from '../../learn/activity/questions';
+import { askQuestion, drawSalt, givenParts, type GivenPart } from '../../learn/activity/questions';
 import {
   familyOf,
   objectivesOf,
@@ -102,6 +102,22 @@ function OpenQuestion({
   );
 }
 
+/** The answer given, each piece in green if right, in red if not (with ✔ / ✘, not by colour alone). */
+function GivenAnswer({ parts, separator }: { parts: readonly GivenPart[]; separator: string }) {
+  if (parts.length === 0) return <>—</>;
+  return parts.map((part, i) => (
+    <span key={i}>
+      {i > 0 && separator}
+      <span className={`given-part ${part.right ? 'right' : 'wrong'}`}>
+        <span aria-hidden>{part.right ? '✔' : '✘'}</span>
+        <span className="visually-hidden">{part.right ? '(juste)' : '(faux)'}</span>
+        {'\u00a0'}
+        {part.text}
+      </span>
+    </span>
+  ));
+}
+
 /** A question of the activity: asked, then corrected on the spot (one try). */
 function QuestionBlock({
   objective,
@@ -147,7 +163,8 @@ function QuestionBlock({
       <>
         <p className="quiz-prompt">{answer.item.prompt}</p>
         <p className="given-answer">
-          <b>Ta réponse :</b> {givenText(answer)}
+          <b>Ta réponse :</b>{' '}
+          <GivenAnswer parts={givenParts(answer)} separator={answer.item.kind === 'order' ? ' → ' : ' ; '} />
         </p>
         <Feedback item={answer.item} right={answer.right === true}>
           {readAgain}

@@ -1039,7 +1039,8 @@ test('activité « La salle de techno » : questions corrigées, station météo
   const reopened = page.getByRole('complementary', { name: 'Activité' });
   await expect(reopened.getByRole('heading', { name: 'La salle de techno' })).toBeVisible();
   const again = reopened.getByRole('region', { name: 'Question : Réseau local ou Internet' });
-  await expect(again).toContainText('Ta réponse : Internet');
+  await expect(again).toContainText('Ta réponse : ✘(faux) Internet');
+  await expect(again.locator('.given-part.wrong')).toHaveText('✘(faux) Internet');
   await expect(again.getByRole('radio')).toHaveCount(0);
 
   // Le compte rendu recopie les réponses.

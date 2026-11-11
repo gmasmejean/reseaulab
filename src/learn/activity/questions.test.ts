@@ -1,7 +1,7 @@
 import { Network } from '../../engine/network';
 import { parseLearnFile, serializeLearnFile } from '../file';
 import { currentStep, evaluateNow, gateSteps } from './evaluate';
-import { askQuestion, givenText, markAnswer, partsOf, scoreQuestions } from './questions';
+import { askQuestion, givenParts, givenText, markAnswer, partsOf, scoreQuestions } from './questions';
 import { QUESTIONS, SWITCH_QUESTION as mcq } from '../../test/activities';
 import {
   EMPTY_WORK,
@@ -164,5 +164,45 @@ describe('Questions dans une activité', () => {
     const old = JSON.parse(text) as { work: Record<string, unknown> };
     delete old.work.answers;
     expect(parseLearnFile(JSON.stringify(old)).work?.answers).toEqual({});
+  });
+
+  test('réponse donnée, morceau par morceau : juste en vert, faux en rouge', () => {
+    const choice = askQuestion(
+      'q-multi',
+      {
+        type: 'mcq',
+        prompt: 'Lesquels sont des terminaux ?',
+        choices: ['PC', 'Switch', 'Tablette'],
+        correct: [0, 2],
+        explanation: '',
+      },
+      3,
+    );
+    if (choice?.kind !== 'choice') throw new Error('choix attendu');
+    const index = (text: string) => choice.choices.indexOf(text);
+    // Un juste, un faux, un oublié : seuls les choix cochés sont montrés.
+    expect(givenParts(markAnswer(choice, [index('PC'), index('Switch')], 10))).toEqual([
+      { text: 'PC', right: true },
+      { text: 'Switch', right: false },
+    ]);
+
+    const order = askQuestion(
+      'q-ordre',
+      { type: 'order', prompt: 'Range', items: ['A', 'B', 'C'], explanation: '' },
+      3,
+    );
+    expect(givenParts(markAnswer(order, ['A', 'C', 'B'], 10))).toEqual([
+      { text: 'A', right: true },
+      { text: 'C', right: false },
+      { text: 'B', right: false },
+    ]);
+
+    const short = askQuestion(
+      'q-court',
+      { type: 'short', prompt: 'Réseau ?', accepted: ['192.168.10'], explanation: '' },
+      3,
+    );
+    expect(givenParts(markAnswer(short, '192.168.1', 10))).toEqual([{ text: '192.168.1', right: false }]);
+    expect(givenParts(markAnswer(null, 'Une réponse libre', 10))).toEqual([]);
   });
 });

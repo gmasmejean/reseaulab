@@ -2065,7 +2065,12 @@ describe('Questions d’une activité', () => {
     const question = within(panel).getByRole('region', { name: 'Question : Rôle du switch' });
     fireEvent.click(within(question).getByRole('radio', { name: 'Le serveur' }));
     fireEvent.click(within(question).getByRole('button', { name: 'Valider' }));
-    expect(question).toHaveTextContent('Ta réponse : Le serveur');
+    expect(question).toHaveTextContent('Ta réponse : ✘(faux) Le serveur');
+    // La réponse donnée est en rouge, marquée ✘ (pas seulement par la couleur).
+    const given = question.querySelectorAll('.given-part');
+    expect([...given].map((g) => [g.textContent, g.classList.contains('wrong')])).toEqual([
+      ['✘(faux)\u00a0Le serveur', true],
+    ]);
     expect(question).toHaveTextContent('✘ Ce n’est pas ça.');
     expect(question).toHaveTextContent('Réponse attendue : Le switch');
     // Une seule réponse : plus de formulaire.

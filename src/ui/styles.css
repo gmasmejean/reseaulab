@@ -2334,6 +2334,15 @@ button.screen-chip:focus-visible {
 .given-answer {
   margin: 0;
 }
+.given-part {
+  font-weight: 600;
+}
+.given-part.right {
+  color: var(--ok);
+}
+.given-part.wrong {
+  color: var(--danger);
+}
 .open-answer {
   white-space: pre-wrap;
   font-style: italic;
