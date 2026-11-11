@@ -360,6 +360,15 @@ export function Canvas() {
           if (session.cableStart) session.setTool('cable');
           session.select(null);
         }}
+        onContextMenuCapture={(e) => {
+          // With the cable tool, a right click anywhere on the plan puts the
+          // tool down (and drops a cable begun), instead of opening a menu.
+          if (session.tool !== 'cable' || simulation) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setMenu(null);
+          session.setTool('select');
+        }}
         onContextMenu={(e) => {
           // Like Filius: no menu on the empty plan (and not the browser's one).
           e.preventDefault();

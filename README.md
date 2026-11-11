@@ -32,7 +32,7 @@ ensuite avec **Ouvrir…**.
 
 - **Mode conception** : cliquer (ou glisser) un équipement de la palette pour
   l'ajouter ; choisir l'outil **Câble** puis cliquer sur deux équipements pour
-  les relier ; sélectionner un équipement pour le configurer dans le panneau du
+  les relier (Échap ou un clic droit sur le plan reposent l'outil) ; sélectionner un équipement pour le configurer dans le panneau du
   bas (adresse IP, masque, passerelle, DNS, DHCP, interfaces et routes du
   routeur, pare-feu). Une valeur tapée est prise en compte dès qu'on quitte le
   champ (Entrée, Tab ou clic ailleurs) ; le masque `255.255.255.0` est proposé

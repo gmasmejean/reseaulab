@@ -133,7 +133,7 @@ export function Palette() {
         <p className="palette-hint">
           {session.cableStart ? 'Cliquez sur le second équipement.' : 'Cliquez sur le premier équipement.'}
           <br />
-          Échap pour annuler.
+          Échap ou clic droit pour annuler.
         </p>
       )}
     </aside>

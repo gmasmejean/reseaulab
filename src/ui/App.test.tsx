@@ -62,6 +62,34 @@ describe('App', () => {
     expect(session.network.cables).toHaveLength(0);
   });
 
+  test('un clic droit sur le plan repose l’outil câble, sans ouvrir de menu', () => {
+    const { session } = setup();
+    session.addDevice('computer');
+    session.addDevice('switch');
+    const tool = screen.getByRole('button', { name: 'Câble' });
+    fireEvent.click(tool);
+    expect(screen.getByText(/Échap ou clic droit pour annuler/)).toBeInTheDocument();
+    // Sur le plan vide.
+    fireEvent.contextMenu(screen.getByRole('application', { name: 'Plan du réseau' }));
+    expect(session.tool).toBe('select');
+    expect(tool).toHaveAttribute('aria-pressed', 'false');
+
+    // Sur un équipement, câble commencé : le câble est abandonné, pas de menu.
+    fireEvent.click(tool);
+    const computer = screen.getByRole('button', { name: /^Ordinateur 1/ });
+    fireEvent.pointerDown(computer);
+    expect(session.cableStart).not.toBeNull();
+    fireEvent.contextMenu(computer);
+    expect(session.tool).toBe('select');
+    expect(session.cableStart).toBeNull();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(session.network.cables).toHaveLength(0);
+
+    // Sans l'outil câble, le clic droit ouvre toujours le menu de l'équipement.
+    fireEvent.contextMenu(computer);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
   test('en simulation, le terminal d’un poste exécute un ping', () => {
     const { session, frames } = setup();
     const a = session.addDevice('computer');

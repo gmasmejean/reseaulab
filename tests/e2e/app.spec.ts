@@ -306,8 +306,13 @@ test('clic droit : menus contextuels comme dans Filius', async ({ page }) => {
   for (const name of ['Ordinateur 1', 'Switch 1']) await page.locator(`[aria-label^="${name}"]`).click();
   await expect(page.locator('.cable')).toHaveCount(1);
 
-  // Conception : le menu du navigateur est remplacé par celui de RéseauLab.
+  // L'outil câble est toujours pris : un premier clic droit le repose, sans menu.
   const computer = page.locator('[aria-label^="Ordinateur 1"]');
+  await computer.click({ button: 'right' });
+  await expect(palette.getByRole('button', { name: 'Câble' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  // Conception : le menu du navigateur est remplacé par celui de RéseauLab.
   await computer.click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'Menu de « Ordinateur 1 »' });
   await expect(menu).toBeVisible();
