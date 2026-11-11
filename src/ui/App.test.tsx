@@ -1204,17 +1204,27 @@ describe('Aide et connaissances', () => {
       fireEvent.click(within(help).getByRole('button', { name: 'Fiche suivante →' }));
     };
     next();
+    expect(
+      within(help).getByRole('article', { name: 'Les données d’un objet connecté' }),
+    ).toBeInTheDocument();
+    next();
     expect(within(help).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
     next();
     next();
     expect(within(help).getByRole('article', { name: 'Adresse MAC et carte réseau' })).toBeInTheDocument();
     next();
     expect(
+      within(help).getByRole('article', { name: 'Adresse IP privée et adresse IP publique' }),
+    ).toBeInTheDocument();
+    next();
+    expect(within(help).getByRole('article', { name: 'Dépanner un réseau' })).toBeInTheDocument();
+    next();
+    expect(
       within(help).getByRole('article', { name: 'Tester une communication : ping' }),
     ).toBeInTheDocument();
 
     fireEvent.click(within(help).getByRole('button', { name: '⌂ Accueil' }));
-    expect(within(help).getByText('5 / 6 fiches lues')).toBeInTheDocument();
+    expect(within(help).getByText('8 / 10 fiches lues')).toBeInTheDocument();
     fireEvent.click(within(help).getByRole('button', { name: 'Continuer : Les notions de 4e' }));
     expect(
       within(help).getByRole('article', { name: 'Adresse fixe ou automatique (DHCP)' }),
@@ -1416,7 +1426,7 @@ describe('Aide et connaissances', () => {
       fireEvent.click(within(help).getByRole('button', { name: '⌂ Accueil' }));
       fireEvent.click(within(help).getByRole('button', { name: 'Imprimer les fiches : Les notions de 5e' }));
       expect(print).toHaveBeenCalledTimes(2);
-      expect(document.querySelectorAll('.print-cards .print-card')).toHaveLength(9);
+      expect(document.querySelectorAll('.print-cards .print-card')).toHaveLength(11);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -2204,8 +2214,12 @@ describe('Quiz', () => {
     // Répondre à tout en cochant le premier choix : le quiz va jusqu'au bilan.
     for (let i = 0; i < 8; i++) {
       const boxes = within(quiz).queryAllByRole('checkbox');
-      const first = boxes[0] ?? within(quiz).getAllByRole('radio')[0];
+      const first = boxes[0] ?? within(quiz).queryAllByRole('radio')[0];
       if (first) fireEvent.click(first);
+      else {
+        const text = within(quiz).queryByRole('textbox');
+        if (text) fireEvent.change(text, { target: { value: 'réponse' } });
+      }
       fireEvent.click(within(quiz).getByRole('button', { name: 'Valider' }));
       fireEvent.click(
         within(quiz).getByRole('button', { name: i === 7 ? 'Voir le bilan' : 'Question suivante' }),

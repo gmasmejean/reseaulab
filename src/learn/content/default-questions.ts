@@ -143,6 +143,61 @@ export const DEFAULT_QUESTIONS: readonly Question[] = [
     explanation: 'En étoile, chaque terminal est relié à un équipement central, le plus souvent un switch.',
   },
 
+  {
+    id: 'fichiers-chemin',
+    notion: 'fichiers-arborescence',
+    level: '5e',
+    type: 'mcq',
+    prompt: 'Que désigne le chemin /Documents/4A/expose.odt ?',
+    choices: [
+      'Le fichier expose.odt, rangé dans le dossier 4A, lui-même dans Documents',
+      'Le dossier expose.odt, rangé dans le fichier 4A',
+      'L’adresse d’un site web',
+      'Le fichier Documents, rangé dans le dossier expose.odt',
+    ],
+    correct: one,
+    explanation:
+      'Un chemin liste les dossiers à ouvrir, du plus grand au plus petit, puis le nom du fichier.',
+  },
+  {
+    id: 'fichiers-extension',
+    notion: 'fichiers-arborescence',
+    level: '5e',
+    type: 'short',
+    prompt: 'Quelle est l’extension du fichier « photo-classe.png » ? (sans le point)',
+    accepted: ['png', '.png'],
+    explanation: 'L’extension est la fin du nom, après le dernier point : png, un format d’image.',
+  },
+  {
+    id: 'securite-session',
+    notion: 'securite-numerique',
+    level: '5e',
+    type: 'mcq',
+    prompt: 'Tu quittes ton poste quelques minutes pendant le cours. Que fais-tu ?',
+    choices: [
+      'Je verrouille ma session (Windows + L)',
+      'Je laisse ma session ouverte, je reviens vite',
+      'Je donne mon mot de passe à mon voisin pour qu’il surveille',
+      'J’éteins l’écran seulement',
+    ],
+    correct: one,
+    explanation: 'Une session ouverte permet à n’importe qui d’agir en ton nom : on la verrouille.',
+  },
+  {
+    id: 'securite-droit-auteur',
+    notion: 'securite-numerique',
+    level: '5e',
+    type: 'mcq',
+    prompt: 'Pour illustrer un exposé, peux-tu prendre n’importe quelle image trouvée sur Internet ?',
+    choices: [
+      'Non : il faut que son auteur l’autorise (licence libre par exemple) et citer la source',
+      'Oui, tout ce qui est sur Internet est gratuit',
+      'Oui, si je change sa couleur',
+      'Oui, si l’image n’a pas le symbole ©',
+    ],
+    correct: one,
+    explanation: 'Une œuvre appartient à son auteur (droit d’auteur), même sans le symbole ©.',
+  },
   /* ---------- 4e ---------- */
   {
     id: 'adresse-ip-valide',
@@ -259,6 +314,125 @@ export const DEFAULT_QUESTIONS: readonly Question[] = [
       'D’abord la liaison, puis l’adresse, enfin le test : sans liaison ou sans adresse, le ping ne peut pas réussir.',
   },
 
+  {
+    id: 'ip-privee',
+    notion: 'ip-privee-publique',
+    level: '4e',
+    type: 'mcq',
+    prompt: 'L’adresse 192.168.1.12 est…',
+    choices: [
+      'une adresse privée, utilisable seulement dans un réseau local',
+      'une adresse publique, unique sur Internet',
+      'une adresse MAC',
+      'une adresse invalide',
+    ],
+    correct: one,
+    explanation:
+      'Les adresses qui commencent par 192.168. sont réservées aux réseaux locaux : elles sont privées.',
+  },
+  {
+    id: 'ip-publique-fai',
+    notion: 'ip-privee-publique',
+    level: '4e',
+    type: 'mcq',
+    prompt: 'Qui attribue l’adresse IP publique de la box de la maison ?',
+    choices: [
+      'Le fournisseur d’accès à Internet (FAI)',
+      'L’ordinateur de la maison',
+      'Le switch',
+      'Le serveur DHCP de la box',
+    ],
+    correct: one,
+    explanation:
+      'L’adresse publique, unique sur Internet, est fournie par l’opérateur auquel on paie l’abonnement.',
+  },
+  {
+    id: 'depannage-ordre',
+    notion: 'depannage',
+    level: '4e',
+    type: 'order',
+    prompt: 'Remets dans l’ordre la démarche pour dépanner une communication.',
+    items: [
+      'Vérifier le câblage',
+      'Vérifier l’adresse IP (doublon, réseau, faute de frappe)',
+      'Vérifier le masque',
+      'Tester de nouveau avec ping',
+    ],
+    explanation: 'Du plus simple au plus subtil : câblage, adresse, masque, puis un nouveau test.',
+  },
+  {
+    id: 'depannage-doublon',
+    notion: 'depannage',
+    level: '4e',
+    type: 'mcq',
+    prompt: 'Poste 2 et Poste 3 ont tous les deux l’adresse 192.168.10.2. Que se passe-t-il ?',
+    choices: [
+      'Les messages envoyés à 192.168.10.2 n’arrivent qu’à l’un des deux : il faut changer une adresse',
+      'Rien : les deux postes se partagent l’adresse',
+      'Le switch leur donne une autre adresse',
+      'Les deux postes reçoivent tous les messages',
+    ],
+    correct: one,
+    explanation:
+      'Une adresse doit être unique dans son réseau, sinon le message ne trouve pas le bon destinataire.',
+  },
+  {
+    id: 'donnees-type',
+    notion: 'donnees-objet',
+    level: '4e',
+    type: 'mcq',
+    prompt:
+      'Dans la table d’une station météo, la colonne « Température (°C) » contient 18,5 ; 19,2 ; 21,0. Quel est le type de ce descripteur ?',
+    choices: ['Nombre décimal', 'Texte', 'Date et heure', 'Nombre entier'],
+    correct: one,
+    explanation:
+      'Les valeurs ont une partie après la virgule : ce sont des nombres décimaux, en degrés Celsius.',
+  },
+  {
+    id: 'donnees-chaine',
+    notion: 'donnees-objet',
+    level: '4e',
+    type: 'order',
+    prompt: 'Remets dans l’ordre le trajet d’une mesure de température.',
+    items: [
+      'Le capteur mesure la température',
+      'La carte programmable la convertit en nombre',
+      'L’objet l’envoie sur le réseau',
+      'La mesure s’ajoute à la table de données',
+    ],
+    explanation: 'Grandeur physique → nombre → réseau → table de données, que l’on peut lire et interpréter.',
+  },
+  {
+    id: 'usage-cookie',
+    notion: 'usage-raisonne',
+    level: '4e',
+    type: 'mcq',
+    prompt: 'Qu’est-ce qu’un cookie (témoin de connexion) ?',
+    choices: [
+      'Un petit fichier qu’un site enregistre dans le navigateur',
+      'Un virus qui détruit l’ordinateur',
+      'Un câble réseau',
+      'Le mot de passe de la box',
+    ],
+    correct: one,
+    explanation:
+      'Un cookie retient des informations (connexion, panier, visites) ; on peut le refuser ou l’effacer.',
+  },
+  {
+    id: 'usage-geolocalisation',
+    notion: 'usage-raisonne',
+    level: '4e',
+    type: 'mcq',
+    prompt: 'Une application de lampe torche demande à connaître ta position. Que fais-tu ?',
+    choices: [
+      'Je refuse : une lampe torche n’a pas besoin de ma position',
+      'J’accepte, sinon elle ne s’allume pas',
+      'J’accepte toujours, ce n’est pas grave',
+      'Je désinstalle mon navigateur',
+    ],
+    correct: one,
+    explanation: 'On n’autorise la géolocalisation qu’aux applications qui en ont vraiment besoin.',
+  },
   /* ---------- 3e ---------- */
   {
     id: 'routeur-role',

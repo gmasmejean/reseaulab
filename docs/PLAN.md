@@ -477,6 +477,24 @@ partie bonus (≈ 30 min) ; questions corrigées à un seul essai.
       par partie, « N répondues sur M, J justes sur C corrigées », chaque
       réponse avec la réponse attendue quand elle est fausse, réponses libres
       recopiées ; bonus à part.
+- [x] **Étape 40 — Fiches et questions manquantes du programme** : six
+      fiches pour des notions du programme qui n'en avaient pas. En 5e :
+      « Fichiers, dossiers et arborescence » (chemin, extension, lecteur
+      réseau, droits de lecture et d'écriture) et « Bons usages et sécurité
+      numérique » (compte personnel, mot de passe, verrouillage de session,
+      droit d'auteur, usurpation d'identité, cyberviolence). En 4e :
+      « Adresse IP privée et adresse IP publique » (avec le FAI), « Dépanner
+      un réseau » (câblage → adresse : doublon, mauvais réseau, faute de
+      frappe → masque ; une correction, un test), « Les données d'un objet
+      connecté » (capteur, nombre, table de données, descripteur, type,
+      unité, CSV) et « Usage raisonné des objets communicants » (cookies,
+      géolocalisation, identité numérique, données collectées, RGPD).
+      Chacune a ses erreurs fréquentes et deux questions de quiz (12 en
+      tout, dont une réponse courte et deux listes à ordonner) ; les fiches
+      voisines y renvoient (adresse IP, objet connecté, ping, box, client et
+      serveur, réseau local et Internet). Les autres noms (cookie, FAI,
+      extension, chemin, doublon, descripteur…) entrent dans le lexique.
+      Contenu **à faire valider par l'enseignant**.
 
 Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
 activités qui la travaillent, et un bouton « Essayer » qui chargerait un

@@ -185,7 +185,7 @@ Un serveur est un ordinateur comme un autre, sur lequel fonctionne un logiciel q
           'un serveur, c’est d’abord un logiciel qui rend un service. N’importe quel ordinateur peut en faire fonctionner un.',
       },
     ],
-    related: ['web-http', 'messagerie', 'dns', 'dhcp'],
+    related: ['web-http', 'messagerie', 'dns', 'dhcp', 'fichiers-arborescence'],
   },
   {
     id: 'switch',
@@ -274,7 +274,7 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
     ],
     inApp:
       'L’équipement « Box Internet » de la palette fait tout cela : reliez-y des terminaux (câble ou Wi-Fi), cochez « Configuration automatique (DHCP) » sur chacun, et la box leur donne une adresse. Sa prise Internet se relie à un routeur. Simplification : la box de RéseauLab ne modifie pas les adresses des messages ; pour sortir vers Internet, le routeur d’en face doit connaître le chemin du réseau de la maison.',
-    related: ['routeur', 'switch', 'wifi', 'dhcp', 'reseau-local-internet'],
+    related: ['routeur', 'switch', 'wifi', 'dhcp', 'reseau-local-internet', 'ip-privee-publique'],
   },
   {
     id: 'reseau-local-internet',
@@ -300,7 +300,7 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
           'Internet est un réseau de réseaux : des milliers de réseaux reliés entre eux par des routeurs.',
       },
     ],
-    related: ['reseau', 'routeur', 'passerelle', 'chemin-internet'],
+    related: ['reseau', 'routeur', 'passerelle', 'chemin-internet', 'ip-privee-publique'],
   },
   {
     id: 'topologie',
@@ -318,6 +318,90 @@ La plus courante dans un réseau local est la topologie **en étoile** : tous le
     ],
     inApp: 'Le plan de RéseauLab est le schéma de la topologie du réseau.',
     related: ['reseau', 'switch', 'liaison'],
+  },
+  {
+    id: 'fichiers-arborescence',
+    title: 'Fichiers, dossiers et arborescence',
+    aliases: ['fichier', 'dossier', 'arborescence', 'chemin', 'extension', 'lecteur réseau', 'droits'],
+    level: '5e',
+    category: 'services',
+    short:
+      'Les fichiers sont rangés dans des dossiers emboîtés : l’arborescence. Un chemin indique où trouver un fichier.',
+    body: `Un **fichier** contient des données : un texte, une image, un tableau, un programme. Son nom se termine souvent par une **extension** qui indique son format : \`.txt\` (texte), \`.odt\` ou \`.docx\` (traitement de texte), \`.ods\` ou \`.xlsx\` (tableur), \`.png\` ou \`.jpg\` (image), \`.csv\` (tableau de données).
+
+Les fichiers sont rangés dans des **dossiers**, eux-mêmes rangés dans d’autres dossiers : cela forme une **arborescence**, comme les branches d’un arbre. Le **chemin** d’un fichier liste les dossiers à ouvrir pour l’atteindre, séparés par \`/\` (ou \`\\\` sous Windows) : \`/Documents/4A/compte-rendu.odt\`.
+
+Au collège, tes fichiers ne sont pas sur le poste où tu travailles : ils sont sur un [[client-serveur|serveur]], et tu les retrouves depuis n’importe quel poste dans un **lecteur réseau**. Chaque dossier a des **droits** : certains se lisent seulement (lecture), d’autres permettent aussi d’ajouter ou de modifier des fichiers (écriture).`,
+    remember: [
+      'Un fichier est rangé dans un dossier ; les dossiers emboîtés forment l’arborescence.',
+      'Le chemin indique où est un fichier : /Documents/4A/compte-rendu.odt.',
+      'L’extension indique le format du fichier (.odt, .png, .csv…).',
+      'Droits : lecture (consulter) ou écriture (modifier, ajouter).',
+    ],
+    example:
+      'Dans /Documents/Commun/reglement.pdf, le fichier reglement.pdf (un PDF) est dans le dossier Commun, lui-même dans Documents.',
+    inApp:
+      'En simulation, ouvrez l’Explorateur de fichiers d’un poste ou d’un serveur pour parcourir son arborescence ; dans la ligne de commande, dir (ou ls) liste un dossier et cd y entre.',
+    mistakes: [
+      {
+        belief: 'mes fichiers du collège sont enregistrés sur l’ordinateur où je travaille.',
+        truth:
+          'ils sont sur le serveur du collège : c’est pour cela que tu les retrouves sur n’importe quel poste, après t’être connecté avec ton compte.',
+      },
+      {
+        belief: 'changer l’extension d’un fichier change son format.',
+        truth:
+          'l’extension indique seulement le format. Renommer image.png en image.txt ne la transforme pas en texte : l’ordinateur ne saura plus l’ouvrir.',
+      },
+    ],
+    related: ['client-serveur', 'securite-numerique', 'guide-fichiers'],
+  },
+  {
+    id: 'securite-numerique',
+    title: 'Bons usages et sécurité numérique',
+    aliases: [
+      'mot de passe',
+      'verrouillage de session',
+      'compte personnel',
+      'droit d’auteur',
+      'propriété intellectuelle',
+      'cyberviolence',
+      'usurpation d’identité',
+    ],
+    level: '5e',
+    category: 'securite',
+    short:
+      'Protéger son compte et respecter les autres : mot de passe, session verrouillée, droit d’auteur, comportement responsable.',
+    body: `Au collège, chacun a un **compte personnel** : il donne accès à tes fichiers et à l’ENT. Ce qui est fait avec ton compte est fait **en ton nom**. Pour le protéger :
+
+- un **mot de passe** long, que tu es seul à connaître, différent pour chaque service ;
+- **verrouiller sa session** dès qu’on quitte son poste ([touche:Windows+L]) et se déconnecter à la fin du cours.
+
+Respecter les autres, c’est aussi :
+
+- le **droit d’auteur** (propriété intellectuelle) : une image, une musique, un texte trouvés sur Internet appartiennent à leur auteur. On ne les réutilise que si c’est autorisé (licence libre, par exemple), en citant la source ;
+- ne pas se servir du compte d’un autre : c’est une **usurpation d’identité**, punie par la loi ;
+- refuser la **cyberviolence** (moqueries, insultes, photos publiées sans accord) : en parler à un adulte, ne pas la relayer. La **vie privée** des autres se respecte aussi en ligne.`,
+    remember: [
+      'Mon compte = mon identité : mot de passe secret, session verrouillée quand je m’absente.',
+      'Une œuvre trouvée sur Internet a un auteur : autorisation et source.',
+      'Utiliser le compte d’un autre est une usurpation d’identité.',
+      'Face à la cyberviolence : ne pas relayer, en parler à un adulte.',
+    ],
+    example:
+      'Un mot de passe solide : une phrase facile à retenir pour toi mais longue, comme « 3Chats-mangent2Pizzas! », plutôt que « 1234 » ou ton prénom.',
+    mistakes: [
+      {
+        belief: 'je peux prêter mon mot de passe à mon meilleur ami.',
+        truth: 'tout ce qu’il fera avec sera fait en ton nom. Un mot de passe ne se prête pas.',
+      },
+      {
+        belief: 'une image trouvée sur Internet est libre de droits.',
+        truth:
+          'elle appartient à son auteur, même sans le symbole ©. Il faut une autorisation, une licence libre, et citer la source.',
+      },
+    ],
+    related: ['fichiers-arborescence', 'usage-raisonne', 'pare-feu'],
   },
   {
     id: 'adresse-ip',
@@ -354,7 +438,7 @@ Dans un même réseau, deux équipements ne peuvent pas avoir la même adresse.`
         truth: 'chacun des 4 nombres va de 0 à 255.',
       },
     ],
-    related: ['masque', 'adresse-mac', 'dhcp', 'passerelle'],
+    related: ['masque', 'adresse-mac', 'dhcp', 'passerelle', 'ip-privee-publique', 'depannage'],
   },
   {
     id: 'masque',
@@ -473,7 +557,7 @@ Si la réponse revient, les deux équipements peuvent communiquer. Sinon, le mes
           'la panne peut être n’importe où : câble, adresse, masque, passerelle, pare-feu… et même sur le chemin du retour. Le bouton [[ecran:verifier]] aide à la trouver.',
       },
     ],
-    related: ['guide-verifier', 'adresse-ip', 'ttl'],
+    related: ['guide-verifier', 'adresse-ip', 'ttl', 'depannage'],
   },
   {
     id: 'objet-connecte',
@@ -491,7 +575,157 @@ Pour le réseau, c’est un [[terminal]] comme un autre : pour communiquer il lu
     ],
     inApp:
       'Ajoutez un « Objet connecté » à un réseau existant, donnez-lui une adresse libre du même réseau, puis vérifiez par un ping, ou tapez son adresse dans le navigateur d’un poste pour lire sa mesure.',
-    related: ['terminal', 'adresse-ip', 'masque', 'wifi'],
+    related: ['terminal', 'adresse-ip', 'masque', 'wifi', 'donnees-objet', 'usage-raisonne'],
+  },
+  {
+    id: 'ip-privee-publique',
+    title: 'Adresse IP privée et adresse IP publique',
+    aliases: ['adresse privée', 'adresse publique', 'IP publique', 'IP privée', 'FAI', 'fournisseur d’accès'],
+    level: '4e',
+    category: 'adressage',
+    short:
+      'Une adresse privée sert dans un réseau local ; une adresse publique, fournie par le fournisseur d’accès, identifie ce réseau sur Internet.',
+    body: `Certaines plages d’[[adresse-ip|adresses IP]] sont réservées aux **réseaux locaux** : ce sont les adresses **privées**. Les plus courantes commencent par \`192.168.\`, \`10.\` ou \`172.16.\` à \`172.31.\`. Chaque maison, chaque collège peut utiliser les mêmes : elles ne sortent jamais sur Internet.
+
+Pour aller sur Internet, le réseau local passe par un [[routeur]] ou une [[box]]. Côté Internet, celle-ci a une adresse **publique**, unique au monde, attribuée par le **fournisseur d’accès à Internet** (FAI : l’opérateur auquel on paie l’abonnement). Tous les appareils de la maison sortent sur Internet avec cette adresse publique.`,
+    remember: [
+      'Adresse privée (192.168.…, 10.…) : dans le réseau local seulement.',
+      'Adresse publique : unique sur Internet, fournie par le FAI.',
+      'La box ou le routeur fait le lien entre les deux.',
+    ],
+    example:
+      'À la maison, l’ordinateur a l’adresse privée 192.168.1.12 ; la box a l’adresse publique 82.64.12.34, donnée par l’opérateur.',
+    inApp:
+      'Sélectionnez une box : sa prise « Internet » se règle à part, avec une adresse publique ; ses prises « maison » utilisent des adresses privées.',
+    mistakes: [
+      {
+        belief: 'mon ordinateur a sa propre adresse sur Internet.',
+        truth:
+          'il a une adresse privée, valable chez toi seulement. Sur Internet, c’est l’adresse publique de la box qui apparaît.',
+      },
+      {
+        belief: 'deux maisons ne peuvent pas utiliser la même adresse 192.168.1.10.',
+        truth:
+          'elles le peuvent : ce sont des adresses privées, qui ne servent que dans chaque réseau local.',
+      },
+    ],
+    related: ['adresse-ip', 'box', 'reseau-local-internet', 'dhcp'],
+  },
+  {
+    id: 'depannage',
+    title: 'Dépanner un réseau',
+    aliases: ['dépannage', 'panne', 'doublon', 'adresse en double', 'ipconfig', 'faute de frappe'],
+    level: '4e',
+    category: 'adressage',
+    short:
+      'Pour dépanner, on vérifie dans l’ordre : le câblage, puis les adresses, puis le masque, en testant avec ping.',
+    body: `Quand deux équipements ne communiquent pas, on cherche **méthodiquement**, du plus simple au plus subtil :
+
+- **1. Le câblage** : chaque équipement est-il relié (câble branché, bon réseau Wi-Fi) ?
+- **2. Les adresses** : chacun a-t-il une [[adresse-ip|adresse IP]] ? Est-elle dans le **bon réseau** ? N’est-elle pas déjà prise par un autre (**doublon**) ? Pas de **faute de frappe** (\`192.168.11.5\` au lieu de \`192.168.10.5\`) ?
+- **3. Le masque** : est-il le même que celui des autres équipements du réseau ?
+
+À chaque étape, on corrige **une seule chose**, puis on teste de nouveau avec [[ping]]. La commande \`ipconfig\` affiche l’adresse et le masque réellement utilisés par un poste.`,
+    remember: [
+      'Ordre : câblage → adresse (doublon, mauvais réseau, faute de frappe) → masque.',
+      'Une correction à la fois, puis un nouveau test (ping).',
+      'ipconfig montre l’adresse et le masque d’un poste.',
+    ],
+    example:
+      'Poste 3 ne répond pas : il est bien relié, mais ipconfig montre 192.168.10.2, l’adresse de Poste 2. On lui donne une adresse libre (192.168.10.3) et le ping fonctionne.',
+    inApp:
+      'Le bouton [[ecran:verifier]] repère les câbles manquants, les adresses en double ou hors du réseau. Après un ping raté, « Pourquoi ça ne marche pas ? » montre où le message s’est arrêté.',
+    mistakes: [
+      {
+        belief: 'quand rien ne marche, il faut tout changer d’un coup.',
+        truth:
+          'en changeant plusieurs réglages à la fois, on ne sait plus lequel était en cause. Une correction, un test.',
+      },
+      {
+        belief: 'deux postes qui ont la même adresse peuvent quand même fonctionner tous les deux.',
+        truth:
+          'un message envoyé à cette adresse n’arrive qu’à l’un des deux, au hasard : l’adresse doit être unique dans le réseau.',
+      },
+    ],
+    related: ['ping', 'adresse-ip', 'masque', 'guide-verifier'],
+  },
+  {
+    id: 'donnees-objet',
+    title: 'Les données d’un objet connecté',
+    aliases: ['donnée', 'mesure', 'table de données', 'descripteur', 'unité', 'format', 'CSV', 'capteur'],
+    level: '4e',
+    category: 'materiel',
+    short:
+      'Un objet connecté transforme une grandeur physique en données, qu’il envoie sur le réseau sous forme de table.',
+    body: `Le **capteur** d’un [[objet-connecte|objet connecté]] mesure une grandeur physique (température, humidité, lumière…) et la transforme en signal électrique. La **carte programmable** de l’objet convertit ce signal en **nombre**, l’accompagne de la date et de l’heure, puis l’envoie sur le réseau par sa carte réseau (câble ou [[wifi|Wi-Fi]]).
+
+Les mesures s’accumulent dans une **table de données** : une ligne par mesure, une colonne par **descripteur**. Chaque descripteur a :
+
+- un **nom** (Heure, Température, Humidité) ;
+- un **type** : nombre entier, nombre décimal, texte, date et heure… ;
+- une **unité** quand c’est une grandeur (°C, %).
+
+On peut télécharger la table au format \`.csv\` (valeurs séparées par des virgules ou des points-virgules) pour la tracer dans un **tableur** et interpréter le comportement de l’objet : à quelle heure fait-il le plus chaud ?`,
+    remember: [
+      'Capteur → nombre → envoi sur le réseau → table de données.',
+      'Une colonne = un descripteur, avec un type (entier, décimal, texte, date) et une unité.',
+      'Une ligne = une mesure.',
+    ],
+    example:
+      'Une station météo envoie toutes les heures : 10:00 ; 18,5 ; 62 — l’heure (date et heure), la température (décimal, °C) et l’humidité (entier, %).',
+    inApp:
+      'Un objet connecté sert une petite page web : tapez son adresse dans le navigateur d’un poste pour lire ses mesures.',
+    mistakes: [
+      {
+        belief: 'le capteur envoie directement « il fait chaud ».',
+        truth:
+          'il ne fournit qu’un nombre ; c’est nous, ou un programme, qui l’interprétons à l’aide de l’unité et des autres mesures.',
+      },
+    ],
+    related: ['objet-connecte', 'usage-raisonne', 'client-serveur'],
+  },
+  {
+    id: 'usage-raisonne',
+    title: 'Usage raisonné des objets communicants',
+    aliases: [
+      'cookie',
+      'témoin de connexion',
+      'géolocalisation',
+      'identité numérique',
+      'données personnelles',
+      'traces',
+    ],
+    level: '4e',
+    category: 'securite',
+    short:
+      'Sites, applications et objets connectés collectent des données sur nous : cookies, position, habitudes. Il faut savoir les maîtriser.',
+    body: `Ce que nous faisons en ligne laisse des **traces** qui, mises ensemble, forment notre **identité numérique** : publications, photos, comptes, mais aussi données collectées sans qu’on le voie.
+
+- Un **cookie** (témoin de connexion) est un petit fichier qu’un site enregistre dans le navigateur. Il peut être utile (rester connecté, garder un panier) ou servir à **suivre** nos visites pour la publicité. On peut les refuser ou les effacer.
+- La **géolocalisation** permet à une application de connaître notre position. Pratique pour un itinéraire, elle révèle aussi où l’on vit et où l’on va : on ne l’autorise qu’aux applications qui en ont besoin, et seulement pendant leur utilisation.
+- Les **objets connectés** (montre, enceinte, caméra, station météo…) envoient leurs données à des serveurs, parfois à l’autre bout du monde : nos pas, notre sommeil, notre présence à la maison.
+
+En France, la loi (RGPD) oblige à demander notre accord et permet de demander l’effacement de ses données.`,
+    remember: [
+      'Cookie : petit fichier déposé par un site ; on peut le refuser ou l’effacer.',
+      'Géolocalisation : à n’autoriser qu’aux applications qui en ont besoin.',
+      'Un objet connecté envoie des données sur nous : savoir lesquelles et à qui.',
+      'Mes traces en ligne forment mon identité numérique.',
+    ],
+    example:
+      'Une station météo qui mesure la température d’une chambre heure par heure révèle aussi quand la chambre est occupée.',
+    mistakes: [
+      {
+        belief: 'refuser les cookies empêche d’aller sur le site.',
+        truth:
+          'la plupart des sites restent utilisables : seuls les cookies nécessaires à leur fonctionnement sont indispensables.',
+      },
+      {
+        belief: 'si je ne publie rien, je n’ai pas d’identité numérique.',
+        truth: 'les cookies, la position et les objets connectés laissent des traces même sans rien publier.',
+      },
+    ],
+    related: ['securite-numerique', 'donnees-objet', 'objet-connecte'],
   },
   {
     id: 'routeur',
