@@ -355,12 +355,17 @@ avec des mots. Les étapes suivantes y répondent, de la plus simple à la plus
 lourde. Le contenu ajouté (erreurs fréquentes, schémas, parcours) est une
 proposition à faire valider par l'enseignant, comme celui de l'étape 22.
 
-- [ ] **Étape 30 — Fiche lisible d'un coup d'œil** : « L'essentiel » (ex
-      « À retenir ») juste sous la définition, avant l'explication ; fenêtre
-      plus grande à l'ouverture ; colonne de gauche compacte (recherche, puis
-      niveau et Fiches / Lexique sur une ligne) ; le niveau de chaque fiche
-      dans la liste ; « ← Retour » et « Fiche suivante → » de vrais boutons,
-      en tête de fiche ; le quiz d'entraînement descend sous la liste.
+- [x] **Étape 30 — Fiche lisible d'un coup d'œil** : « À retenir » juste
+      sous la définition, avant l'explication ; la fenêtre s'ouvre en
+      960 × 620 et peut prendre les trois quarts de la zone (au lieu de
+      55 %) : en 1366 × 768, une fiche comme « Adresse IP » se lit en entier
+      sans défiler. Colonne de gauche compacte (recherche, puis niveau et
+      Fiches / Lexique sur une ligne), le niveau de chaque notion dans la
+      liste ; dans une rubrique, les fiches sont rangées par niveau
+      (`src/learn/content/order.ts`). « ← Retour » (grisé quand il n'y a
+      rien avant) et « Fiche suivante → » sont de vrais boutons, au-dessus
+      de la fiche ; la suivante est celle de la liste, au niveau choisi. Le
+      quiz d'entraînement descend sous la liste.
 - [ ] **Étape 31 — Aide selon le contexte** : la touche **F1** ouvre l'aide ;
       elle s'ouvre sur la fiche de l'équipement sélectionné, sinon sur la
       prise en main du mode en cours, sinon sur la dernière fiche lue. La
@@ -511,6 +516,8 @@ réseau prêt à l'emploi depuis une fiche.
   champ `curriculum` d'une fiche est laissé à l'enseignant. L'import et
   l'export d'un pack depuis l'interface arrivent à l'étape 28 ; d'ici là le
   mécanisme existe et est testé, mais sans bouton.
+- **« À retenir » garde son nom** (étape 30) : la feuille de route proposait
+  « L'essentiel » ; « À retenir » est le mot du cahier, connu des élèves.
 - **Pas de schémas intégrés aux fiches** (étape 22) : une fiche peut porter
   une image fournie par l'enseignant ; les schémas dessinés par RéseauLab
   restent à faire.

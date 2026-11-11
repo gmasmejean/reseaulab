@@ -1644,8 +1644,8 @@ button.term-help[aria-expanded='true'] {
 }
 .knowledge {
   display: grid;
-  grid-template-columns: 230px 1fr;
-  gap: 14px;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
   flex: 1;
   min-height: 0;
 }
@@ -1657,11 +1657,14 @@ button.term-help[aria-expanded='true'] {
 }
 .knowledge-filters {
   display: flex;
-  flex-direction: column;
   gap: 6px;
 }
-.knowledge-filters .segmented button {
+.knowledge-filters select {
   flex: 1;
+  min-width: 0;
+}
+.knowledge-filters .segmented button {
+  flex: none;
 }
 .segmented {
   display: flex;
@@ -1701,6 +1704,9 @@ button.term-help[aria-expanded='true'] {
   padding: 0;
 }
 .knowledge-list li button {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   width: 100%;
   text-align: left;
   border: 0;
@@ -1716,7 +1722,38 @@ button.term-help[aria-expanded='true'] {
   color: var(--accent);
   font-weight: 600;
 }
+.knowledge-item-label {
+  flex: 1;
+}
+.level-tag {
+  flex: none;
+  font-size: 0.75em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.knowledge-list li button.active .level-tag {
+  color: var(--accent);
+}
+.knowledge-quiz {
+  flex: none;
+}
+.knowledge-reader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.knowledge-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+.knowledge-steps button {
+  padding-block: 3px;
+}
 .knowledge-card {
+  flex: 1;
   overflow-y: auto;
   min-height: 0;
   padding-right: 6px;
@@ -1758,7 +1795,7 @@ button.term-help[aria-expanded='true'] {
   padding-left: 20px;
 }
 .notion-remember {
-  margin: 10px 0;
+  margin: 10px 0 12px;
   padding: 8px 12px;
   background: var(--warning-bg);
   border-radius: 6px;

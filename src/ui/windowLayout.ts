@@ -48,7 +48,7 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   capture: { width: 900, height: 520 },
   switch: { width: 520, height: 380 },
   router: { width: 680, height: 460 },
-  help: { width: 780, height: 540 },
+  help: { width: 960, height: 620 },
   diagnose: { width: 600, height: 520 },
   settings: { width: 560, height: 520 },
   activities: { width: 560, height: 460 },
@@ -65,6 +65,8 @@ const MARGIN = 8;
 const CASCADE = 26;
 /** A window never takes more than this share of the stage width by default. */
 const MAX_WIDTH_SHARE = 0.55;
+/** The help is read for itself, not beside a device: it may take more room. */
+const HELP_WIDTH_SHARE = 0.75;
 /** Part of the title bar that always stays reachable. */
 const GRIP_WIDTH = 120;
 const GRIP_HEIGHT = 36;
@@ -76,9 +78,10 @@ export function defaultWindowSize(kind: WindowKind): Size {
 }
 
 /** Size of a window in a stage of the given size (unknown in the tests). */
-export function fitWindow(size: Size, stage: Size | null): Size {
+export function fitWindow(size: Size, stage: Size | null, kind?: WindowKind): Size {
   if (!stage) return size;
-  const maxWidth = Math.max(MIN_WIDTH, Math.min(stage.width - 2 * MARGIN, stage.width * MAX_WIDTH_SHARE));
+  const share = kind?.type === 'help' ? HELP_WIDTH_SHARE : MAX_WIDTH_SHARE;
+  const maxWidth = Math.max(MIN_WIDTH, Math.min(stage.width - 2 * MARGIN, stage.width * share));
   const maxHeight = Math.max(MIN_HEIGHT, stage.height - 2 * MARGIN);
   return {
     width: Math.round(Math.min(size.width, maxWidth)),

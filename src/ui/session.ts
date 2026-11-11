@@ -1062,7 +1062,7 @@ export class Session {
       this.focusWindow(key);
       return;
     }
-    const size = fitWindow(defaultWindowSize(spec), this.viewport);
+    const size = fitWindow(defaultWindowSize(spec), this.viewport, spec);
     const position = placeWindow(size, this.viewport, this.sideFor(spec), this.windows.length);
     this.windows = [...this.windows, { id: key, spec, z: ++this.zCounter, ...position, ...size }];
     this.touch();
@@ -1080,7 +1080,7 @@ export class Session {
   arrangeWindows(): void {
     const ordered = [...this.windows].sort((a, b) => a.z - b.z);
     this.windows = ordered.map((w, index) => {
-      const size = fitWindow(defaultWindowSize(w.spec), this.viewport);
+      const size = fitWindow(defaultWindowSize(w.spec), this.viewport, w.spec);
       return { ...w, ...size, ...placeWindow(size, this.viewport, 'right', index), z: index + 1 };
     });
     this.zCounter = this.windows.length;

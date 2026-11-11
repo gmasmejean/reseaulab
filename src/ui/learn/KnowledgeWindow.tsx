@@ -1,23 +1,16 @@
 import { useState } from 'react';
 import { lexicon, searchNotions } from '../../learn/content/merge';
-import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Level, type Notion } from '../../learn/content/types';
+import { nextNotion, readingOrder, type LevelFilter } from '../../learn/content/order';
+import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
 import { RichText } from './RichText';
 
-/** Levels shown: every card, or those met up to a school year. */
-type LevelFilter = 'all' | Level;
-
 const FILTER_LABEL: Record<LevelFilter, string> = {
-  all: 'Tous les niveaux',
+  all: 'Tous niveaux',
   '5e': 'Niveau 5e',
   '4e': 'Jusqu’en 4e',
   '3e': 'Jusqu’en 3e',
 };
-
-function upTo(notion: Notion, filter: LevelFilter): boolean {
-  if (filter === 'all' || notion.category === 'guide') return true;
-  return LEVELS.indexOf(notion.level) <= LEVELS.indexOf(filter);
-}
 
 /** One knowledge card. */
 function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void }) {
@@ -34,6 +27,16 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
         )}
       </header>
       <p className="notion-short">{notion.short}</p>
+      {notion.remember.length > 0 && (
+        <section className="notion-remember" aria-label="À retenir">
+          <h3>À retenir</h3>
+          <ul>
+            {notion.remember.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <RichText
         source={notion.body}
         onOpenNotion={onOpen}
@@ -44,16 +47,6 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
         <p className="notion-example">
           <b>Exemple.</b> {notion.example}
         </p>
-      )}
-      {notion.remember.length > 0 && (
-        <section className="notion-remember">
-          <h3>À retenir</h3>
-          <ul>
-            {notion.remember.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </section>
       )}
       {notion.inApp !== undefined && (
         <p className="notion-in-app">
@@ -127,7 +120,8 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
     setCurrent(previous);
   };
 
-  const visible = notions.filter((n) => upTo(n, filter));
+  const visible = readingOrder(notions, filter);
+  const next = shown ? nextNotion(visible, shown.id) : undefined;
   const found = searchNotions(visible, query);
   const searching = query.trim() !== '';
   const item = (notion: Notion, label = notion.title) => (
@@ -140,8 +134,15 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
           open(notion.id);
         }}
       >
-        {label}
-        {label !== notion.title && <span className="muted small"> → {notion.title}</span>}
+        <span className="knowledge-item-label">
+          {label}
+          {label !== notion.title && <span className="muted small"> → {notion.title}</span>}
+        </span>
+        {notion.category !== 'guide' && (
+          <span className="level-tag" aria-hidden title={`Notion abordée en ${notion.level}`}>
+            {notion.level}
+          </span>
+        )}
       </button>
     </li>
   );
@@ -158,16 +159,6 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             setQuery(e.target.value);
           }}
         />
-        <button
-          type="button"
-          className="primary"
-          title="Quelques questions corrigées tout de suite, avec un bilan par notion"
-          onClick={() => {
-            session.openQuiz();
-          }}
-        >
-          Quiz d’entraînement
-        </button>
         <div className="knowledge-filters">
           <select
             aria-label="Niveau"
@@ -219,14 +210,37 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             })}
           {!searching && view === 'lexicon' && <ul>{lexicon(visible).map((w) => item(w.notion, w.word))}</ul>}
         </div>
+        <button
+          type="button"
+          className="knowledge-quiz"
+          title="Quelques questions corrigées tout de suite, avec un bilan par notion"
+          onClick={() => {
+            session.openQuiz();
+          }}
+        >
+          Quiz d’entraînement
+        </button>
       </nav>
-      <div className="knowledge-card">
-        {trail.length > 0 && (
-          <button type="button" className="link" onClick={back}>
+      <div className="knowledge-reader">
+        <div className="knowledge-steps" role="group" aria-label="Parcourir les fiches">
+          <button type="button" onClick={back} disabled={trail.length === 0}>
             ← Retour
           </button>
-        )}
-        {shown ? <Card notion={shown} onOpen={open} /> : <p className="muted">Aucune fiche.</p>}
+          {next && (
+            <button
+              type="button"
+              title={`Fiche suivante : ${next.title}`}
+              onClick={() => {
+                open(next.id);
+              }}
+            >
+              Fiche suivante →
+            </button>
+          )}
+        </div>
+        <div className="knowledge-card">
+          {shown ? <Card notion={shown} onOpen={open} /> : <p className="muted">Aucune fiche.</p>}
+        </div>
       </div>
     </div>
   );

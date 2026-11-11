@@ -2,6 +2,7 @@ import { MESSAGES } from '../diagnose/messages.fr';
 import { linkedNotions, parseInline, parseRich, plainText } from '../richtext';
 import { DEFAULT_PACK } from './default-pack';
 import { fold, lexicon, mergePacks, searchNotions } from './merge';
+import { nextNotion, readingOrder, shownAt } from './order';
 import { PackError, parsePack, serializePack } from './schema';
 import type { Question } from '../quiz/types';
 import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Notion, type Pack } from './types';
@@ -318,5 +319,31 @@ describe('Recherche et lexique', () => {
     expect(words.find((w) => w.word === 'commutateur')?.notion.id).toBe('switch');
     const folded = words.map((w) => fold(w.word));
     expect(folded).toEqual([...folded].sort((a, b) => a.localeCompare(b, 'fr')));
+  });
+});
+
+describe('Ordre de lecture', () => {
+  test('par rubrique, puis par niveau dans la rubrique, sinon dans l’ordre du pack', () => {
+    const notions = [
+      card('routeur', { level: '3e', category: 'materiel' }),
+      card('ip', { level: '4e' }),
+      card('reseau', { level: '5e', category: 'materiel' }),
+      card('guide', { level: '5e', category: 'guide' }),
+      card('ajout', { level: '5e', category: 'materiel' }),
+    ];
+    expect(readingOrder(notions).map((n) => n.id)).toEqual(['guide', 'reseau', 'ajout', 'routeur', 'ip']);
+    // Au niveau 5e : la prise en main et les notions de 5e seulement.
+    expect(readingOrder(notions, '5e').map((n) => n.id)).toEqual(['guide', 'reseau', 'ajout']);
+    expect(shownAt(card('x', { level: '3e', category: 'guide' }), '5e')).toBe(true);
+    expect(shownAt(card('x', { level: '3e' }), '4e')).toBe(false);
+  });
+
+  test('la fiche suivante : aucune après la dernière ni hors de la liste', () => {
+    const order = readingOrder(DEFAULT_PACK.notions);
+    expect(nextNotion(order, 'adresse-ip')?.id).toBe('masque');
+    expect(nextNotion(order, order.at(-1)?.id ?? '')).toBeUndefined();
+    expect(nextNotion(order, 'inconnue')).toBeUndefined();
+    // Toutes les fiches du pack par défaut se lisent d’un bout à l’autre.
+    expect(order).toHaveLength(DEFAULT_PACK.notions.length);
   });
 });

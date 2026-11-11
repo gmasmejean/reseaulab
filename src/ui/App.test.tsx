@@ -1167,7 +1167,33 @@ describe('Aide et connaissances', () => {
     expect(within(help).getByRole('article', { name: 'Passerelle' })).toBeInTheDocument();
     fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
     expect(within(help).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
-    expect(within(help).queryByRole('button', { name: '← Retour' })).not.toBeInTheDocument();
+    expect(within(help).getByRole('button', { name: '← Retour' })).toBeDisabled();
+  });
+
+  test('« À retenir » vient juste après la définition ; « Fiche suivante » suit l’ordre de la liste', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    const index = within(help).getByRole('navigation', { name: 'Fiches' });
+    fireEvent.click(within(index).getByRole('button', { name: 'Adresse IP' }));
+    const card = within(help).getByRole('article', { name: 'Adresse IP' });
+    const remember = within(card).getByRole('region', { name: 'À retenir' });
+    const explanation = within(card).getByText(/Pour envoyer un message, il faut savoir à qui/);
+    expect(remember.compareDocumentPosition(explanation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Le niveau de chaque notion se lit dans la liste, sans changer le nom du bouton.
+    expect(within(index).getByRole('button', { name: 'Adresse IP' })).toHaveTextContent('4e');
+
+    fireEvent.click(within(help).getByRole('button', { name: 'Fiche suivante →' }));
+    expect(within(help).getByRole('article', { name: 'Masque et « même réseau »' })).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
+    expect(within(help).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
+    // La dernière fiche n’a pas de suivante.
+    const items = within(index)
+      .getAllByRole('button')
+      .filter((b) => b.closest('li'));
+    const last = items.at(-1);
+    if (last) fireEvent.click(last);
+    expect(within(help).queryByRole('button', { name: 'Fiche suivante →' })).not.toBeInTheDocument();
   });
 
   test('recherche sans accents, filtre par niveau et lexique', () => {

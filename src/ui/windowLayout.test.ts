@@ -21,6 +21,18 @@ describe('Disposition des fenêtres', () => {
     expect(fitWindow({ width: 700, height: 440 }, null)).toEqual({ width: 700, height: 440 });
   });
 
+  test('l’aide, lue pour elle-même, peut prendre les trois quarts de la zone', () => {
+    const stage = { width: 1210, height: 640 };
+    expect(fitWindow(defaultWindowSize({ type: 'help' }), stage, { type: 'help' })).toEqual({
+      width: 908,
+      height: 620,
+    });
+    expect(fitWindow({ width: 960, height: 620 }, stage, { type: 'report' })).toEqual({
+      width: 666,
+      height: 620,
+    });
+  });
+
   test('les fenêtres s’ouvrent contre le bord demandé, chacune une barre de titre plus bas', () => {
     const size = { width: 560, height: 360 };
     expect(placeWindow(size, STAGE, 'right', 0)).toEqual({ x: 798, y: 8 });
