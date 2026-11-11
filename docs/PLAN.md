@@ -418,10 +418,15 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       fiches : adresse IP, masque, passerelle, switch, routeur, DHCP, DNS,
       ARP, adresse MAC, ping, Wi-Fi, client et serveur, pare-feu, réseau
       local et Internet — **à faire valider par l'enseignant**.
-- [ ] **Étape 36 — Parcours par niveau** : une page d'accueil de l'aide :
-      « Premiers pas » (les fiches de prise en main dans l'ordre) et un
-      parcours 5e, 4e, 3e, avec la progression (fiches lues) ; « Fiche
-      suivante » suit le parcours en cours.
+- [x] **Étape 36 — Parcours par niveau** : l'aide a une page d'accueil
+      (bouton **⌂ Accueil**, et à la première ouverture) : « Premiers pas »
+      (les six fiches de prise en main) puis un parcours par niveau jusqu'à
+      celui de la classe (« Les notions de 5e », de 4e, de 3e), chacun avec
+      sa barre de progression (fiches lues) et « Commencer », « Continuer »
+      (première fiche non lue) ou « Relire ». Dans un parcours, « Fiche
+      suivante » reste dans le parcours ; hors parcours, elle suit la liste.
+      Le parcours suivi et l'accueil font partie de l'historique « Retour »
+      et sont retrouvés à la réouverture.
 - [ ] **Étape 37 — Schémas** : des schémas dessinés par RéseauLab, avec les
       icônes du plan, appelés par `[[schema:…]]` dans le texte d'une fiche :
       couches, parties d'une adresse IP, même réseau ou non, passerelle,
@@ -548,6 +553,9 @@ réseau prêt à l'emploi depuis une fiche.
   la fiche a été lue jusqu'au bout. Les coches restent sur le poste, sans
   compte élève ; elles sont communes à ceux qui s'en servent, d'où
   « effacer ».
+- **Première ouverture sur l'accueil** (étape 36) : à l'étape 31, l'aide
+  s'ouvrait la première fois sur la prise en main du mode en cours ; elle
+  s'ouvre désormais sur la page d'accueil, qui propose « Premiers pas ».
 - **Le bouton Aide ignore la sélection** (étape 31) : la feuille de route
   prévoyait d'ouvrir l'aide sur l'équipement sélectionné. En conception, un
   équipement reste presque toujours sélectionné : le bouton Aide aurait

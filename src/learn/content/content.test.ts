@@ -2,7 +2,7 @@ import { MESSAGES } from '../diagnose/messages.fr';
 import { linkedNotions, parseInline, parseRich, plainText } from '../richtext';
 import { DEFAULT_PACK } from './default-pack';
 import { excerptOf, fold, lexicon, lexiconByLetter, mergePacks, searchHits, searchNotions } from './merge';
-import { nextNotion, readingOrder, shownAt } from './order';
+import { nextNotion, pathCards, pathsUpTo, readingOrder, resumeAt, shownAt } from './order';
 import { DEVICE_NOTION, contextualNotion } from './context';
 import { SCREEN_ELEMENTS } from './screen';
 import { PackError, parsePack, serializePack } from './schema';
@@ -397,15 +397,12 @@ describe('Ordre de lecture', () => {
 describe('Aide selon le contexte', () => {
   const exists = (id: string) => DEFAULT_PACK.notions.some((n) => n.id === id);
 
-  test('l’équipement sélectionné, sinon la dernière fiche lue, sinon la prise en main du mode', () => {
-    expect(contextualNotion({ device: 'router', lastRead: 'dns', mode: 'design', exists })).toBe('routeur');
-    expect(contextualNotion({ lastRead: 'dns', mode: 'design', exists })).toBe('dns');
-    expect(contextualNotion({ mode: 'design', exists })).toBe('guide-construire');
-    expect(contextualNotion({ mode: 'simulation', exists })).toBe('guide-simuler');
+  test('l’équipement sélectionné, sinon la dernière fiche lue, sinon rien (l’accueil de l’aide)', () => {
+    expect(contextualNotion({ device: 'router', lastRead: 'dns', exists })).toBe('routeur');
+    expect(contextualNotion({ lastRead: 'dns', exists })).toBe('dns');
+    expect(contextualNotion({ exists })).toBeUndefined();
     // Une fiche masquée par l’enseignant est sautée.
-    expect(contextualNotion({ device: 'box', mode: 'simulation', exists: (id) => id !== 'box' })).toBe(
-      'guide-simuler',
-    );
+    expect(contextualNotion({ device: 'box', lastRead: 'dns', exists: (id) => id !== 'box' })).toBe('dns');
   });
 
   test('chaque sorte d’équipement a sa fiche dans le pack par défaut', () => {
@@ -461,5 +458,25 @@ describe('Erreurs fréquentes', () => {
     expect(() => parsePack(broken)).toThrow('notions.0.mistakes.0.truth');
     // La recherche les lit aussi.
     expect(searchNotions(DEFAULT_PACK.notions, 'antivirus').map((n) => n.id)).toEqual(['pare-feu']);
+  });
+});
+
+describe('Parcours', () => {
+  test('premiers pas, puis un parcours par niveau jusqu’à celui de la classe', () => {
+    expect(pathsUpTo('5e')).toEqual(['guide', '5e']);
+    expect(pathsUpTo('complet')).toEqual(['guide', '5e', '4e', '3e']);
+    const notions = DEFAULT_PACK.notions;
+    expect(pathCards(notions, 'guide').map((n) => n.id)[0]).toBe('guide-construire');
+    expect(pathCards(notions, '4e').every((n) => n.level === '4e' && n.category !== 'guide')).toBe(true);
+    // Toutes les fiches sont dans un parcours, une seule fois.
+    const all = pathsUpTo('complet').flatMap((p) => pathCards(notions, p));
+    expect(new Set(all.map((n) => n.id)).size).toBe(notions.length);
+  });
+
+  test('on reprend à la première fiche non lue, ou au début quand tout est lu', () => {
+    const cards = [card('a'), card('b'), card('c')];
+    expect(resumeAt(cards, new Set(['a']))?.id).toBe('b');
+    expect(resumeAt(cards, new Set(['a', 'b', 'c']))?.id).toBe('a');
+    expect(resumeAt([], new Set())).toBeUndefined();
   });
 });

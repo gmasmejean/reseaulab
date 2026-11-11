@@ -1,10 +1,82 @@
 import { useEffect, useRef, useState } from 'react';
 import { lexiconByLetter, searchHits, type Excerpt } from '../../learn/content/merge';
-import { nextNotion, readingOrder, type LevelFilter } from '../../learn/content/order';
+import {
+  nextNotion,
+  pathCards,
+  pathsUpTo,
+  readingOrder,
+  resumeAt,
+  type LevelFilter,
+  type PathId,
+} from '../../learn/content/order';
 import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
 import { CardCheck } from './CardCheck';
 import { RichLine, RichText } from './RichText';
+
+/** The home page of the help, in the reading history. */
+const HOME = '';
+
+const PATH_TITLE: Record<PathId, string> = {
+  guide: 'Premiers pas',
+  '5e': 'Les notions de 5e',
+  '4e': 'Les notions de 4e',
+  '3e': 'Les notions de 3e',
+};
+const PATH_TEXT: Record<PathId, string> = {
+  guide: 'Construire un réseau, le faire fonctionner, trouver ce qui ne marche pas.',
+  '5e': 'Le matériel d’un réseau, et ce qui le relie.',
+  '4e': 'Les adresses des équipements, et comment tester une communication.',
+  '3e': 'Passer d’un réseau à l’autre, les protocoles et les services d’Internet.',
+};
+
+/**
+ * The home page: the first steps, then a path for each school year up to the
+ * class's, with what has been read.
+ */
+function Home({ onFollow }: { onFollow: (path: PathId) => void }) {
+  const session = useSession();
+  const paths = pathsUpTo(session.profile.base)
+    .map((path) => ({ path, cards: pathCards(session.pack.notions, path) }))
+    .filter(({ cards }) => cards.length > 0);
+  return (
+    <section className="knowledge-home" aria-label="Accueil de l’aide">
+      <h2>Aide et connaissances</h2>
+      <p>
+        Suivez un parcours, fiche après fiche, ou cherchez une notion dans la liste. La plupart des fiches se
+        terminent par une question pour vérifier.
+      </p>
+      <ul className="path-list">
+        {paths.map(({ path, cards }) => {
+          const read = cards.filter((n) => session.readCards.has(n.id)).length;
+          const label = read === 0 ? 'Commencer' : read === cards.length ? 'Relire' : 'Continuer';
+          return (
+            <li key={path} className="path-card">
+              <h3>{PATH_TITLE[path]}</h3>
+              <p className="muted">{PATH_TEXT[path]}</p>
+              <div className="path-progress">
+                <progress max={cards.length} value={read} aria-label={`${PATH_TITLE[path]} : fiches lues`} />
+                <span className="small">
+                  {read} / {cards.length} fiches lues
+                </span>
+              </div>
+              <button
+                type="button"
+                className={read < cards.length ? 'primary' : ''}
+                aria-label={`${label} : ${PATH_TITLE[path]}`}
+                onClick={() => {
+                  onFollow(path);
+                }}
+              >
+                {label}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 /** Cards remembered for « Retour ». */
 const MAX_TRAIL = 30;
@@ -116,32 +188,39 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
   const [filter, setFilter] = useState<LevelFilter>(base === '5e' || base === '4e' ? base : 'all');
   const [view, setView] = useState<'cards' | 'lexicon'>('cards');
   // Where the pupil was when the help was last closed: the card asked for
-  // comes on top of it, so that « Retour » leads back there.
+  // comes on top of it, so that « Retour » leads back there. The first time,
+  // the home page of the help.
+  const exists = (id: string) => id === HOME || session.notion(id) !== undefined;
   const [start] = useState(() => {
     const before = session.reading;
-    const last = before.current !== undefined && session.notion(before.current) ? before.current : undefined;
-    const target = asked !== undefined && session.notion(asked) ? asked : (last ?? notions[0]?.id);
+    const last = before.current !== undefined && exists(before.current) ? before.current : undefined;
+    const target = asked !== undefined && session.notion(asked) ? asked : (last ?? HOME);
     const trail = last !== undefined && last !== target ? [...before.trail, last] : before.trail;
-    return { current: target, trail: trail.filter((id) => session.notion(id)).slice(-MAX_TRAIL) };
+    return { current: target, trail: trail.filter(exists).slice(-MAX_TRAIL), path: before.path };
   });
-  const [current, setCurrent] = useState<string | undefined>(start.current);
-  /** Cards read before the current one, for the « Retour » button. */
+  const [current, setCurrent] = useState<string>(start.current);
+  /** Cards read before the current one ('' for the home page), for the « Retour » button. */
   const [trail, setTrail] = useState<readonly string[]>(start.trail);
-  const shown = session.notion(current ?? '') ?? notions[0];
+  /** The reading path followed, if any: « Fiche suivante » goes on in it. */
+  const [path, setPath] = useState<PathId | undefined>(start.path);
+  const shown = current === HOME ? undefined : session.notion(current);
   useEffect(() => {
-    session.rememberReading({ ...(shown ? { current: shown.id } : {}), trail });
+    session.rememberReading({ current: shown ? shown.id : HOME, trail, ...(path ? { path } : {}) });
     if (shown) session.markRead(shown.id);
-  }, [session, shown, trail]);
+  }, [session, shown, trail, path]);
   // Another card is read from its top.
   const reader = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (reader.current) reader.current.scrollTop = 0;
-  }, [shown?.id]);
+  }, [current]);
 
-  const open = (id: string) => {
-    if (id === shown?.id || !session.notion(id)) return;
-    if (shown) setTrail([...trail, shown.id].slice(-MAX_TRAIL));
+  const go = (id: string) => {
+    if (id === current || !exists(id)) return;
+    setTrail([...trail, current].slice(-MAX_TRAIL));
     setCurrent(id);
+  };
+  const open = (id: string) => {
+    if (session.notion(id)) go(id);
   };
   const back = () => {
     const previous = trail.at(-1);
@@ -149,9 +228,21 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
     setTrail(trail.slice(0, -1));
     setCurrent(previous);
   };
+  const follow = (to: PathId) => {
+    const card = resumeAt(pathCards(notions, to), session.readCards);
+    if (!card) return;
+    setPath(to);
+    go(card.id);
+  };
 
   const visible = readingOrder(notions, filter);
-  const next = shown ? nextNotion(visible, shown.id) : undefined;
+  // In a path, the next card of the path; otherwise the next one of the list.
+  const inPath = path && shown ? pathCards(notions, path) : [];
+  const next = !shown
+    ? undefined
+    : inPath.some((n) => n.id === shown.id)
+      ? nextNotion(inPath, shown.id)
+      : nextNotion(visible, shown.id);
   const readCount = visible.filter((n) => session.readCards.has(n.id)).length;
   const found = searchHits(visible, query);
   const searching = query.trim() !== '';
@@ -296,6 +387,16 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
           <button type="button" onClick={back} disabled={trail.length === 0}>
             ← Retour
           </button>
+          <button
+            type="button"
+            aria-pressed={current === HOME}
+            title="Premiers pas et parcours par niveau"
+            onClick={() => {
+              go(HOME);
+            }}
+          >
+            ⌂ Accueil
+          </button>
           {next && (
             <button
               type="button"
@@ -309,7 +410,7 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
           )}
         </div>
         <div className="knowledge-card" ref={reader}>
-          {shown ? <Card notion={shown} onOpen={open} /> : <p className="muted">Aucune fiche.</p>}
+          {shown ? <Card notion={shown} onOpen={open} /> : <Home onFollow={follow} />}
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { ConnectError, Network } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
 import { contextualNotion } from '../learn/content/context';
+import type { PathId } from '../learn/content/order';
 import { DEFAULT_PACK } from '../learn/content/default-pack';
 import { mergePacks } from '../learn/content/merge';
 import { parsePack } from '../learn/content/schema';
@@ -158,10 +159,14 @@ export interface Resumed {
   readonly savedAt: number | null;
 }
 
-/** Where the pupil is in the help: the card read, and those before it. */
+/**
+ * Where the pupil is in the help: the card read ('' for the home page of the
+ * help), those before it, and the reading path followed.
+ */
 export interface Reading {
   readonly current?: string;
   readonly trail: readonly string[];
+  readonly path?: PathId;
 }
 
 export interface Storage {
@@ -627,7 +632,6 @@ export class Session {
     return contextualNotion({
       device: selected?.kind,
       lastRead: this.reading.current,
-      mode: this.mode,
       exists: (id) => this.notion(id) !== undefined,
     });
   }

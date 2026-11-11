@@ -1797,6 +1797,51 @@ button.term-help[aria-expanded='true'] {
 .knowledge-steps button {
   padding-block: 3px;
 }
+.knowledge-steps button:nth-child(2) {
+  margin-right: auto;
+}
+.knowledge-home h2 {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+}
+.path-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.path-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.path-card h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+.path-card p {
+  margin: 0;
+  flex: 1;
+}
+.path-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.path-progress progress {
+  flex: 1;
+  height: 8px;
+  accent-color: var(--ok);
+}
+.path-card button {
+  align-self: flex-start;
+}
 .knowledge-card {
   flex: 1;
   overflow-y: auto;

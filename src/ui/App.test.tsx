@@ -1149,10 +1149,12 @@ describe('Lecture de la simulation', () => {
 });
 
 describe('Aide et connaissances', () => {
-  test('s’ouvre sur la prise en main ; les fiches se lisent de lien en lien, avec un retour', () => {
+  test('s’ouvre sur l’accueil ; les fiches se lisent de lien en lien, avec un retour', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
     const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    expect(within(help).getByRole('region', { name: 'Accueil de l’aide' })).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: 'Commencer : Premiers pas' }));
     expect(within(help).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
     // Les rubriques : prise en main puis notions.
     const index = within(help).getByRole('navigation', { name: 'Fiches' });
@@ -1176,7 +1178,46 @@ describe('Aide et connaissances', () => {
     expect(within(help).getByRole('article', { name: 'Passerelle' })).toBeInTheDocument();
     fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
     expect(within(help).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
+    expect(within(help).getByRole('region', { name: 'Accueil de l’aide' })).toBeInTheDocument();
     expect(within(help).getByRole('button', { name: '← Retour' })).toBeDisabled();
+  });
+
+  test('accueil : un parcours par niveau jusqu’à celui de la classe ; « Fiche suivante » suit le parcours', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PROFILE_KEY, JSON.stringify({ base: '4e' }));
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    const home = within(help).getByRole('region', { name: 'Accueil de l’aide' });
+    expect(
+      within(home)
+        .getAllByRole('heading', { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(['Premiers pas', 'Les notions de 5e', 'Les notions de 4e']);
+    fireEvent.click(within(home).getByRole('button', { name: 'Commencer : Les notions de 4e' }));
+    expect(within(help).getByRole('article', { name: 'Objet connecté' })).toBeInTheDocument();
+    // Dans le parcours de 4e, la fiche suivante est une notion de 4e (pas « Routeur » ni « Passerelle »).
+    const next = () => {
+      fireEvent.click(within(help).getByRole('button', { name: 'Fiche suivante →' }));
+    };
+    next();
+    expect(within(help).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
+    next();
+    next();
+    expect(within(help).getByRole('article', { name: 'Adresse MAC et carte réseau' })).toBeInTheDocument();
+    next();
+    expect(
+      within(help).getByRole('article', { name: 'Tester une communication : ping' }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(help).getByRole('button', { name: '⌂ Accueil' }));
+    expect(within(help).getByText('5 / 6 fiches lues')).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: 'Continuer : Les notions de 4e' }));
+    expect(
+      within(help).getByRole('article', { name: 'Adresse fixe ou automatique (DHCP)' }),
+    ).toBeInTheDocument();
   });
 
   test('« À retenir » vient juste après la définition ; « Fiche suivante » suit l’ordre de la liste', () => {
@@ -1209,7 +1250,7 @@ describe('Aide et connaissances', () => {
     const { session } = setup();
     fireEvent.keyDown(window, { key: 'F1' });
     const help = () => screen.getByRole('dialog', { name: 'Aide et connaissances' });
-    expect(within(help()).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    expect(within(help()).getByRole('region', { name: 'Accueil de l’aide' })).toBeInTheDocument();
     fireEvent.click(within(help()).getByRole('button', { name: 'Adresse IP' }));
     fireEvent.click(within(help()).getByRole('button', { name: /Fermer/ }));
 
@@ -1227,7 +1268,7 @@ describe('Aide et connaissances', () => {
     fireEvent.click(within(help()).getByRole('button', { name: '← Retour' }));
     expect(within(help()).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
     fireEvent.click(within(help()).getByRole('button', { name: '← Retour' }));
-    expect(within(help()).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    expect(within(help()).getByRole('region', { name: 'Accueil de l’aide' })).toBeInTheDocument();
   });
 
   test('« Qu’est-ce que c’est ? » au clic droit d’un équipement, sur le plan et dans la palette', () => {
@@ -1265,8 +1306,10 @@ describe('Aide et connaissances', () => {
   });
 
   test('un élément d’écran cité dans une fiche clignote ; absent, la fiche dit où le trouver', () => {
-    setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const { session } = setup();
+    act(() => {
+      session.openKnowledge('guide-construire');
+    });
     const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
     const card = within(help).getByRole('article', { name: 'Construire un réseau' });
     expect(within(card).getAllByText('Ctrl')[0]?.tagName).toBe('KBD');

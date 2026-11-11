@@ -28,3 +28,24 @@ export function nextNotion(order: readonly Notion[], id: string): Notion | undef
   const index = order.findIndex((n) => n.id === id);
   return index < 0 ? undefined : order[index + 1];
 }
+
+/** A reading path of the help: the first steps, or the notions met in a school year. */
+export type PathId = 'guide' | Level;
+
+/** The paths offered to a class: the first steps, then each year up to its own. */
+export function pathsUpTo(level: Level | 'complet'): PathId[] {
+  const reach = level === 'complet' ? LEVELS.length - 1 : LEVELS.indexOf(level);
+  return ['guide', ...LEVELS.slice(0, reach + 1)];
+}
+
+/** The cards of a path, in reading order. */
+export function pathCards(notions: readonly Notion[], path: PathId): Notion[] {
+  return readingOrder(notions).filter((n) =>
+    path === 'guide' ? n.category === 'guide' : n.category !== 'guide' && n.level === path,
+  );
+}
+
+/** Where to go on in a path: the first card not read yet, or the first one when all are read. */
+export function resumeAt(cards: readonly Notion[], read: ReadonlySet<string>): Notion | undefined {
+  return cards.find((n) => !read.has(n.id)) ?? cards[0];
+}
