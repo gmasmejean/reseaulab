@@ -305,7 +305,17 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
   {
     id: 'topologie',
     title: 'Topologie d’un réseau',
-    aliases: ['schéma du réseau', 'architecture', 'étoile', 'arbre', 'maillée', 'maillage', 'panne'],
+    aliases: [
+      'schéma du réseau',
+      'architecture',
+      'étoile',
+      'arbre',
+      'maillée',
+      'maillage',
+      'bus',
+      'anneau',
+      'panne',
+    ],
     level: '5e',
     category: 'materiel',
     short:
@@ -318,12 +328,18 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
 - **En arbre** : plusieurs étoiles reliées entre elles. Dans un collège, chaque salle a son switch, et les switchs des salles sont reliés à un switch principal.
 - **Maillée** : il existe plusieurs chemins d’un équipement à l’autre. C’est le cas des [[routeur|routeurs]] d’[[reseau-local-internet|Internet]] : si une liaison est coupée, les messages passent par un autre chemin.
 
+Les premiers réseaux locaux utilisaient d’autres topologies, qu’on ne rencontre presque plus :
+
+- **En bus** : tous les équipements sont branchés sur un même câble, qu’ils se partagent. Si ce câble est coupé, le réseau ne fonctionne plus.
+- **En anneau** : chaque équipement est relié à ses deux voisins, et les messages font le tour de l’anneau. Si une liaison est coupée, l’anneau est ouvert et les échanges sont perturbés.
+
 Lire le schéma permet de prévoir l’effet d’une panne. En étoile, si un câble est débranché, seul son terminal est coupé du réseau ; si le switch central tombe en panne, plus personne ne communique. En arbre, la panne d’un switch coupe tous les équipements qui sont « en dessous » de lui.`,
     remember: [
       'La topologie décrit qui est relié à qui, pas où les équipements sont posés.',
       'En étoile : tous les terminaux sont reliés à un équipement central (switch, point d’accès Wi-Fi).',
       'En arbre : des étoiles reliées entre elles, par exemple un switch par salle relié au switch principal.',
       'Maillée : plusieurs chemins possibles ; une liaison coupée n’arrête pas les échanges.',
+      'Bus (un câble partagé) et anneau (chacun relié à ses deux voisins) : des topologies d’anciens réseaux.',
     ],
     example:
       'Dans la salle de techno, les postes et l’imprimante sont reliés au switch de la salle : c’est une étoile. Ce switch est relié au switch principal du collège, comme ceux des autres salles : le réseau du collège est un arbre.',

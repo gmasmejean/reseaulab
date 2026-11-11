@@ -409,13 +409,19 @@ type Point = readonly [number, number];
 function Mesh({
   nodes,
   cables,
+  wires = [],
 }: {
   nodes: readonly { kind: DeviceKind; at: Point }[];
   cables: readonly (readonly [number, number])[];
+  /** Cables that do not join two drawn devices (the shared cable of a bus). */
+  wires?: readonly (readonly [Point, Point])[];
 }) {
   const size = (kind: DeviceKind) => (kind === 'computer' ? 32 : 38);
   return (
     <>
+      {wires.map(([from, to], i) => (
+        <Cable key={`wire-${i}`} x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} />
+      ))}
       {cables.map(([a, b]) => {
         const [from, to] = [nodes[a]?.at, nodes[b]?.at];
         return from && to ? (
@@ -435,14 +441,35 @@ function Mesh({
   );
 }
 
+/** Second row: the topologies of older networks, under the three of today. */
+const ROW = 255;
+
+const BUS_Y = ROW + 130;
+const BUS_X = [65, 135, 205, 275] as const;
+
+const RING_CENTRE: Point = [495, ROW + 130];
+const RING = [-90, -18, 54, 126, 198].map((angle): Point => {
+  const radians = (angle * Math.PI) / 180;
+  return [
+    Math.round(RING_CENTRE[0] + 72 * Math.cos(radians)),
+    Math.round(RING_CENTRE[1] + 72 * Math.sin(radians)),
+  ];
+});
+
 const TOPOLOGIES: readonly {
   name: string;
   hint: string;
+  /** Centre of the panel, and its row. */
+  middle: number;
+  row: 0 | 1;
   nodes: readonly { kind: DeviceKind; at: Point }[];
   cables: readonly (readonly [number, number])[];
+  wires?: readonly (readonly [Point, Point])[];
 }[] = [
   {
     name: 'En étoile',
+    middle: 110,
+    row: 0,
     hint: 'un switch au centre',
     nodes: [
       { kind: 'switch', at: [110, 128] },
@@ -460,6 +487,8 @@ const TOPOLOGIES: readonly {
   },
   {
     name: 'En arbre',
+    middle: 330,
+    row: 0,
     hint: 'des étoiles reliées entre elles',
     nodes: [
       { kind: 'switch', at: [330, 66] },
@@ -481,6 +510,8 @@ const TOPOLOGIES: readonly {
   },
   {
     name: 'Maillée',
+    middle: 550,
+    row: 0,
     hint: 'plusieurs chemins possibles',
     nodes: [
       { kind: 'router', at: [490, 72] },
@@ -496,6 +527,32 @@ const TOPOLOGIES: readonly {
       [0, 3],
     ],
   },
+  {
+    name: 'En bus (anciens réseaux)',
+    middle: 165,
+    row: 1,
+    hint: 'un seul câble partagé par tous',
+    nodes: BUS_X.map((x, i) => ({ kind: 'computer', at: [x, BUS_Y + (i % 2 === 0 ? -50 : 50)] })),
+    cables: [],
+    wires: [
+      [
+        [30, BUS_Y],
+        [300, BUS_Y],
+      ],
+      ...BUS_X.map((x, i): readonly [Point, Point] => [
+        [x, BUS_Y],
+        [x, BUS_Y + (i % 2 === 0 ? -50 : 50)],
+      ]),
+    ],
+  },
+  {
+    name: 'En anneau (anciens réseaux)',
+    middle: 495,
+    row: 1,
+    hint: 'chacun relié à ses deux voisins',
+    nodes: RING.map((at) => ({ kind: 'computer', at })),
+    cables: RING.map((_, i) => [i, (i + 1) % RING.length] as const),
+  },
 ];
 
 function Topologies() {
@@ -503,15 +560,17 @@ function Topologies() {
     <>
       <line x1={220} x2={220} y1={10} y2={240} className="fig-separator" />
       <line x1={440} x2={440} y1={10} y2={240} className="fig-separator" />
-      {TOPOLOGIES.map((topology, i) => {
-        const middle = 110 + i * 220;
+      <line x1={10} x2={650} y1={ROW} y2={ROW} className="fig-separator" />
+      <line x1={330} x2={330} y1={ROW + 10} y2={ROW + 240} className="fig-separator" />
+      {TOPOLOGIES.map((topology) => {
+        const top = topology.row * ROW;
         return (
           <g key={topology.name}>
-            <Label x={middle} y={24} className="strong">
+            <Label x={topology.middle} y={top + 24} className="strong">
               {topology.name}
             </Label>
-            <Mesh nodes={topology.nodes} cables={topology.cables} />
-            <Label x={middle} y={238} className="muted">
+            <Mesh nodes={topology.nodes} cables={topology.cables} wires={topology.wires ?? []} />
+            <Label x={topology.middle} y={top + 238} className="muted">
               {topology.hint}
             </Label>
           </g>
@@ -529,7 +588,7 @@ const DRAWINGS: Record<FigureId, { width: number; height: number; draw: (arrows:
   arp: { width: 560, height: 238, draw: (arrows) => <Arp arrows={arrows} /> },
   dns: { width: 640, height: 205, draw: (arrows) => <Dns arrows={arrows} /> },
   'chemin-internet': { width: 640, height: 125, draw: (arrows) => <Route arrows={arrows} /> },
-  topologies: { width: 660, height: 250, draw: () => <Topologies /> },
+  topologies: { width: 660, height: 505, draw: () => <Topologies /> },
 };
 
 /** A figure of the knowledge cards, with its caption; nothing for an unknown name. */

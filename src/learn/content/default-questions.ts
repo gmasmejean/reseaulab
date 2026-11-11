@@ -185,6 +185,18 @@ export const DEFAULT_QUESTIONS: readonly Question[] = [
     explanation:
       'Avec plusieurs chemins, une liaison coupée ne bloque pas les échanges : les routeurs font passer les messages par un autre chemin.',
   },
+  {
+    id: 'topologie-reconnaitre',
+    notion: 'topologie',
+    level: '5e',
+    type: 'mcq',
+    prompt:
+      'Dans un réseau, chaque équipement est relié à ses deux voisins, et l’ensemble forme un cercle. Quelle est cette topologie ?',
+    choices: ['En anneau', 'En étoile', 'En bus', 'En arbre'],
+    correct: one,
+    explanation:
+      'Chacun relié à ses deux voisins, en cercle : c’est un anneau. En bus, tous partagent un même câble ; en étoile, tous sont reliés à un équipement central.',
+  },
 
   {
     id: 'fichiers-chemin',
