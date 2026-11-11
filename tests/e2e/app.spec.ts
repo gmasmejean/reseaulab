@@ -901,6 +901,48 @@ test('enseignant : créer une activité, la distribuer, l’ouvrir comme un él�
   await expect(panel).toContainText('Tous les objectifs sont atteints. Bravo !');
 });
 
+test('activité : le panneau s’élargit en tirant son bord, sans écraser le plan', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : Mon premier réseau' }).click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  const edge = panel.getByRole('separator', { name: 'Largeur de l’activité' });
+  const widthOf = async () => Math.round((await panel.boundingBox())?.width ?? 0);
+  expect(await widthOf()).toBe(320);
+
+  // Tirer le bord gauche de 280 px vers la gauche.
+  const box = await edge.boundingBox();
+  if (!box) throw new Error('bord introuvable');
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 140, y, { steps: 5 });
+  await page.mouse.move(box.x + box.width / 2 - 280, y, { steps: 5 });
+  await page.mouse.up();
+  expect(await widthOf()).toBe(600);
+  await expect(edge).toHaveAttribute('aria-valuenow', '600');
+  await shot(page, '50-activite-elargie');
+
+  // Bien trop loin : le plan garde au moins 360 px.
+  const wide = await edge.boundingBox();
+  if (!wide) throw new Error('bord introuvable');
+  await page.mouse.move(wide.x + wide.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(5, y, { steps: 5 });
+  await page.mouse.up();
+  const stage = await page.locator('main.stage').boundingBox();
+  expect(Math.round(stage?.width ?? 0)).toBe(360);
+
+  // La largeur est gardée au rechargement ; un double-clic rend la largeur d’origine.
+  await page.reload();
+  await page.getByRole('button', { name: 'Continuer ce travail' }).click();
+  await expect(panel).toBeVisible();
+  const kept = await widthOf();
+  expect(kept).toBe(1366 - 156 - 360);
+  await edge.dblclick();
+  expect(await widthOf()).toBe(320);
+});
+
 test('le fichier unique reste léger', () => {
   const file = fileURLToPath(new URL('../../dist/index.html', import.meta.url));
   // Distribué par ENT, clé USB ou courriel : au-delà de 900 Ko, il faut se demander pourquoi.

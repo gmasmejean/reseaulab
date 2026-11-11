@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import type { Outcome } from '../../learn/activity/evaluate';
 import { askQuestion, drawSalt, givenText } from '../../learn/activity/questions';
 import {
@@ -11,6 +11,13 @@ import {
   type Step,
 } from '../../learn/activity/schema';
 import { useSession } from '../context';
+import {
+  ACTIVITY_DEFAULT_WIDTH,
+  ACTIVITY_MIN_WIDTH,
+  ACTIVITY_WIDTH_STEP,
+  MIN_STAGE_WIDTH,
+  clampActivityWidth,
+} from '../panelWidth';
 import { Feedback, QuestionForm } from './Question';
 import { RichText } from './RichText';
 
@@ -185,6 +192,98 @@ function groupObjectives<T extends { o: Objective }>(objectives: readonly T[]): 
   return groups;
 }
 
+/** Room shared by the plan and the panel (0 before any layout). */
+function availableWidth(panel: HTMLElement | null): number {
+  if (!panel) return 0;
+  const stage = panel.previousElementSibling;
+  return panel.getBoundingClientRect().width + (stage?.getBoundingClientRect().width ?? 0);
+}
+
+/**
+ * The left edge of the panel, dragged to widen it for reading (or with the
+ * arrow keys); a double click gives back the usual width. While dragging,
+ * only the panel follows (`onDrag`); the width is kept when the button is released.
+ */
+function PanelResizer({
+  panel,
+  width,
+  onDrag,
+}: {
+  panel: RefObject<HTMLElement | null>;
+  width: number;
+  onDrag: (width: number | null) => void;
+}) {
+  const session = useSession();
+  const drag = useRef<{ x: number; width: number; available: number } | null>(null);
+  /** Last room measured, for the maximum announced to screen readers. */
+  const [room, setRoom] = useState(0);
+  const measure = () => {
+    const available = availableWidth(panel.current);
+    setRoom(available);
+    return available;
+  };
+  const widthAt = (clientX: number) => {
+    const start = drag.current;
+    return start ? clampActivityWidth(start.width + start.x - clientX, start.available) : width;
+  };
+  const onKeyDown = (e: KeyboardEvent) => {
+    const wanted: Record<string, number> = {
+      ArrowLeft: width + ACTIVITY_WIDTH_STEP,
+      ArrowRight: width - ACTIVITY_WIDTH_STEP,
+      Home: ACTIVITY_MIN_WIDTH,
+      // As wide as the plan allows.
+      End: Number.MAX_SAFE_INTEGER,
+    };
+    const target = wanted[e.key];
+    if (e.key === 'Enter') session.setActivityWidth(null);
+    else if (target !== undefined) {
+      const available = measure();
+      // Without a layout, there is no « as wide as possible ».
+      if (available > 0 || e.key !== 'End') session.setActivityWidth(clampActivityWidth(target, available));
+    } else return;
+    e.preventDefault();
+  };
+  const end = (e: PointerEvent) => {
+    if (!drag.current) return;
+    session.setActivityWidth(widthAt(e.clientX));
+    drag.current = null;
+    onDrag(null);
+  };
+  const max = room > 0 ? Math.max(width, room - MIN_STAGE_WIDTH) : undefined;
+  return (
+    <div
+      className="activity-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Largeur de l’activité"
+      aria-valuenow={width}
+      aria-valuemin={ACTIVITY_MIN_WIDTH}
+      aria-valuemax={max}
+      aria-valuetext={`${width} pixels`}
+      tabIndex={0}
+      title="Glisser pour élargir ou rétrécir l’activité (double-clic : largeur d’origine)"
+      onKeyDown={onKeyDown}
+      onDoubleClick={() => {
+        session.setActivityWidth(null);
+      }}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { x: e.clientX, width, available: measure() };
+        onDrag(width);
+      }}
+      onPointerMove={(e) => {
+        if (drag.current) onDrag(widthAt(e.clientX));
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+    >
+      <span aria-hidden />
+    </div>
+  );
+}
+
 /**
  * The activity being done, next to the plan: instructions step by step,
  * objectives that tick themselves, hints on request.
@@ -195,7 +294,11 @@ export function ActivityPanel() {
   const [folded, setFolded] = useState(false);
   /** Steps opened or closed by hand; the others follow the progress. */
   const [toggled, setToggled] = useState<Readonly<Record<string, boolean>>>({});
+  const panel = useRef<HTMLElement>(null);
+  /** Width followed while the edge is dragged; the session keeps it on release. */
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
   if (!activity) return null;
+  const width = dragWidth ?? session.activityWidth ?? ACTIVITY_DEFAULT_WIDTH;
 
   const outcomes = session.activityOutcomes();
   const all = requiredObjectives(activity);
@@ -261,6 +364,25 @@ export function ActivityPanel() {
         {open && (
           <div className="step-body">
             {step.body !== '' && <RichText source={step.body} onOpenNotion={openNotion} titleOf={titleOf} />}
+            {notions.length > 0 && (
+              // Right under the instructions, so that the pupil sees them before answering.
+              <div className="step-notions" role="group" aria-label="Fiches pour t’aider">
+                <span aria-hidden>Pour t’aider :</span>
+                {notions.map((notion) => (
+                  <button
+                    key={notion.id}
+                    type="button"
+                    className="link"
+                    title="Ouvrir la fiche de connaissances"
+                    onClick={() => {
+                      openNotion(notion.id);
+                    }}
+                  >
+                    Fiche : {notion.title}
+                  </button>
+                ))}
+              </div>
+            )}
             {groupObjectives(objectives).map((group) =>
               Array.isArray(group) ? (
                 <ul key={group[0]?.o.id} className="objectives" aria-label={`Objectifs : ${step.title}`}>
@@ -284,8 +406,8 @@ export function ActivityPanel() {
                 <b>Indice {i + 1}.</b> {hint}
               </p>
             ))}
-            <div className="step-actions">
-              {shownHints < step.hints.length && (
+            {shownHints < step.hints.length && (
+              <div className="step-actions">
                 <button
                   type="button"
                   onClick={() => {
@@ -294,21 +416,8 @@ export function ActivityPanel() {
                 >
                   {shownHints === 0 ? 'Un indice' : 'Un autre indice'} ({shownHints}/{step.hints.length})
                 </button>
-              )}
-              {notions.map((notion) => (
-                <button
-                  key={notion.id}
-                  type="button"
-                  className="link"
-                  title="Ouvrir la fiche de connaissances"
-                  onClick={() => {
-                    openNotion(notion.id);
-                  }}
-                >
-                  Fiche : {notion.title}
-                </button>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </li>
@@ -316,7 +425,13 @@ export function ActivityPanel() {
   };
 
   return (
-    <aside className="activity" aria-label="Activité">
+    <aside
+      ref={panel}
+      className={`activity${dragWidth === null ? '' : ' resizing'}`}
+      aria-label="Activité"
+      style={{ width }}
+    >
+      <PanelResizer panel={panel} width={width} onDrag={setDragWidth} />
       <header>
         <h2>{activity.title}</h2>
         <button

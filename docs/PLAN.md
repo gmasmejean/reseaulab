@@ -524,6 +524,18 @@ partie bonus (≈ 30 min) ; questions corrigées à un seul essai.
       enregistré puis rouvert avec ses réponses, compte rendu. Contenu **à
       faire valider par l'enseignant**.
 
+- [x] **Étape 42 — Panneau d'activité élargissable** (demande de
+      l'enseignant, pour la lisibilité). Le bord gauche du panneau
+      d'activité se tire à la souris pour l'élargir ou le rétrécir ; au
+      clavier, c'est un séparateur (flèches : ±40 px, Début : minimum, Fin :
+      maximum, Entrée ou double-clic : largeur d'origine de 320 px). Le
+      panneau garde au moins 280 px et laisse toujours au moins 360 px au
+      plan (`src/ui/panelWidth.ts`) ; la largeur choisie est gardée sur le
+      poste (`reseaulab:largeur-activite`), pas dans le fichier de l'élève.
+      Pendant le glissement, seul le panneau se redessine. Tests : règles de
+      largeur, clavier, double-clic et reprise au rechargement ; bout en
+      bout : glissement réel à 1366 × 768, plan jamais écrasé.
+
 Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
 activités qui la travaillent, et un bouton « Essayer » qui chargerait un
 réseau prêt à l'emploi depuis une fiche.

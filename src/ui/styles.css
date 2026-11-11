@@ -2120,12 +2120,47 @@ button.screen-chip:focus-visible {
 
 /* ---------- activité ---------- */
 .activity {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 320px;
+  /* A width chosen on a larger screen must not crush the plan (palette 156 px + plan 360 px). */
+  max-width: max(280px, calc(100vw - 516px));
   min-height: 0;
   background: var(--surface);
   border-left: 1px solid var(--border);
+}
+/* Left edge of the panel: dragged to widen it. */
+.activity-resizer {
+  position: absolute;
+  inset-block: 0;
+  left: -5px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.activity-resizer span {
+  width: 4px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.activity-resizer:hover span,
+.activity-resizer:focus-visible span,
+.activity.resizing .activity-resizer span {
+  width: 6px;
+  height: 64px;
+  background: var(--accent);
+}
+.activity-resizer:focus-visible {
+  outline: none;
+}
+.activity.resizing {
+  user-select: none;
 }
 .activity.folded {
   width: auto;
@@ -2318,6 +2353,19 @@ button.screen-chip:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
+}
+.step-notions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  margin: 6px 0;
+  padding: 6px 10px;
+  background: var(--accent-soft);
+  border-radius: 6px;
+}
+.step-notions > span {
+  font-weight: 600;
 }
 .activity-finished {
   margin: 8px 0;

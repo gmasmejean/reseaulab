@@ -39,6 +39,7 @@ import type { Answer } from '../learn/quiz/types';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
+import { parseActivityWidth } from './panelWidth';
 import { clampWindow, defaultWindowSize, fitWindow, placeWindow, type Size } from './windowLayout';
 
 export type Mode = 'design' | 'simulation';
@@ -144,6 +145,8 @@ function parseReadCards(text: string | null): ReadonlySet<string> {
 export const PACK_KEY = 'reseaulab:pack';
 /** Level of the class chosen on this computer. */
 export const PROFILE_KEY = 'reseaulab:profil';
+/** Width given by hand to the activity panel on this computer. */
+export const ACTIVITY_WIDTH_KEY = 'reseaulab:largeur-activite';
 
 /**
  * Frames that devices send on their own, without any action of the pupil:
@@ -253,6 +256,8 @@ export class Session {
   importReport: ImportReport | null = null;
   /** Do not animate (nor slow down for) the automatic traffic: DHCP, RIP. */
   hideAutomatic = false;
+  /** Width chosen by hand for the activity panel; null for the default one. */
+  activityWidth: number | null = null;
   /** Set while the pupil has not said what to do with the work found at start-up. */
   resumed: Resumed | null = null;
   /** Validates the text field being edited; false when its value is refused. */
@@ -316,6 +321,7 @@ export class Session {
     this.network = this.restore() ?? new Network();
     this.present = this.designText();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
+    this.activityWidth = parseActivityWidth(this.readPreference(ACTIVITY_WIDTH_KEY));
     this.readCards = parseReadCards(this.readPreference(READ_CARDS_KEY));
     this.localPack = this.readLocalPack();
     this.rebuildPack();
@@ -873,6 +879,18 @@ export class Session {
     if (hide) this.inFlight = this.inFlight.filter((f) => !AUTOMATIC_PROTOCOLS.has(f.protocol));
     try {
       this.storage?.setItem(HIDE_AUTOMATIC_KEY, hide ? 'oui' : 'non');
+    } catch {
+      /* preference not kept: harmless */
+    }
+    this.touch();
+  }
+
+  /** Keeps the width of the activity panel on this computer; null goes back to the default. */
+  setActivityWidth(width: number | null): void {
+    if (width === this.activityWidth) return;
+    this.activityWidth = width;
+    try {
+      this.storage?.setItem(ACTIVITY_WIDTH_KEY, width === null ? '' : String(width));
     } catch {
       /* preference not kept: harmless */
     }

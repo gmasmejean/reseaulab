@@ -9,7 +9,7 @@ import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
 import { serializePack } from '../learn/content/schema';
 import { SCREEN_ELEMENTS } from '../learn/content/screen';
-import { PACK_KEY, PROFILE_KEY, Session } from './session';
+import { ACTIVITY_WIDTH_KEY, PACK_KEY, PROFILE_KEY, Session } from './session';
 
 function setup() {
   const frames = new ManualFrames();
@@ -1949,6 +1949,47 @@ describe('Activités guidées', () => {
     );
     expect(screen.queryByRole('complementary', { name: 'Activité' })).not.toBeInTheDocument();
     expect(session.activity).toBeNull();
+  });
+
+  test('le panneau d’activité s’élargit à la main et garde sa largeur sur ce poste', () => {
+    const storage = new MemoryStorage();
+    const session = new Session(storage, new ManualFrames());
+    const { unmount } = render(<App session={session} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commencer : Mon premier réseau' }));
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const edge = within(panel).getByRole('separator', { name: 'Largeur de l’activité' });
+    expect(edge).toHaveAttribute('aria-valuenow', '320');
+    expect(panel).toHaveStyle({ width: '320px' });
+
+    fireEvent.keyDown(edge, { key: 'ArrowLeft' });
+    fireEvent.keyDown(edge, { key: 'ArrowLeft' });
+    expect(panel).toHaveStyle({ width: '400px' });
+    expect(edge).toHaveAttribute('aria-valuenow', '400');
+    expect(storage.getItem(ACTIVITY_WIDTH_KEY)).toBe('400');
+    fireEvent.keyDown(edge, { key: 'ArrowRight' });
+    expect(panel).toHaveStyle({ width: '360px' });
+    // Jamais plus étroit que le minimum.
+    fireEvent.keyDown(edge, { key: 'Home' });
+    fireEvent.keyDown(edge, { key: 'ArrowRight' });
+    expect(panel).toHaveStyle({ width: '280px' });
+    fireEvent.keyDown(edge, { key: 'ArrowLeft' });
+    unmount();
+
+    // Rouvert sur le même poste : la largeur choisie est reprise.
+    const again = new Session(storage, new ManualFrames());
+    expect(again.activityWidth).toBe(320);
+    again.setActivityWidth(480);
+    render(<App session={again} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commencer : Mon premier réseau' }));
+    const reopened = screen.getByRole('complementary', { name: 'Activité' });
+    expect(reopened).toHaveStyle({ width: '480px' });
+    // Double-clic sur le bord : largeur d’origine.
+    fireEvent.doubleClick(within(reopened).getByRole('separator'));
+    expect(reopened).toHaveStyle({ width: '320px' });
+    expect(again.activityWidth).toBeNull();
+    expect(new Session(storage, new ManualFrames()).activityWidth).toBeNull();
   });
 
   test('commencer une activité demande confirmation quand un réseau est en cours', () => {
