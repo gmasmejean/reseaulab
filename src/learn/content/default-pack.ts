@@ -305,19 +305,47 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
   {
     id: 'topologie',
     title: 'Topologie d’un réseau',
-    aliases: ['schéma du réseau', 'architecture', 'étoile'],
+    aliases: ['schéma du réseau', 'architecture', 'étoile', 'arbre', 'maillée', 'maillage', 'panne'],
     level: '5e',
     category: 'materiel',
-    short: 'La topologie est la façon dont les équipements d’un réseau sont reliés entre eux.',
-    body: `On la représente par un schéma : les équipements, et un trait pour chaque [[liaison]]. Lire ce schéma permet de savoir par où passe un message et ce qui se passe si un équipement tombe en panne.
+    short:
+      'La topologie est la façon dont les équipements d’un réseau sont reliés entre eux : qui est relié à qui.',
+    body: `On la représente par un schéma : un dessin pour chaque équipement, un trait pour chaque [[liaison]]. L’endroit où les équipements sont posés dans la pièce ne compte pas : seuls les traits comptent.
 
-La plus courante dans un réseau local est la topologie **en étoile** : tous les terminaux sont reliés à un même [[switch]], au centre. Si un câble est débranché, seul son terminal est coupé du réseau ; si le switch tombe en panne, plus rien ne communique.`,
+[[schema:topologies]]
+
+- **En étoile** : tous les terminaux sont reliés à un même équipement central, le plus souvent un [[switch]]. C’est la topologie des réseaux locaux. Les appareils en [[wifi|Wi-Fi]] forment aussi une étoile, autour du point d’accès.
+- **En arbre** : plusieurs étoiles reliées entre elles. Dans un collège, chaque salle a son switch, et les switchs des salles sont reliés à un switch principal.
+- **Maillée** : il existe plusieurs chemins d’un équipement à l’autre. C’est le cas des [[routeur|routeurs]] d’[[reseau-local-internet|Internet]] : si une liaison est coupée, les messages passent par un autre chemin.
+
+Lire le schéma permet de prévoir l’effet d’une panne. En étoile, si un câble est débranché, seul son terminal est coupé du réseau ; si le switch central tombe en panne, plus personne ne communique. En arbre, la panne d’un switch coupe tous les équipements qui sont « en dessous » de lui.`,
     remember: [
-      'La topologie décrit qui est relié à qui.',
-      'En étoile : tous les équipements sont reliés à un équipement central.',
+      'La topologie décrit qui est relié à qui, pas où les équipements sont posés.',
+      'En étoile : tous les terminaux sont reliés à un équipement central (switch, point d’accès Wi-Fi).',
+      'En arbre : des étoiles reliées entre elles, par exemple un switch par salle relié au switch principal.',
+      'Maillée : plusieurs chemins possibles ; une liaison coupée n’arrête pas les échanges.',
     ],
-    inApp: 'Le plan de RéseauLab est le schéma de la topologie du réseau.',
-    related: ['reseau', 'switch', 'liaison'],
+    example:
+      'Dans la salle de techno, les postes et l’imprimante sont reliés au switch de la salle : c’est une étoile. Ce switch est relié au switch principal du collège, comme ceux des autres salles : le réseau du collège est un arbre.',
+    mistakes: [
+      {
+        belief: 'la topologie, c’est la place des équipements dans la salle.',
+        truth:
+          'c’est la façon dont ils sont reliés. Deux postes voisins peuvent être branchés sur deux switchs différents ; deux schémas dessinés autrement peuvent montrer la même topologie.',
+      },
+      {
+        belief: 'si un câble est débranché, tout le réseau s’arrête.',
+        truth:
+          'en étoile, seul l’équipement au bout de ce câble est coupé. C’est la panne de l’équipement central, le switch, qui coupe tout le monde.',
+      },
+      {
+        belief: 'en Wi-Fi, les appareils sont reliés directement les uns aux autres.',
+        truth: 'chacun est relié au point d’accès, au centre : c’est aussi une étoile.',
+      },
+    ],
+    inApp:
+      'Le plan de RéseauLab est le schéma de la topologie. Pour voir l’effet d’une panne : en Conception, supprimez le câble d’un poste ; en Simulation, faites un ping vers ce poste, puis vers un poste resté branché.',
+    related: ['reseau', 'switch', 'liaison', 'reseau-local-internet', 'chemin-internet'],
   },
   {
     id: 'fichiers-arborescence',

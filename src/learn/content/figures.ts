@@ -38,6 +38,11 @@ export const FIGURES = {
     description:
       'Étape 1 : le poste demande au serveur DNS l’adresse de www.college.fr. Étape 2 : le serveur DNS répond 10.0.0.80. Étape 3 : le poste demande la page au serveur web 10.0.0.80.',
   },
+  topologies: {
+    title: 'Trois façons de relier les équipements',
+    description:
+      'En étoile : quatre ordinateurs, chacun relié par son câble à un switch placé au centre. En arbre : un switch principal relié à deux switchs, chacun relié à deux ordinateurs. Maillée : quatre routeurs reliés par plusieurs liaisons, si bien qu’il existe plusieurs chemins de l’un à l’autre.',
+  },
   'chemin-internet': {
     title: 'D’un routeur à l’autre jusqu’au serveur',
     description:

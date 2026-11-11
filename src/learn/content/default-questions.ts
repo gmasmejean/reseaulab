@@ -142,6 +142,49 @@ export const DEFAULT_QUESTIONS: readonly Question[] = [
     correct: one,
     explanation: 'En étoile, chaque terminal est relié à un équipement central, le plus souvent un switch.',
   },
+  {
+    id: 'topologie-panne-cable',
+    notion: 'topologie',
+    level: '5e',
+    type: 'mcq',
+    prompt: 'Dans un réseau en étoile, on débranche le câble d’un poste. Qui est coupé du réseau ?',
+    choices: ['Seulement ce poste', 'Tous les postes', 'Les postes placés à côté de lui', 'Personne'],
+    correct: one,
+    explanation:
+      'Chaque poste a son propre câble vers le switch : seul le poste débranché est coupé. Les autres communiquent toujours.',
+  },
+  {
+    id: 'topologie-panne-switch',
+    notion: 'topologie',
+    level: '5e',
+    type: 'mcq',
+    prompt: 'Dans un réseau en étoile, le switch central tombe en panne. Que se passe-t-il ?',
+    choices: [
+      'Plus aucun terminal ne peut communiquer avec les autres',
+      'Un seul terminal est coupé du réseau',
+      'Les messages passent par un autre chemin',
+      'Rien, le switch n’est pas nécessaire',
+    ],
+    correct: one,
+    explanation:
+      'Tous les messages passent par l’équipement central : s’il tombe en panne, plus rien ne passe.',
+  },
+  {
+    id: 'topologie-maillee',
+    notion: 'topologie',
+    level: '5e',
+    type: 'mcq',
+    prompt: 'Pourquoi les routeurs d’Internet sont-ils reliés par plusieurs chemins (topologie maillée) ?',
+    choices: [
+      'Pour que les messages passent encore si une liaison est coupée',
+      'Pour que chaque ordinateur ait une adresse IP',
+      'Pour remplacer les switchs des réseaux locaux',
+      'Pour que le Wi-Fi porte plus loin',
+    ],
+    correct: one,
+    explanation:
+      'Avec plusieurs chemins, une liaison coupée ne bloque pas les échanges : les routeurs font passer les messages par un autre chemin.',
+  },
 
   {
     id: 'fichiers-chemin',

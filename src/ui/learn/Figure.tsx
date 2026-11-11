@@ -15,10 +15,10 @@ interface Arrows {
   readonly ok: string;
 }
 
-function Icon({ kind, x, y }: { kind: DeviceKind; x: number; y: number }) {
+function Icon({ kind, x, y, size = ICON }: { kind: DeviceKind; x: number; y: number; size?: number }) {
   return (
     <g transform={`translate(${x} ${y})`}>
-      <DeviceIcon kind={kind} size={ICON} />
+      <DeviceIcon kind={kind} size={size} />
     </g>
   );
 }
@@ -403,6 +403,124 @@ function Route({ arrows }: { arrows: Arrows }) {
   );
 }
 
+type Point = readonly [number, number];
+
+/** A small network: cables first, so that the icons, drawn centred on their point, hide their ends. */
+function Mesh({
+  nodes,
+  cables,
+}: {
+  nodes: readonly { kind: DeviceKind; at: Point }[];
+  cables: readonly (readonly [number, number])[];
+}) {
+  const size = (kind: DeviceKind) => (kind === 'computer' ? 32 : 38);
+  return (
+    <>
+      {cables.map(([a, b]) => {
+        const [from, to] = [nodes[a]?.at, nodes[b]?.at];
+        return from && to ? (
+          <Cable key={`${a}-${b}`} x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} />
+        ) : null;
+      })}
+      {nodes.map((node, i) => (
+        <Icon
+          key={i}
+          kind={node.kind}
+          x={node.at[0] - size(node.kind) / 2}
+          y={node.at[1] - size(node.kind) / 2}
+          size={size(node.kind)}
+        />
+      ))}
+    </>
+  );
+}
+
+const TOPOLOGIES: readonly {
+  name: string;
+  hint: string;
+  nodes: readonly { kind: DeviceKind; at: Point }[];
+  cables: readonly (readonly [number, number])[];
+}[] = [
+  {
+    name: 'En étoile',
+    hint: 'un switch au centre',
+    nodes: [
+      { kind: 'switch', at: [110, 128] },
+      { kind: 'computer', at: [40, 70] },
+      { kind: 'computer', at: [180, 70] },
+      { kind: 'computer', at: [40, 186] },
+      { kind: 'computer', at: [180, 186] },
+    ],
+    cables: [
+      [0, 1],
+      [0, 2],
+      [0, 3],
+      [0, 4],
+    ],
+  },
+  {
+    name: 'En arbre',
+    hint: 'des étoiles reliées entre elles',
+    nodes: [
+      { kind: 'switch', at: [330, 66] },
+      { kind: 'switch', at: [275, 130] },
+      { kind: 'switch', at: [385, 130] },
+      { kind: 'computer', at: [247, 192] },
+      { kind: 'computer', at: [303, 192] },
+      { kind: 'computer', at: [357, 192] },
+      { kind: 'computer', at: [413, 192] },
+    ],
+    cables: [
+      [0, 1],
+      [0, 2],
+      [1, 3],
+      [1, 4],
+      [2, 5],
+      [2, 6],
+    ],
+  },
+  {
+    name: 'Maillée',
+    hint: 'plusieurs chemins possibles',
+    nodes: [
+      { kind: 'router', at: [490, 72] },
+      { kind: 'router', at: [610, 72] },
+      { kind: 'router', at: [490, 180] },
+      { kind: 'router', at: [610, 180] },
+    ],
+    cables: [
+      [0, 1],
+      [0, 2],
+      [1, 3],
+      [2, 3],
+      [0, 3],
+    ],
+  },
+];
+
+function Topologies() {
+  return (
+    <>
+      <line x1={220} x2={220} y1={10} y2={240} className="fig-separator" />
+      <line x1={440} x2={440} y1={10} y2={240} className="fig-separator" />
+      {TOPOLOGIES.map((topology, i) => {
+        const middle = 110 + i * 220;
+        return (
+          <g key={topology.name}>
+            <Label x={middle} y={24} className="strong">
+              {topology.name}
+            </Label>
+            <Mesh nodes={topology.nodes} cables={topology.cables} />
+            <Label x={middle} y={238} className="muted">
+              {topology.hint}
+            </Label>
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
 const DRAWINGS: Record<FigureId, { width: number; height: number; draw: (arrows: Arrows) => ReactNode }> = {
   couches: { width: 520, height: 220, draw: () => <Layers /> },
   'adresse-ip': { width: 520, height: 140, draw: () => <AddressParts /> },
@@ -411,6 +529,7 @@ const DRAWINGS: Record<FigureId, { width: number; height: number; draw: (arrows:
   arp: { width: 560, height: 238, draw: (arrows) => <Arp arrows={arrows} /> },
   dns: { width: 640, height: 205, draw: (arrows) => <Dns arrows={arrows} /> },
   'chemin-internet': { width: 640, height: 125, draw: (arrows) => <Route arrows={arrows} /> },
+  topologies: { width: 660, height: 250, draw: () => <Topologies /> },
 };
 
 /** A figure of the knowledge cards, with its caption; nothing for an unknown name. */
