@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { lexicon, searchNotions } from '../../learn/content/merge';
+import { lexiconByLetter, searchHits, type Excerpt } from '../../learn/content/merge';
 import { nextNotion, readingOrder, type LevelFilter } from '../../learn/content/order';
 import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
@@ -135,9 +135,9 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
 
   const visible = readingOrder(notions, filter);
   const next = shown ? nextNotion(visible, shown.id) : undefined;
-  const found = searchNotions(visible, query);
+  const found = searchHits(visible, query);
   const searching = query.trim() !== '';
-  const item = (notion: Notion, label = notion.title) => (
+  const item = (notion: Notion, label = notion.title, excerpt?: Excerpt) => (
     <li key={`${notion.id}:${label}`}>
       <button
         type="button"
@@ -150,6 +150,13 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
         <span className="knowledge-item-label">
           {label}
           {label !== notion.title && <span className="muted small"> → {notion.title}</span>}
+          {excerpt && (
+            <span className="knowledge-excerpt">
+              {excerpt.before}
+              <mark>{excerpt.match}</mark>
+              {excerpt.after}
+            </span>
+          )}
         </span>
         {notion.category !== 'guide' && (
           <span className="level-tag" aria-hidden title={`Notion abordée en ${notion.level}`}>
@@ -208,7 +215,9 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
         </div>
         <div className="knowledge-list">
           {found.length === 0 && <p className="muted">Aucune fiche ne correspond.</p>}
-          {searching && found.length > 0 && <ul>{found.map((n) => item(n))}</ul>}
+          {searching && found.length > 0 && (
+            <ul>{found.map((hit) => item(hit.notion, hit.notion.title, hit.excerpt))}</ul>
+          )}
           {!searching &&
             view === 'cards' &&
             CATEGORIES.map((category) => {
@@ -221,7 +230,14 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
                 </section>
               );
             })}
-          {!searching && view === 'lexicon' && <ul>{lexicon(visible).map((w) => item(w.notion, w.word))}</ul>}
+          {!searching &&
+            view === 'lexicon' &&
+            lexiconByLetter(visible).map(({ letter, entries }) => (
+              <section key={letter} aria-label={`Lettre ${letter}`}>
+                <h3 className="lexicon-letter">{letter}</h3>
+                <ul>{entries.map((w) => item(w.notion, w.word))}</ul>
+              </section>
+            ))}
         </div>
         <button
           type="button"

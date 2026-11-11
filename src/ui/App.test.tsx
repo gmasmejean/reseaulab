@@ -1266,8 +1266,16 @@ describe('Aide et connaissances', () => {
     expect(within(index).getByRole('button', { name: 'Lancer la simulation' })).toBeInTheDocument();
 
     fireEvent.click(within(index).getByRole('button', { name: 'Lexique' }));
+    expect(within(index).getByRole('heading', { name: 'C' })).toBeInTheDocument();
     fireEvent.click(within(index).getByRole('button', { name: /^commutateur/ }));
     expect(within(help).getByRole('article', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+
+    // Un mot du texte seulement : la fiche, avec le passage où il se trouve.
+    fireEvent.change(within(index).getByRole('combobox', { name: 'Niveau' }), { target: { value: 'all' } });
+    fireEvent.change(search, { target: { value: 'colis' } });
+    const [hit] = within(index).getAllByRole('listitem');
+    expect(hit).toHaveTextContent(/Les couches : qui fait quoi.*comme un colis/);
+    expect(hit?.querySelector('mark')).toHaveTextContent('colis');
   });
 
   test('le « ? » d’un champ donne la définition et mène à la fiche, sans changer le nom du champ', () => {

@@ -1724,6 +1724,26 @@ button.term-help[aria-expanded='true'] {
 }
 .knowledge-item-label {
   flex: 1;
+  min-width: 0;
+}
+.knowledge-excerpt {
+  display: block;
+  font-size: 0.82em;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.knowledge-excerpt mark {
+  background: var(--warning-bg);
+  color: var(--text);
+  font-weight: 600;
+  border-radius: 2px;
+}
+.knowledge-list h3.lexicon-letter {
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
 }
 .level-tag {
   flex: none;

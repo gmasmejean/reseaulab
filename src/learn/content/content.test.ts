@@ -1,7 +1,7 @@
 import { MESSAGES } from '../diagnose/messages.fr';
 import { linkedNotions, parseInline, parseRich, plainText } from '../richtext';
 import { DEFAULT_PACK } from './default-pack';
-import { fold, lexicon, mergePacks, searchNotions } from './merge';
+import { excerptOf, fold, lexicon, lexiconByLetter, mergePacks, searchHits, searchNotions } from './merge';
 import { nextNotion, readingOrder, shownAt } from './order';
 import { DEVICE_NOTION, contextualNotion } from './context';
 import { PackError, parsePack, serializePack } from './schema';
@@ -320,6 +320,49 @@ describe('Recherche et lexique', () => {
     expect(words.find((w) => w.word === 'commutateur')?.notion.id).toBe('switch');
     const folded = words.map((w) => fold(w.word));
     expect(folded).toEqual([...folded].sort((a, b) => a.localeCompare(b, 'fr')));
+  });
+
+  test('le lexique ne répète pas le début d’un titre, et se découpe par lettre', () => {
+    const words = lexicon(notions).map((w) => w.word);
+    expect(words).toContain('ARP : trouver l’adresse MAC');
+    expect(words).not.toContain('ARP');
+    expect(words).not.toContain('masque');
+    // « IP » ne commence pas le titre « Adresse IP » : il reste, à la lettre I.
+    const groups = lexiconByLetter(notions);
+    expect(groups.find((g) => g.letter === 'I')?.entries.map((e) => e.word)).toContain('IP');
+    expect(groups.map((g) => g.letter)).toEqual([...new Set(groups.map((g) => g.letter))]);
+    expect(groups.flatMap((g) => g.entries)).toHaveLength(words.length);
+  });
+
+  test('la recherche lit aussi le texte des fiches, après les noms, et montre le passage trouvé', () => {
+    const [first] = searchHits(notions, 'colis');
+    expect(first?.notion.id).toBe('couches');
+    expect(first?.excerpt?.match).toBe('colis');
+    expect(`${first?.excerpt?.before}${first?.excerpt?.match}${first?.excerpt?.after}`).toMatch(
+      /comme un colis que/,
+    );
+    // Un mot du titre ne donne pas d’extrait.
+    expect(searchHits(notions, 'routeur')[0]).toEqual({ notion: notions.find((n) => n.id === 'routeur') });
+    const ipconfig = searchNotions(notions, 'ipconfig').map((n) => n.id);
+    expect(ipconfig).toContain('adresse-ip');
+    // Le début d’un mot seulement : « port » trouve « ports », pas « transporte ».
+    const port = searchHits(notions, 'port');
+    expect(port.map((h) => h.notion.id)).toContain('switch');
+    // « Une liaison transporte… » ne compte pas ; « leur portée » si.
+    expect(port.find((h) => h.notion.id === 'liaison')?.excerpt?.after).toMatch(/^ée est limitée/);
+    expect(port.every((h) => h.excerpt === undefined || /^port/i.test(h.excerpt.match))).toBe(true);
+  });
+
+  test('l’extrait garde les accents du texte et s’arrête à des mots entiers', () => {
+    const text =
+      'Dans le réseau du collège, chaque poste a une adresse IP unique et un nom bien choisi pour tous.';
+    const excerpt = excerptOf(text, 'college');
+    expect(excerpt?.match).toBe('collège');
+    expect(excerpt?.before).toBe('Dans le réseau du ');
+    expect(excerpt?.after.endsWith('…')).toBe(true);
+    // Coupé juste avant une espace : le dernier mot est entier.
+    expect(text).toContain(`${excerpt?.match}${excerpt?.after.slice(0, -1)} `);
+    expect(excerptOf(text, 'absent')).toBeUndefined();
   });
 });
 

@@ -377,10 +377,15 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       plan (conception et simulation) ou dans la palette, propose
       « Qu'est-ce que c'est ? » ; celui de la palette propose aussi
       « Ajouter au plan ». Règles dans `src/learn/content/context.ts`.
-- [ ] **Étape 32 — Lexique et recherche** : le lexique ne répète plus le
-      titre d'une fiche, il est découpé par lettre ; la recherche lit aussi
-      l'explication (classée après le titre et les autres noms) et montre un
-      extrait où le mot trouvé est surligné.
+- [x] **Étape 32 — Lexique et recherche** : le lexique ne garde plus un
+      autre nom qui répète le début du titre (« ARP » à côté de « ARP :
+      trouver l'adresse MAC », « masque », « box »…) et il est découpé par
+      lettre. La recherche lit aussi l'explication, « à retenir », l'exemple
+      et « dans RéseauLab » (après le titre, les autres noms et la
+      définition) ; quand le mot vient du texte, un extrait le montre
+      surligné, coupé à des mots entiers. Chaque mot cherché doit commencer
+      un mot de la fiche : « port » trouve « ports » et « portée », plus
+      « transporte » ni « Portable ».
 - [ ] **Étape 33 — Montrer l'écran** : dans le texte des fiches, `[touche:…]`
       dessine une touche du clavier et `[[ecran:…|…]]` un élément de
       l'interface (bouton « Simulation », outil « Câble »…) ; un clic sur ce
