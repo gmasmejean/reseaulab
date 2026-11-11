@@ -343,6 +343,65 @@ font un support d'apprentissage et de référence pour la Technologie au collèg
       Internet » sont à jour. Nouvelle activité fournie : **« Le réseau de la
       maison »** (4e).
 
+## Feuille de route : une aide qui enseigne
+
+Analyse de la fenêtre **Aide et connaissances** (2026-11-11, captures en
+1366 × 768) : la partie « À retenir » d'une fiche n'est jamais visible sans
+faire défiler ; aucune fiche n'a de schéma ; l'aide s'ouvre toujours sur la
+même fiche, quel que soit le contexte ; la colonne de gauche empile quatre
+contrôles avant la liste ; le lexique répète les titres ; la recherche
+ignore le texte des fiches ; les fiches de prise en main décrivent l'écran
+avec des mots. Les étapes suivantes y répondent, de la plus simple à la plus
+lourde. Le contenu ajouté (erreurs fréquentes, schémas, parcours) est une
+proposition à faire valider par l'enseignant, comme celui de l'étape 22.
+
+- [ ] **Étape 30 — Fiche lisible d'un coup d'œil** : « L'essentiel » (ex
+      « À retenir ») juste sous la définition, avant l'explication ; fenêtre
+      plus grande à l'ouverture ; colonne de gauche compacte (recherche, puis
+      niveau et Fiches / Lexique sur une ligne) ; le niveau de chaque fiche
+      dans la liste ; « ← Retour » et « Fiche suivante → » de vrais boutons,
+      en tête de fiche ; le quiz d'entraînement descend sous la liste.
+- [ ] **Étape 31 — Aide selon le contexte** : la touche **F1** ouvre l'aide ;
+      elle s'ouvre sur la fiche de l'équipement sélectionné, sinon sur la
+      prise en main du mode en cours, sinon sur la dernière fiche lue. La
+      fiche lue et l'historique « Retour » survivent à la fermeture de la
+      fenêtre. Le menu du clic droit d'un équipement (plan et palette) propose
+      « Qu'est-ce que c'est ? ».
+- [ ] **Étape 32 — Lexique et recherche** : le lexique ne répète plus le
+      titre d'une fiche, il est découpé par lettre ; la recherche lit aussi
+      l'explication (classée après le titre et les autres noms) et montre un
+      extrait où le mot trouvé est surligné.
+- [ ] **Étape 33 — Montrer l'écran** : dans le texte des fiches, `[touche:…]`
+      dessine une touche du clavier et `[[ecran:…|…]]` un élément de
+      l'interface (bouton « Simulation », outil « Câble »…) ; un clic sur ce
+      dernier le fait clignoter à l'écran (« Me montrer »). Les fiches de
+      prise en main les utilisent. Un nom d'élément inconnu (fichier
+      enseignant) reste du texte simple.
+- [ ] **Étape 34 — Vérifier sur place** : une question du quiz, posée et
+      corrigée en bas de la fiche, sans ouvrir d'autre fenêtre ; « une autre
+      question » en tire une nouvelle. Les fiches lues sont cochées dans la
+      liste (gardé sur le poste).
+- [ ] **Étape 35 — Erreurs fréquentes** : champ facultatif `mistakes` d'une
+      fiche (« On croit que… / En fait… »), affiché en encadré, validé dans
+      un fichier de pack et exporté avec lui ; rédigé pour les fiches clés
+      (adresse IP, masque, passerelle, switch, routeur, DHCP, DNS, ARP…).
+- [ ] **Étape 36 — Parcours par niveau** : une page d'accueil de l'aide :
+      « Premiers pas » (les fiches de prise en main dans l'ordre) et un
+      parcours 5e, 4e, 3e, avec la progression (fiches lues) ; « Fiche
+      suivante » suit le parcours en cours.
+- [ ] **Étape 37 — Schémas** : des schémas dessinés par RéseauLab, avec les
+      icônes du plan, appelés par `[[schema:…]]` dans le texte d'une fiche :
+      couches, parties d'une adresse IP, même réseau ou non, passerelle,
+      ARP, DNS, chemin d'une information. Lisibles en impression, décrits
+      pour un lecteur d'écran.
+- [ ] **Étape 38 — Fiches imprimables** : imprimer la fiche affichée, ou
+      toutes les fiches d'un niveau, pour le cahier (une fiche par demi-page
+      quand elle tient).
+
+Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
+activités qui la travaillent, et un bouton « Essayer » qui chargerait un
+réseau prêt à l'emploi depuis une fiche.
+
 ## Écarts au plan
 
 - **pnpm au lieu de npm** : npm 10.9 plante (`Cannot read properties of null
