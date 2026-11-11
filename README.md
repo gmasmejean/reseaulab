@@ -143,6 +143,15 @@ communication, une page web — sont testés sur une copie du réseau par le
 bouton **Vérifier mon travail**. Chaque étape propose des indices, donnés un
 par un, et renvoie aux fiches de connaissances.
 
+Une étape peut aussi poser des **questions** dans le panneau : choix simple ou
+multiple, liste à remettre dans l'ordre, réponse courte, « ces deux adresses
+sont-elles dans le même réseau ? » ou réponse libre. L'élève répond **une
+fois** : la correction s'affiche aussitôt (réponse attendue, explication,
+fiche à relire) et la réponse est gardée. Une réponse libre n'est pas
+corrigée : elle est recopiée sur le compte rendu. Les étapes peuvent être
+groupées en **parties**, et les dernières marquées **bonus** : elles ne
+comptent pas pour finir l'activité et s'ouvrent ensuite.
+
 L'élève rend son travail avec **Enregistrer** : le fichier contient le réseau,
 l'activité et ce qui a été réussi. Il se rouvre avec **Ouvrir…**, comme tout
 fichier d'activité que vous distribuez.
@@ -169,12 +178,41 @@ fichier d'activité que vous distribuez.
 Un élève qui ouvre le fichier dans un éditeur de texte peut lire les
 objectifs, pas la solution. Ce qui prouve le travail est le réseau rendu.
 
+Les questions, les parties et les étapes bonus ne se créent pas encore dans
+cette fenêtre : elles s'écrivent dans le fichier d'activité (JSON), validé à
+l'ouverture. Un objectif « question » :
+
+```json
+{
+  "id": "role-switch",
+  "label": "Rôle du switch",
+  "check": {
+    "type": "question",
+    "question": {
+      "type": "mcq",
+      "prompt": "Quel équipement relie les terminaux d'un même réseau ?",
+      "choices": ["Le switch", "Le serveur", "L'imprimante"],
+      "correct": [0],
+      "explanation": "Le switch (commutateur) relie les terminaux.",
+      "notion": "switch"
+    }
+  }
+}
+```
+
+Autres types : `order` (`items` dans le bon ordre), `short` (`accepted` : les
+réponses acceptées, sans tenir compte des accents ni des majuscules),
+`same-network` et `open` (réponse libre). Une étape prend `"part": "Partie 1 —
+…"` pour commencer une partie et `"bonus": true` pour être un bonus (les
+étapes bonus viennent en dernier).
+
 ### Compte rendu
 
 Le bouton **Compte rendu** produit un document à imprimer ou à enregistrer en
 PDF : nom et classe de l'élève, plan du réseau, **table d'adressage** remplie
 automatiquement, objectifs de l'activité atteints ou non (avec l'heure),
-indices demandés, commandes utilisées et quelques lignes « ce que j'ai
+réponses aux questions (juste ou fausse, réponse attendue, réponses libres
+recopiées, total par partie), indices demandés, commandes utilisées et quelques lignes « ce que j'ai
 appris ». Il fonctionne aussi sans activité, pour garder une trace d'un
 réseau construit librement.
 

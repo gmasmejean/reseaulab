@@ -34,6 +34,8 @@ import {
 } from '../learn/activity/evaluate';
 import { EMPTY_WORK, familyOf, objectivesOf, type Activity, type Work } from '../learn/activity/schema';
 import { parseLearnFile, serializeLearnFile } from '../learn/file';
+import { askQuestion, drawSalt, fitsQuestion, markAnswer } from '../learn/activity/questions';
+import type { Answer } from '../learn/quiz/types';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
@@ -478,7 +480,7 @@ export class Session {
   activityOutcomes(): Map<string, Outcome> {
     const activity = this.activity;
     if (!activity) return new Map();
-    const key = `${this.network.version}:${this.designRevision}:${this.probedAt}:${this.work.commands.length}:${String(this.work.simulated)}`;
+    const key = `${this.network.version}:${this.designRevision}:${this.probedAt}:${this.work.commands.length}:${String(this.work.simulated)}:${Object.keys(this.work.answers).length}`;
     if (this.outcomeCache?.key === key) return this.outcomeCache.value;
     const fresh = this.probedAt === this.designRevision;
     const outcomes = evaluateNow(activity, this.network, this.work);
@@ -563,6 +565,26 @@ export class Session {
     const entry = journalEntry(deviceId, command);
     if (this.work.commands.includes(entry) || this.work.commands.length >= 500) return;
     this.work = { ...this.work, commands: [...this.work.commands, entry] };
+    this.noteProgress();
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /**
+   * Keeps the answer to a question of the activity: one try, marked at once.
+   * The question is the one shown to the pupil (same draw, see askQuestion).
+   */
+  answerQuestion(objectiveId: string, given: Answer): void {
+    const objective = this.activity
+      ? objectivesOf(this.activity).find((o) => o.id === objectiveId)
+      : undefined;
+    if (objective?.check.type !== 'question' || this.work.answers[objectiveId] !== undefined) return;
+    if (this.activityOutcomes().get(objectiveId)?.status === 'locked') return;
+    const item = askQuestion(objectiveId, objective.check.question, drawSalt(this.work));
+    if (!fitsQuestion(item, given)) return;
+    const answer = markAnswer(item, given, this.now());
+    if (answer.right === null && answer.given === '') return;
+    this.work = { ...this.work, answers: { ...this.work.answers, [objectiveId]: answer } };
     this.noteProgress();
     this.scheduleSave();
     this.touch();

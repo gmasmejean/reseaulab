@@ -3,6 +3,7 @@ import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
 import { EMPTY_STEP, emptyDraft, type Draft } from '../learn/activity/draft';
+import { askQuestion, drawSalt } from '../learn/activity/questions';
 import { EMPTY_WORK } from '../learn/activity/schema';
 import { suggestObjectives } from '../learn/activity/suggest';
 import { serializePack } from '../learn/content/schema';
@@ -10,6 +11,7 @@ import { parseLearnFile } from '../learn/file';
 import { serializeProject } from '../project/serialize';
 import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
+import { QUESTIONS_BUILTIN } from '../test/activities';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { makeZip } from '../test/zip';
 import {
@@ -729,6 +731,60 @@ describe('Session : activités', () => {
     session.revealHint('reparer');
     session.revealHint('reparer');
     expect(session.work.hints).toEqual({ reparer: 2 });
+  });
+
+  test('questions : une réponse par question, corrigée ; pas avant que l’étape soit ouverte', () => {
+    const session = new Session(null, new ManualFrames(), () => 42_000);
+    session.startActivity(QUESTIONS_BUILTIN);
+    const check = (id: string) => {
+      const objective = session.activity?.steps.flatMap((s) => s.objectives).find((o) => o.id === id);
+      if (objective?.check.type !== 'question') throw new Error(id);
+      return askQuestion(id, objective.check.question, drawSalt(session.work));
+    };
+    // L'étape 2 n'est pas encore ouverte : la réponse est refusée.
+    session.answerQuestion('q-reseau', '192.168.10');
+    expect(session.work.answers['q-reseau']).toBeUndefined();
+
+    const item = check('q-switch');
+    if (item?.kind !== 'choice') throw new Error('choix attendu');
+    const wrong = item.correct.includes(0) ? 1 : 0;
+    session.answerQuestion('q-switch', [wrong]);
+    expect(session.work.answers['q-switch']).toMatchObject({ right: false, given: [wrong], at: 42_000 });
+    expect(session.work.reachedAt['q-switch']).toBe(42_000);
+    // Un seul essai : une seconde réponse ne remplace pas la première.
+    session.answerQuestion('q-switch', item.correct);
+    expect(session.work.answers['q-switch']?.right).toBe(false);
+    // Une réponse libre vide ne compte pas.
+    session.answerQuestion('q-pourquoi', '   ');
+    expect(statusOf(session, 'q-pourquoi')).toBe('todo');
+    session.answerQuestion('q-pourquoi', 'Pour trouver le bon destinataire.');
+    expect(statusOf(session, 'q-pourquoi')).toBe('done');
+    expect(session.activityStep).toBe(1);
+    session.answerQuestion('q-reseau', '192.168.10');
+    expect(session.work.answers['q-reseau']?.right).toBe(true);
+    // Un objectif qui n'est pas une question n'accepte pas de réponse.
+    session.answerQuestion('inconnu', 'texte');
+    expect(session.work.answers.inconnu).toBeUndefined();
+  });
+
+  test('les réponses voyagent dans le fichier rendu : rouvert, il reprend à la même étape', () => {
+    const session = new Session(null, new ManualFrames(), () => 42_000);
+    session.startActivity(QUESTIONS_BUILTIN);
+    session.answerQuestion('q-pourquoi', 'Pour trouver le bon destinataire.');
+    session.answerQuestion('q-switch', 'ignoré : ce n’est pas une question ouverte');
+    expect(session.work.answers['q-switch']).toBeUndefined();
+    const objective = session.activity?.steps[0]?.objectives[0];
+    if (objective?.check.type !== 'question') throw new Error('question attendue');
+    const item = askQuestion('q-switch', objective.check.question, drawSalt(session.work));
+    session.answerQuestion('q-switch', item?.kind === 'choice' ? item.correct : []);
+    expect(session.work.answers['q-switch']?.right).toBe(true);
+    const text = session.serialize();
+
+    const other = new Session(null, new ManualFrames());
+    expect(other.openProject(text, 'eleve.reseaulab.json')).toBe(true);
+    expect(other.work.answers).toEqual(session.work.answers);
+    expect(other.activityStep).toBe(1);
+    expect(statusOf(other, 'q-switch')).toBe('done');
   });
 
   test('un équipement cité par l’activité ne peut pas être supprimé', () => {

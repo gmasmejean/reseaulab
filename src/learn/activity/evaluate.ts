@@ -245,6 +245,8 @@ export function evaluateNow(activity: Activity, network: Network, work: Work): M
   for (const objective of objectivesOf(activity)) {
     const family = familyOf(objective.check);
     if (family === 'state') outcomes.set(objective.id, evaluateStateCheck(network, objective.check));
+    else if (objective.check.type === 'question')
+      outcomes.set(objective.id, work.answers[objective.id] ? DONE : todo());
     else if (family === 'journal')
       outcomes.set(objective.id, evaluateJournalCheck(network, objective.check, work));
   }

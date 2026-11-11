@@ -38,6 +38,44 @@ const network = z
   .string()
   .regex(/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/, { message: 'Réseau attendu sous la forme 192.168.1.0/24' });
 
+/** Fields shared by every question of an activity. */
+const questionText = {
+  prompt: z.string().trim().min(1).max(500),
+  /** Shown after the answer, right or wrong. */
+  explanation: text(800).default(''),
+  /** Knowledge card to read again after the answer. */
+  notion: id.optional(),
+};
+
+/**
+ * A question asked in an activity: the kinds of the quiz, and `open`, a free
+ * answer that is not marked (the teacher reads it on the report).
+ */
+const question = z.discriminatedUnion('type', [
+  z
+    .object({
+      ...questionText,
+      type: z.literal('mcq'),
+      choices: z.array(z.string().trim().min(1).max(200)).min(2).max(8),
+      correct: z.array(z.number().int().min(0).max(7)).min(1).max(8),
+    })
+    .refine((q) => q.correct.every((index) => index < q.choices.length), {
+      message: 'Une bonne réponse désigne un choix qui n’existe pas',
+    }),
+  z.object({
+    ...questionText,
+    type: z.literal('order'),
+    items: z.array(z.string().trim().min(1).max(200)).min(2).max(8),
+  }),
+  z.object({
+    ...questionText,
+    type: z.literal('short'),
+    accepted: z.array(z.string().trim().min(1).max(80)).min(1).max(10),
+  }),
+  z.object({ ...questionText, type: z.literal('same-network') }),
+  z.object({ ...questionText, type: z.literal('open') }),
+]);
+
 const check = z.discriminatedUnion('type', [
   /* --- read on the design of the network, at any time --- */
   z.object({
@@ -89,6 +127,8 @@ const check = z.discriminatedUnion('type', [
     device: oneDevice.optional(),
   }),
   z.object({ type: z.literal('simulationStarted') }),
+  /** A question, reached once answered (right or wrong: one try). */
+  z.object({ type: z.literal('question'), question }),
 ]);
 
 const objective = z.object({
@@ -108,6 +148,10 @@ const step = z.object({
   hints: z.array(text(600)).max(10).default([]),
   /** Knowledge cards to read for this step. */
   notions: z.array(id).max(10).default([]),
+  /** Title of the part that begins with this step: « Partie 1 — Ce que je sais depuis la 5e ». */
+  part: z.string().trim().min(1).max(120).optional(),
+  /** For those who finish early: not needed to finish the activity. Bonus steps come last. */
+  bonus: z.boolean().optional(),
 });
 
 const profile = z.object({
@@ -132,7 +176,49 @@ export const activitySchema = z.object({
   intro: text(6000).default(''),
   /** What the interface offers during the activity (the level of the class otherwise). */
   profile: profile.optional(),
-  steps: z.array(step).min(1).max(30),
+  steps: z
+    .array(step)
+    .min(1)
+    .max(30)
+    .refine((steps) => steps[0]?.bonus !== true, { message: 'La première étape ne peut pas être un bonus' })
+    .refine((steps) => steps.every((s, i) => s.bonus === true || steps[i - 1]?.bonus !== true), {
+      message: 'Les étapes bonus viennent après toutes les autres',
+    }),
+});
+
+/** A question as it was put to the pupil (choices shuffled, addresses drawn). */
+const askedItem = z
+  .object({
+    id,
+    notion: z.string().max(60),
+    prompt: text(700),
+    explanation: text(800),
+  })
+  .and(
+    z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('choice'),
+        choices: z.array(text(200)).max(8),
+        correct: z.array(z.number().int().min(0).max(7)).max(8),
+      }),
+      z.object({
+        kind: z.literal('order'),
+        shuffled: z.array(text(200)).max(8),
+        solution: z.array(text(200)).max(8),
+      }),
+      z.object({ kind: z.literal('short'), accepted: z.array(text(80)).max(10) }),
+    ]),
+  );
+
+/** The answer of the pupil to a question of the activity. */
+const answer = z.object({
+  /** The question as put (absent for an open question). */
+  item: askedItem.optional(),
+  /** Chosen indices, items in their order, or a text. */
+  given: z.union([z.array(z.number().int().min(0).max(7)).max(8), z.array(text(200)).max(8), text(2000)]),
+  /** Null for an open question, which is not marked. */
+  right: z.boolean().nullable(),
+  at: z.number().min(0),
 });
 
 /**
@@ -160,6 +246,8 @@ export const workSchema = z.object({
   /** Commands typed during the simulation: « n3:ping ». */
   commands: z.array(text(80)).max(500).default([]),
   simulated: z.boolean().default(false),
+  /** Answers to the questions of the activity, by objective. */
+  answers: z.record(id, answer).default({}),
 });
 
 export type Activity = z.infer<typeof activitySchema>;
@@ -169,6 +257,8 @@ export type Objective = Step['objectives'][number];
 export type Check = Objective['check'];
 export type DeviceRef = z.infer<typeof deviceRef>;
 export type Work = z.infer<typeof workSchema>;
+export type ActivityQuestion = z.infer<typeof question>;
+export type QuestionAnswer = z.infer<typeof answer>;
 
 export const EMPTY_WORK: Work = {
   student: { name: '', className: '' },
@@ -179,6 +269,7 @@ export const EMPTY_WORK: Work = {
   hints: {},
   commands: [],
   simulated: false,
+  answers: {},
 };
 
 /** How a check is evaluated. */
@@ -192,6 +283,7 @@ export function familyOf(check: Check): CheckFamily {
       return 'probe';
     case 'commandRan':
     case 'simulationStarted':
+    case 'question':
       return 'journal';
     default:
       return 'state';
@@ -201,4 +293,9 @@ export function familyOf(check: Check): CheckFamily {
 /** Every objective of an activity, in order. */
 export function objectivesOf(activity: Activity): Objective[] {
   return activity.steps.flatMap((s) => s.objectives);
+}
+
+/** The objectives needed to finish the activity (bonus steps left out). */
+export function requiredObjectives(activity: Activity): Objective[] {
+  return activity.steps.filter((s) => s.bonus !== true).flatMap((s) => s.objectives);
 }

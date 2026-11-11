@@ -450,6 +450,34 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       copie n'existe que le temps de l'impression ; si le compte rendu est
       ouvert, il n'est pas imprimé avec. Le README décrit la nouvelle aide.
 
+## Feuille de route : une activité complète de 4e
+
+Demande de l'enseignant (2026-11-11) : une activité de 4e dont la première
+partie fait réviser le programme de 5e et la seconde enseigne celui de 4e,
+par manipulations, simulation et questions, avec un travail élève
+enregistrable et rouvrable. Durée choisie : deux séances (≈ 2 h) et une
+partie bonus (≈ 30 min) ; questions corrigées à un seul essai.
+
+- [x] **Étape 39 — Questions, parties et bonus dans les activités** : nouvel
+      objectif `question` (`src/learn/activity/questions.ts`) : choix simple
+      ou multiple, ordre, réponse courte, « même réseau ? » (adresses tirées)
+      et réponse **libre** (`open`), avec explication et fiche à relire. Il
+      est atteint dès qu'il a une réponse, juste ou non : **un seul essai**,
+      corrigé sur place dans le panneau (réponse donnée, verdict, réponse
+      attendue, explication, « Relire la fiche »). L'étape reste dépliée
+      pour lire la correction. Le tirage (ordre des choix, adresses) dépend
+      de l'objectif et du début du travail : il ne change pas d'un affichage
+      à l'autre, et c'est la session qui retire la question pour la corriger
+      (une réponse de forme inattendue est ignorée). Le travail garde, par
+      question, la question telle que posée, la réponse, le verdict et
+      l'heure (`work.answers`) : le fichier rendu se rouvre à la même étape.
+      Une étape peut ouvrir une **partie** (`part`) et être **bonus**
+      (`bonus`, en dernier) : les bonus ne comptent pas pour finir, se
+      numérotent B1, B2… et s'ouvrent une fois le reste fait. Compte rendu :
+      par partie, « N répondues sur M, J justes sur C corrigées », chaque
+      réponse avec la réponse attendue quand elle est fausse, réponses libres
+      recopiées ; bonus à part.
+
 Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
 activités qui la travaillent, et un bouton « Essayer » qui chargerait un
 réseau prêt à l'emploi depuis une fiche.
@@ -500,6 +528,11 @@ réseau prêt à l'emploi depuis une fiche.
   autres s'écrivent dans le fichier d'activité, dont le format est validé à
   l'ouverture. Le brouillon d'une activité vit le temps de la session : il
   n'est pas gardé après un rechargement de la page.
+- **Questions écrites dans le fichier** (étape 39) : l'éditeur d'activité
+  ne crée ni question, ni partie, ni étape bonus ; elles s'écrivent dans le
+  fichier d'activité (format documenté dans le README), validé à
+  l'ouverture. Le test de bout en bout des questions est celui de l'activité
+  de l'étape 41, la première à en poser.
 - **Pas d'édition du pack dans l'interface** (étape 28) : le pack se modifie
   dans un éditeur de texte, à partir du contenu exporté ; un fichier invalide
   est refusé avec l'endroit de l'erreur.

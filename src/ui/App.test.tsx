@@ -4,6 +4,7 @@ import { Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
 import { serializeProject } from '../project/serialize';
+import { QUESTIONS_BUILTIN } from '../test/activities';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
 import { serializePack } from '../learn/content/schema';
@@ -1995,6 +1996,62 @@ describe('Activités guidées', () => {
     elapse(frames, 200);
     expect(session.work.commands).toEqual([`${poste}:ping`]);
     expect(screen.getByRole('complementary', { name: 'Activité' })).toHaveTextContent('2 objectifs sur 6');
+  });
+});
+
+describe('Questions d’une activité', () => {
+  test('une question se corrige sur place, une seule fois ; parties, bonus et compte rendu', () => {
+    const { session } = setup();
+    act(() => {
+      session.startActivity(QUESTIONS_BUILTIN);
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    expect(panel).toHaveTextContent('0 objectif sur 4');
+    expect(within(panel).getByRole('heading', { name: 'Partie 1 — Révisions' })).toBeInTheDocument();
+    expect(within(panel).getByRole('heading', { name: /^Bonus/ })).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Défi' })).toHaveTextContent('B1Défi');
+
+    const question = within(panel).getByRole('region', { name: 'Question : Rôle du switch' });
+    fireEvent.click(within(question).getByRole('radio', { name: 'Le serveur' }));
+    fireEvent.click(within(question).getByRole('button', { name: 'Valider' }));
+    expect(question).toHaveTextContent('Ta réponse : Le serveur');
+    expect(question).toHaveTextContent('✘ Ce n’est pas ça.');
+    expect(question).toHaveTextContent('Réponse attendue : Le switch');
+    // Une seule réponse : plus de formulaire.
+    expect(within(question).queryByRole('radio')).not.toBeInTheDocument();
+    fireEvent.click(within(question).getByRole('button', { name: 'Relire la fiche : Switch (commutateur)' }));
+    expect(screen.getByRole('dialog', { name: 'Aide et connaissances' })).toBeInTheDocument();
+
+    const open = within(panel).getByRole('region', { name: 'Question : Pourquoi une adresse' });
+    fireEvent.change(within(open).getByRole('textbox', { name: 'Pourquoi une adresse ?' }), {
+      target: { value: 'Pour que le message arrive.' },
+    });
+    fireEvent.click(within(open).getByRole('button', { name: 'Valider' }));
+    // L'étape reste dépliée pour lire la correction ; la suivante s'ouvre aussi.
+    expect(open).toHaveTextContent('Réponse enregistrée');
+    expect(panel).toHaveTextContent('2 objectifs sur 4');
+    expect(within(panel).getByRole('button', { name: 'Révisions' })).toHaveAttribute('aria-expanded', 'true');
+
+    const short = within(panel).getByRole('region', { name: 'Question : Partie réseau' });
+    fireEvent.change(within(short).getByRole('textbox'), { target: { value: '192.168.10' } });
+    fireEvent.click(within(short).getByRole('button', { name: 'Valider' }));
+    expect(short).toHaveTextContent('✔ Bonne réponse !');
+
+    act(() => {
+      session.openWindow({ type: 'report' });
+    });
+    const preview = within(screen.getByRole('dialog', { name: 'Compte rendu' })).getByLabelText(
+      'Aperçu du compte rendu',
+    );
+    expect(
+      within(preview).getByRole('heading', { name: 'Objectifs de l’activité : 3 sur 4' }),
+    ).toBeInTheDocument();
+    expect(preview).toHaveTextContent('Questions : 2 répondues sur 2, 0 juste sur 1 corrigée.');
+    expect(preview).toHaveTextContent('Réponse fausse : Rôle du switch');
+    expect(preview).toHaveTextContent('Réponse : Le serveur — attendu : Le switch');
+    expect(preview).toHaveTextContent('Réponse : Pour que le message arrive.');
+    expect(preview).toHaveTextContent('Réponse juste : Partie réseau');
+    expect(within(preview).getByRole('heading', { name: 'Bonus' })).toBeInTheDocument();
   });
 });
 

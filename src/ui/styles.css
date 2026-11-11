@@ -2256,6 +2256,57 @@ button.screen-chip:focus-visible {
   color: var(--muted);
   font-size: 0.9em;
 }
+.activity-part h3 {
+  margin: 10px 0 6px;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+.activity-part.bonus h3 {
+  color: var(--ok);
+}
+.activity-question {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.activity-question .quiz-prompt {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 1em;
+}
+.activity-question .quiz-choices label {
+  padding: 5px 8px;
+  background: var(--surface);
+}
+.activity-question .quiz-order {
+  padding-left: 18px;
+}
+.activity-question .quiz-order li span {
+  min-width: 0;
+  margin-right: 2px;
+}
+.activity-question textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  resize: vertical;
+}
+.activity-question .quiz-feedback {
+  margin-top: 6px;
+}
+.given-answer {
+  margin: 0;
+}
+.open-answer {
+  white-space: pre-wrap;
+  font-style: italic;
+}
+.quiz-feedback.open {
+  background: var(--surface);
+  border-left-color: var(--accent);
+}
 .activity .hint {
   margin: 6px 0;
   padding: 6px 10px;
@@ -2423,6 +2474,21 @@ button.screen-chip:focus-visible {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+.report-part-title {
+  margin-top: 12px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.report h4 {
+  margin: 8px 0 2px;
+  font-size: 0.95rem;
+}
+.report-answer {
+  margin: 1px 0 4px 18px;
+  color: #333;
+  font-size: 0.9em;
 }
 .report-step .missed {
   color: #555;
