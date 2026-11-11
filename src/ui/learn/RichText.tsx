@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { parseInline, parseRich, type Inline } from '../../learn/richtext';
 import { useSessionHandle } from '../context';
+import { Figure } from './Figure';
 import { showOnScreen } from './screen';
 
 interface Props {
@@ -92,17 +93,23 @@ export function RichText({ source, onOpenNotion, titleOf }: Props) {
   const inline = useInline(onOpenNotion, titleOf);
   return (
     <div className="rich-text">
-      {parseRich(source).map((block, index) =>
-        block.type === 'paragraph' ? (
-          <p key={index}>{block.content.map(inline)}</p>
-        ) : (
-          <ul key={index}>
-            {block.items.map((item, i) => (
-              <li key={i}>{item.map(inline)}</li>
-            ))}
-          </ul>
-        ),
-      )}
+      {parseRich(source).map((block, index) => {
+        switch (block.type) {
+          case 'paragraph':
+            return <p key={index}>{block.content.map(inline)}</p>;
+          case 'list':
+            return (
+              <ul key={index}>
+                {block.items.map((item, i) => (
+                  <li key={i}>{item.map(inline)}</li>
+                ))}
+              </ul>
+            );
+          case 'figure':
+            // A figure the application does not know (teacher's file) is left out.
+            return block.known ? <Figure key={index} id={block.figure} /> : null;
+        }
+      })}
     </div>
   );
 }

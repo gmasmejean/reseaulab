@@ -5,6 +5,7 @@ import { excerptOf, fold, lexicon, lexiconByLetter, mergePacks, searchHits, sear
 import { nextNotion, pathCards, pathsUpTo, readingOrder, resumeAt, shownAt } from './order';
 import { DEVICE_NOTION, contextualNotion } from './context';
 import { SCREEN_ELEMENTS } from './screen';
+import { FIGURES } from './figures';
 import { PackError, parsePack, serializePack } from './schema';
 import type { Question } from '../quiz/types';
 import { CATEGORIES, CATEGORY_LABEL, LEVELS, type Notion, type Pack } from './types';
@@ -437,7 +438,9 @@ describe('Touches et éléments de l’écran dans le texte', () => {
   test('les fiches fournies ne citent que des éléments connus', () => {
     const screens = DEFAULT_PACK.notions.flatMap((n) =>
       [n.body, ...n.remember, ...(n.mistakes ?? []).flatMap((m) => [m.belief, m.truth])].flatMap((text) =>
-        parseRich(text).flatMap((b) => (b.type === 'paragraph' ? b.content : b.items.flat())),
+        parseRich(text).flatMap((b) =>
+          b.type === 'paragraph' ? b.content : b.type === 'list' ? b.items.flat() : [],
+        ),
       ),
     );
     const named = screens.filter((i) => i.type === 'screen');
@@ -478,5 +481,33 @@ describe('Parcours', () => {
     expect(resumeAt(cards, new Set(['a']))?.id).toBe('b');
     expect(resumeAt(cards, new Set(['a', 'b', 'c']))?.id).toBe('a');
     expect(resumeAt([], new Set())).toBeUndefined();
+  });
+});
+
+describe('Schémas', () => {
+  test('[[schema:…]] seul dans son paragraphe devient un schéma ; ailleurs, il reste du texte', () => {
+    expect(
+      parseRich('Avant.\n\n[[schema:couches]]\n\n[[schema:inconnu]]\n\nVoir [[schema:couches]] ici.'),
+    ).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: 'Avant.' }] },
+      { type: 'figure', figure: 'couches', known: true },
+      { type: 'figure', figure: 'inconnu', known: false },
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Voir ' },
+          { type: 'link', notion: 'schema:couches', text: 'schema:couches' },
+          { type: 'text', text: ' ici.' },
+        ],
+      },
+    ]);
+    // La recherche lit la description du schéma.
+    expect(plainText('[[schema:dns]]')).toContain('www.college.fr');
+  });
+
+  test('les fiches fournies utilisent chaque schéma, et seulement des schémas connus', () => {
+    const figures = DEFAULT_PACK.notions.flatMap((n) => parseRich(n.body)).filter((b) => b.type === 'figure');
+    expect(figures.filter((f) => !f.known)).toEqual([]);
+    expect(new Set(figures.map((f) => f.figure))).toEqual(new Set(Object.keys(FIGURES)));
   });
 });

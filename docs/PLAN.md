@@ -427,11 +427,19 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       suivante » reste dans le parcours ; hors parcours, elle suit la liste.
       Le parcours suivi et l'accueil font partie de l'historique « Retour »
       et sont retrouvés à la réouverture.
-- [ ] **Étape 37 — Schémas** : des schémas dessinés par RéseauLab, avec les
-      icônes du plan, appelés par `[[schema:…]]` dans le texte d'une fiche :
-      couches, parties d'une adresse IP, même réseau ou non, passerelle,
-      ARP, DNS, chemin d'une information. Lisibles en impression, décrits
-      pour un lecteur d'écran.
+- [x] **Étape 37 — Schémas** : sept schémas dessinés par RéseauLab
+      (`src/ui/learn/Figure.tsx`), avec les icônes du plan et les couleurs
+      des couches : un message emballé couche par couche, les deux parties
+      d'une adresse IP, même réseau ou non, la passerelle vue depuis le
+      réseau du poste, ARP en deux temps, le DNS puis le serveur web, le
+      chemin de routeur en routeur. Un paragraphe réduit à
+      `[[schema:couches]]` devient le schéma, avec sa légende ; un lecteur
+      d'écran lit sa description (`src/learn/content/figures.ts`), que la
+      recherche lit aussi. Un nom inconnu (fichier enseignant) n'affiche
+      rien. Les fiches Couches, Adresse IP, Masque, Passerelle, ARP, DNS et
+      Chemin d'une information en ont un — **à faire valider par
+      l'enseignant**. L'exemple de la fiche ARP passe à 192.168.1.20, comme
+      le schéma.
 - [ ] **Étape 38 — Fiches imprimables** : imprimer la fiche affichée, ou
       toutes les fiches d'un niveau, pour le cahier (une fiche par demi-page
       quand elle tient).
@@ -565,7 +573,10 @@ réseau prêt à l'emploi depuis une fiche.
   « L'essentiel » ; « À retenir » est le mot du cahier, connu des élèves.
 - **Pas de schémas intégrés aux fiches** (étape 22) : une fiche peut porter
   une image fournie par l'enseignant ; les schémas dessinés par RéseauLab
-  restent à faire.
+  arrivent à l'étape 37.
+- **Schémas fixes** (étape 37) : un schéma est un dessin fourni avec
+  l'application ; l'enseignant peut le placer dans ses fiches mais pas en
+  créer un (il garde l'image d'une fiche pour cela).
 - **Pas de vue « dialogue »** (étape 21) : le diagramme d'échanges entre
   équipements prévu à cette étape n'est pas réalisé ; la liste filtrable et
   le pas-à-pas couvrent le besoin immédiat. À reprendre si l'usage en classe

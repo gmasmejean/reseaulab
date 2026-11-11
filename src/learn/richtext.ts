@@ -10,8 +10,11 @@
  *   [touche:Ctrl+Z] : keys of the keyboard, drawn as keys.
  *   [[ecran:simulation]] or [[ecran:simulation|le mode Simulation]] : an
  *   element of the screen (see content/screen.ts), shown on demand.
+ *   [[schema:couches]] alone in its paragraph : a figure drawn by RéseauLab
+ *   (see content/figures.ts).
  */
 
+import { figureInfo } from './content/figures';
 import { screenElement } from './content/screen';
 
 export type Inline =
@@ -48,7 +51,12 @@ function linkOrScreen(id: string, label?: string): Inline {
 
 export type Block =
   | { readonly type: 'paragraph'; readonly content: readonly Inline[] }
-  | { readonly type: 'list'; readonly items: readonly (readonly Inline[])[] };
+  | { readonly type: 'list'; readonly items: readonly (readonly Inline[])[] }
+  /** `known`: false for a name that is not in the list (nothing is drawn). */
+  | { readonly type: 'figure'; readonly figure: string; readonly known: boolean };
+
+/** A paragraph that is only a figure. */
+const FIGURE = /^\[\[schema:([^\]|]+)\]\]$/;
 
 /** Marks of the inline format, tried in this order at each position. */
 const MARKS = [
@@ -110,7 +118,11 @@ export function parseRich(source: string): Block[] {
     let paragraph: string[] = [];
     let items: Inline[][] = [];
     const flushParagraph = () => {
-      if (paragraph.length > 0) blocks.push({ type: 'paragraph', content: parseInline(paragraph.join(' ')) });
+      const text = paragraph.join(' ');
+      const figure = FIGURE.exec(text)?.[1]?.trim();
+      if (figure !== undefined)
+        blocks.push({ type: 'figure', figure, known: figureInfo(figure) !== undefined });
+      else if (paragraph.length > 0) blocks.push({ type: 'paragraph', content: parseInline(text) });
       paragraph = [];
     };
     const flushList = () => {
@@ -145,7 +157,7 @@ export function linkedNotions(source: string): string[] {
   };
   for (const block of parseRich(source)) {
     if (block.type === 'paragraph') block.content.forEach(visit);
-    else
+    else if (block.type === 'list')
       block.items.forEach((item) => {
         item.forEach(visit);
       });
@@ -166,11 +178,15 @@ export function plainText(source: string): string {
         return inline.text;
     }
   };
-  return parseRich(source)
-    .map((block) =>
-      block.type === 'paragraph'
-        ? block.content.map(flat).join('')
-        : block.items.map((item) => item.map(flat).join('')).join(' '),
-    )
-    .join(' ');
+  const text = (block: Block): string => {
+    switch (block.type) {
+      case 'paragraph':
+        return block.content.map(flat).join('');
+      case 'list':
+        return block.items.map((item) => item.map(flat).join('')).join(' ');
+      case 'figure':
+        return figureInfo(block.figure)?.description ?? '';
+    }
+  };
+  return parseRich(source).map(text).filter(Boolean).join(' ');
 }

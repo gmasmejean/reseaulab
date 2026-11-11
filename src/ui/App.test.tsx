@@ -1371,6 +1371,20 @@ describe('Aide et connaissances', () => {
     expect(storage.getItem('reseaulab:fiches-lues')).toBe('[]');
   });
 
+  test('une fiche montre son schéma, légendé et décrit pour un lecteur d’écran', () => {
+    const { session } = setup();
+    act(() => {
+      session.openKnowledge('couches');
+    });
+    const card = screen.getByRole('article', { name: 'Les couches : qui fait quoi' });
+    const figure = within(card).getByRole('img', { name: 'Un message emballé couche par couche' });
+    expect(figure).toHaveTextContent('Transport — numéro de port');
+    expect(figure.querySelector('desc')).toHaveTextContent('Quatre rectangles emboîtés');
+    expect(
+      within(card).getByText('Un message emballé couche par couche', { selector: 'figcaption' }),
+    ).toBeInTheDocument();
+  });
+
   test('recherche sans accents, filtre par niveau et lexique', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Aide' }));

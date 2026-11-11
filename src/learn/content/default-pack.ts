@@ -331,6 +331,8 @@ La plus courante dans un réseau local est la topologie **en étoile** : tous le
 
 Une adresse IP a deux parties : le début désigne le **réseau** (comme la ville et la rue), la fin désigne l’**équipement** dans ce réseau (comme le numéro de la maison). C’est le [[masque]] qui indique où s’arrête la première partie.
 
+[[schema:adresse-ip]]
+
 Dans un même réseau, deux équipements ne peuvent pas avoir la même adresse.`,
     remember: [
       'Une adresse IP : 4 nombres de 0 à 255 séparés par des points.',
@@ -364,6 +366,8 @@ Dans un même réseau, deux équipements ne peuvent pas avoir la même adresse.`
     body: `Le masque s’écrit comme une adresse IP. Le plus courant est \`255.255.255.0\` : il signifie que les **trois premiers nombres** de l’adresse désignent le réseau, et le dernier l’équipement.
 
 Deux équipements sont **dans le même réseau** si la partie réseau de leurs adresses est identique. Ils peuvent alors communiquer directement. Sinon, leurs messages doivent passer par un [[routeur]].
+
+[[schema:meme-reseau]]
 
 Avec le masque \`255.255.255.0\`, un réseau peut contenir 254 équipements : les numéros 1 à 254. Le 0 désigne le réseau lui-même et le 255 sert à s’adresser à tous ses équipements à la fois (diffusion).`,
     remember: [
@@ -528,7 +532,9 @@ Quand un message arrive, le routeur lit l’adresse de destination et consulte s
       'La passerelle est l’adresse du routeur auquel un équipement confie les messages destinés aux autres réseaux.',
     body: `Avant d’envoyer un message, un équipement compare l’adresse de destination à la sienne, à l’aide du [[masque]]. Si le destinataire est dans son réseau, il le lui envoie directement. Sinon, il l’envoie à sa **passerelle**, qui se charge de le faire suivre.
 
-La passerelle est donc l’adresse de l’interface du [[routeur]] qui se trouve **dans le même réseau** que l’équipement. Sans passerelle, un équipement ne peut communiquer qu’avec ceux de son propre réseau.`,
+La passerelle est donc l’adresse de l’interface du [[routeur]] qui se trouve **dans le même réseau** que l’équipement. Sans passerelle, un équipement ne peut communiquer qu’avec ceux de son propre réseau.
+
+[[schema:passerelle]]`,
     remember: [
       'Passerelle = adresse du routeur, dans le réseau de l’équipement.',
       'Sans passerelle, pas de communication avec les autres réseaux.',
@@ -621,6 +627,8 @@ Chaque protocole a un rôle précis : IP achemine les [[trame-paquet|paquets]] d
 - **Réseau** : de quel équipement à quel équipement, grâce aux adresses IP.
 - **Liaison** : d’un équipement à son voisin, grâce aux adresses MAC.
 
+[[schema:couches]]
+
 À l’arrivée, les emballages sont retirés dans l’ordre inverse.`,
     remember: [
       'Quatre couches : Application, Transport, Réseau, Liaison.',
@@ -638,9 +646,11 @@ Chaque protocole a un rôle précis : IP achemine les [[trame-paquet|paquets]] d
     category: 'protocoles',
     short:
       'ARP permet à un équipement de trouver l’adresse MAC qui correspond à une adresse IP de son réseau.',
-    body: `Pour envoyer une [[trame-paquet|trame]] à un voisin, il faut son [[adresse-mac|adresse MAC]]. Or on ne connaît en général que son adresse IP. L’équipement envoie donc à **tout** le réseau une question : « qui a l’adresse 192.168.1.10 ? ». Celui qui la porte répond en donnant son adresse MAC ; les autres ignorent la question.
+    body: `Pour envoyer une [[trame-paquet|trame]] à un voisin, il faut son [[adresse-mac|adresse MAC]]. Or on ne connaît en général que son adresse IP. L’équipement envoie donc à **tout** le réseau une question : « qui a l’adresse 192.168.1.20 ? ». Celui qui la porte répond en donnant son adresse MAC ; les autres ignorent la question.
 
-La réponse est gardée en mémoire dans la **table ARP**, pour ne pas reposer la question à chaque message. Si personne ne répond, c’est qu’aucun équipement du réseau n’a cette adresse.`,
+La réponse est gardée en mémoire dans la **table ARP**, pour ne pas reposer la question à chaque message. Si personne ne répond, c’est qu’aucun équipement du réseau n’a cette adresse.
+
+[[schema:arp]]`,
     remember: [
       'ARP : « qui a cette adresse IP ? » → adresse MAC.',
       'La question est diffusée à tout le réseau local ; elle ne traverse pas les routeurs.',
@@ -670,7 +680,9 @@ La réponse est gardée en mémoire dans la **table ARP**, pour ne pas reposer l
     short: 'Le DNS est l’annuaire d’Internet : il traduit un nom, comme www.college.fr, en adresse IP.',
     body: `Les équipements se joignent par leur [[adresse-ip|adresse IP]], mais nous retenons mieux des noms. Quand on tape un nom, l’ordinateur demande d’abord à un **serveur DNS** : « quelle est l’adresse de www.college.fr ? ». Avec la réponse, il peut contacter le bon serveur.
 
-Chaque équipement doit donc connaître l’adresse de son serveur DNS. S’il n’en a pas, ou si le serveur ne connaît pas le nom, on ne peut joindre les autres que par leur adresse IP.`,
+Chaque équipement doit donc connaître l’adresse de son serveur DNS. S’il n’en a pas, ou si le serveur ne connaît pas le nom, on ne peut joindre les autres que par leur adresse IP.
+
+[[schema:dns]]`,
     remember: ['DNS : nom → adresse IP.', 'Sans serveur DNS, seules les adresses IP fonctionnent.'],
     inApp:
       'Champ « Serveur DNS » d’un poste. Le logiciel « Serveur DNS » contient la liste des noms. Commande nslookup pour l’interroger.',
@@ -778,7 +790,9 @@ Un pare-feu activé sans aucune règle bloque toutes les nouvelles demandes venu
       'Sur Internet, une information voyage de réseau en réseau : chaque routeur la rapproche de sa destination.',
     body: `Quand vous consultez un site, la demande quitte votre appareil, traverse le réseau local jusqu’à la [[box]] (votre [[passerelle]]), puis passe de [[routeur]] en routeur à travers les réseaux des opérateurs, jusqu’au réseau où se trouve le serveur. La réponse fait le chemin inverse, pas forcément par les mêmes routeurs.
 
-Aucun équipement ne connaît le chemin complet : chaque routeur ne décide que de l’étape suivante, d’après sa [[table-de-routage|table de routage]]. C’est ce qui rend Internet solide : si une liaison tombe en panne, les routeurs peuvent choisir un autre chemin.`,
+Aucun équipement ne connaît le chemin complet : chaque routeur ne décide que de l’étape suivante, d’après sa [[table-de-routage|table de routage]]. C’est ce qui rend Internet solide : si une liaison tombe en panne, les routeurs peuvent choisir un autre chemin.
+
+[[schema:chemin-internet]]`,
     remember: [
       'Une information va de routeur en routeur, étape par étape.',
       'L’aller et le retour sont deux voyages distincts.',

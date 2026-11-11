@@ -1989,6 +1989,101 @@ button.screen-chip:focus-visible {
   }
 }
 
+/* Schémas des fiches (src/ui/learn/Figure.tsx). */
+.notion-figure {
+  margin: 12px 0;
+}
+.notion-figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+.notion-figure figcaption {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.fig text {
+  fill: var(--text);
+  font-size: 13px;
+}
+.fig .strong {
+  font-weight: 700;
+}
+.fig .big {
+  font-size: 18px;
+  font-weight: 700;
+}
+.fig .mono {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace;
+}
+.fig .muted {
+  fill: var(--muted);
+}
+.fig .accent {
+  fill: var(--accent);
+}
+.fig .ok {
+  fill: var(--ok);
+}
+.fig .danger {
+  fill: var(--danger);
+}
+.fig rect {
+  stroke: var(--border);
+}
+.fig .layer-link {
+  fill: var(--layer-link);
+}
+.fig .layer-network {
+  fill: var(--layer-network);
+}
+.fig .layer-transport {
+  fill: var(--layer-transport);
+}
+.fig .layer-application {
+  fill: var(--layer-application);
+}
+.fig .zone-a {
+  fill: var(--layer-network);
+}
+.fig .zone-b {
+  fill: var(--layer-transport);
+}
+.fig-cable {
+  stroke: var(--cable);
+  stroke-width: 2;
+}
+.fig-separator {
+  stroke: var(--border);
+}
+.fig-bracket {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+.fig .fig-arrow {
+  fill: none;
+  stroke-width: 2;
+}
+.fig-arrow.accent {
+  stroke: var(--accent);
+}
+.fig-arrow.ok {
+  stroke: var(--ok);
+}
+.fig-arrow.dashed {
+  stroke-dasharray: 6 4;
+}
+.fig-head.accent {
+  fill: var(--accent);
+}
+.fig-head.ok {
+  fill: var(--ok);
+}
+
 /* ---------- réglages de la classe ---------- */
 .settings h2 {
   margin: 0 0 6px;
