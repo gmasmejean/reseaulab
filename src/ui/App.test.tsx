@@ -2114,6 +2114,18 @@ describe('Activité « La salle de techno »', () => {
       if (builtin) session.startActivity(builtin);
     });
     expect(session.profile.base).toBe('4e');
+    // Les fiches de l'étape viennent juste après la consigne, avant les questions.
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const help = within(panel).getByRole('group', { name: 'Fiches pour t’aider' });
+    expect(
+      within(help)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Fiche : Réseau informatique', 'Fiche : Réseau local et Internet', 'Fiche : Terminal']);
+    const firstQuestion = within(panel).getAllByRole('region')[0];
+    expect(firstQuestion && help.compareDocumentPosition(firstQuestion)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     const router = session.network.devices.find((d) => d.name === 'Routeur du collège');
     act(() => {
       if (router) session.select({ kind: 'device', id: router.id });
