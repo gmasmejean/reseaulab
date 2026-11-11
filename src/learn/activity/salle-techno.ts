@@ -383,7 +383,7 @@ La **Tablette** n’a pas de prise : sélectionne-la et, dans le [[ecran:panneau
         {
           id: 'adresse',
           title: 'Pourquoi une adresse ?',
-          body: `Souviens-toi du jeu des messages, en 5e : sans adresse sur l’enveloppe, impossible de savoir à qui la remettre.
+          body: `Quand tu postes une lettre, le facteur lit l’adresse sur l’enveloppe pour savoir à qui la remettre. Sur un réseau, c’est pareil : chaque machine a une adresse, et c’est elle qu’on indique pour joindre le bon destinataire.
 
 Passe en mode [[ecran:simulation]]. Double-clique sur **Poste 1** pour ouvrir son bureau, lance le **Navigateur web** et tape l’adresse du serveur : \`http://192.168.10.10\`. Clique ensuite sur **Vérifier mon travail**.`,
           notions: ['adresse-ip', 'client-serveur', 'web-http'],
