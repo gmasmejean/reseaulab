@@ -125,6 +125,18 @@ export const HISTORY_DELAY_MS = 400;
 export const AUTOSAVE_KEY = 'reseaulab:autosave';
 export const AUTOSAVE_DATE_KEY = 'reseaulab:autosave-date';
 export const HIDE_AUTOMATIC_KEY = 'reseaulab:masquer-trafic-automatique';
+/** Knowledge cards already opened on this computer (a list of identifiers). */
+export const READ_CARDS_KEY = 'reseaulab:fiches-lues';
+
+function parseReadCards(text: string | null): ReadonlySet<string> {
+  if (text === null) return new Set();
+  try {
+    const value: unknown = JSON.parse(text);
+    return new Set(Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
 /** Pedagogical pack of the teacher, kept in this browser. */
 export const PACK_KEY = 'reseaulab:pack';
 /** Level of the class chosen on this computer. */
@@ -247,6 +259,8 @@ export class Session {
   authorDraft: Draft | null = null;
   /** Card read last in the help, and those read before it (« Retour »), kept while it is closed. */
   reading: Reading = { trail: [] };
+  /** Knowledge cards already opened on this computer. */
+  readCards: ReadonlySet<string> = new Set();
   /** Activity being done, with its instructions and objectives. */
   activity: Activity | null = null;
   /** What the pupil did in the activity. */
@@ -295,6 +309,7 @@ export class Session {
     this.network = this.restore() ?? new Network();
     this.present = this.designText();
     this.hideAutomatic = this.readPreference(HIDE_AUTOMATIC_KEY) === 'oui';
+    this.readCards = parseReadCards(this.readPreference(READ_CARDS_KEY));
     this.localPack = this.readLocalPack();
     this.rebuildPack();
     this.localProfile = parseProfile(this.readPreference(PROFILE_KEY));
@@ -619,6 +634,35 @@ export class Session {
 
   private openHelpOn(card: string | undefined): void {
     this.openWindow({ type: 'help', ...(card === undefined ? {} : { notion: card }), at: this.revision });
+  }
+
+  /** A seed for a draw of questions: another one each time (from the clock). */
+  drawSeed(): number {
+    return this.now();
+  }
+
+  /** Ticks a knowledge card as read, on this computer. */
+  markRead(id: string): void {
+    if (this.readCards.has(id)) return;
+    this.readCards = new Set([...this.readCards, id]);
+    try {
+      this.storage?.setItem(READ_CARDS_KEY, JSON.stringify([...this.readCards]));
+    } catch {
+      /* not kept: harmless */
+    }
+    this.touch();
+  }
+
+  /** Forgets the cards read (another pupil on the same computer). */
+  clearRead(): void {
+    if (this.readCards.size === 0) return;
+    this.readCards = new Set();
+    try {
+      this.storage?.setItem(READ_CARDS_KEY, '[]');
+    } catch {
+      /* not kept: harmless */
+    }
+    this.touch();
   }
 
   /** Remembers where the pupil is in the help; nothing to redraw. */

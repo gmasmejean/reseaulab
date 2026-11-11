@@ -1278,6 +1278,53 @@ describe('Aide et connaissances', () => {
     );
   });
 
+  test('une question corrigée sous la fiche ; les fiches lues sont cochées et comptées', () => {
+    const storage = new MemoryStorage();
+    const session = new Session(storage, new ManualFrames());
+    render(<App session={session} />);
+    act(() => {
+      session.openKnowledge('switch');
+    });
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    const check = within(help).getByRole('region', { name: 'Pour vérifier' });
+    expect(check).toHaveTextContent('À quoi sert un switch (commutateur) ?');
+    fireEvent.click(within(check).getByRole('radio', { name: 'À relier deux réseaux différents' }));
+    fireEvent.click(within(check).getByRole('button', { name: 'Valider' }));
+    expect(check).toHaveTextContent('✘ Ce n’est pas ça.');
+    expect(check).toHaveTextContent('Réponse attendue : À relier les équipements d’un même réseau local');
+    // Une seule question sur le switch : on la reprend, choix mélangés.
+    fireEvent.click(within(check).getByRole('button', { name: 'Recommencer' }));
+    fireEvent.click(
+      within(check).getByRole('radio', { name: 'À relier les équipements d’un même réseau local' }),
+    );
+    fireEvent.click(within(check).getByRole('button', { name: 'Valider' }));
+    expect(check).toHaveTextContent('✔ Bonne réponse !');
+
+    // Trois questions sur l’adresse IP : « Une autre question » passe à la suivante.
+    const index = within(help).getByRole('navigation', { name: 'Fiches' });
+    fireEvent.click(within(index).getByRole('button', { name: 'Adresse IP' }));
+    const ipCheck = within(help).getByRole('region', { name: 'Pour vérifier' });
+    const first = ipCheck.querySelector('.quiz-prompt')?.textContent;
+    const answer = within(ipCheck).queryAllByRole('radio')[0];
+    if (answer) fireEvent.click(answer);
+    else fireEvent.change(within(ipCheck).getByRole('textbox'), { target: { value: 'x' } });
+    fireEvent.click(within(ipCheck).getByRole('button', { name: 'Valider' }));
+    fireEvent.click(within(ipCheck).getByRole('button', { name: 'Une autre question' }));
+    expect(ipCheck.querySelector('.quiz-prompt')?.textContent).not.toBe(first);
+
+    // Lues : cochées dans la liste, comptées, gardées sur le poste ; « effacer » repart de zéro.
+    expect(
+      within(index).getByRole('button', { name: 'Adresse IP' }).querySelector('.read-mark'),
+    ).not.toBeNull();
+    expect(within(index).getByRole('button', { name: 'Routeur' }).querySelector('.read-mark')).toBeNull();
+    expect(index).toHaveTextContent('2 fiches lues sur');
+    expect(JSON.parse(storage.getItem('reseaulab:fiches-lues') ?? '[]')).toEqual(['switch', 'adresse-ip']);
+    expect(new Session(storage, new ManualFrames()).readCards.has('switch')).toBe(true);
+    fireEvent.click(within(index).getByRole('button', { name: 'effacer' }));
+    expect(index).toHaveTextContent('0 fiche lue sur');
+    expect(storage.getItem('reseaulab:fiches-lues')).toBe('[]');
+  });
+
   test('recherche sans accents, filtre par niveau et lexique', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
@@ -1952,7 +1999,7 @@ describe('Quiz', () => {
     act(() => {
       session.openKnowledge('adresse-ip');
     });
-    fireEvent.click(screen.getByRole('button', { name: 'S’entraîner sur cette notion' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quiz sur cette notion' }));
     const quiz = screen.getByRole('dialog', { name: 'Quiz' });
     expect(within(quiz).getByRole('heading', { name: 'Quiz : Adresse IP' })).toBeInTheDocument();
     fireEvent.click(within(quiz).getByRole('button', { name: 'Commencer (3 questions)' }));

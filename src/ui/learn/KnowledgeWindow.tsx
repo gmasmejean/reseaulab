@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { lexiconByLetter, searchHits, type Excerpt } from '../../learn/content/merge';
 import { nextNotion, readingOrder, type LevelFilter } from '../../learn/content/order';
 import { CATEGORIES, CATEGORY_LABEL, type Notion } from '../../learn/content/types';
 import { useSession } from '../context';
+import { CardCheck } from './CardCheck';
 import { RichLine, RichText } from './RichText';
 
 /** Cards remembered for « Retour ». */
@@ -75,16 +76,7 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
         </p>
       )}
       {session.pack.questions.some((q) => q.notion === notion.id) && (
-        <p>
-          <button
-            type="button"
-            onClick={() => {
-              session.openQuiz(notion.id);
-            }}
-          >
-            S’entraîner sur cette notion
-          </button>
-        </p>
+        <CardCheck key={notion.id} notion={notion} />
       )}
       {notion.curriculum !== undefined && <p className="muted small">Programme : {notion.curriculum}</p>}
     </article>
@@ -118,7 +110,13 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
   const shown = session.notion(current ?? '') ?? notions[0];
   useEffect(() => {
     session.rememberReading({ ...(shown ? { current: shown.id } : {}), trail });
+    if (shown) session.markRead(shown.id);
   }, [session, shown, trail]);
+  // Another card is read from its top.
+  const reader = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reader.current) reader.current.scrollTop = 0;
+  }, [shown?.id]);
 
   const open = (id: string) => {
     if (id === shown?.id || !session.notion(id)) return;
@@ -134,6 +132,7 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
 
   const visible = readingOrder(notions, filter);
   const next = shown ? nextNotion(visible, shown.id) : undefined;
+  const readCount = visible.filter((n) => session.readCards.has(n.id)).length;
   const found = searchHits(visible, query);
   const searching = query.trim() !== '';
   const item = (notion: Notion, label = notion.title, excerpt?: Excerpt) => (
@@ -157,6 +156,11 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             </span>
           )}
         </span>
+        {session.readCards.has(notion.id) && (
+          <span className="read-mark" aria-hidden title="Fiche déjà lue">
+            ✓
+          </span>
+        )}
         {notion.category !== 'guide' && (
           <span className="level-tag" aria-hidden title={`Notion abordée en ${notion.level}`}>
             {notion.level}
@@ -238,6 +242,24 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
               </section>
             ))}
         </div>
+        <p className="knowledge-progress muted small">
+          {readCount} fiche{readCount > 1 ? 's' : ''} lue{readCount > 1 ? 's' : ''} sur {visible.length}
+          {readCount > 0 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="link"
+                title="Sur un poste partagé : repartir de zéro pour un autre élève"
+                onClick={() => {
+                  session.clearRead();
+                }}
+              >
+                effacer
+              </button>
+            </>
+          )}
+        </p>
         <button
           type="button"
           className="knowledge-quiz"
@@ -266,7 +288,7 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             </button>
           )}
         </div>
-        <div className="knowledge-card">
+        <div className="knowledge-card" ref={reader}>
           {shown ? <Card notion={shown} onOpen={open} /> : <p className="muted">Aucune fiche.</p>}
         </div>
       </div>

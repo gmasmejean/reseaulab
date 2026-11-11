@@ -795,7 +795,12 @@ test('quiz : une question corrigée tout de suite, un bilan par notion', async (
     .getByRole('navigation', { name: 'Fiches' })
     .getByRole('button', { name: 'Switch (commutateur)' })
     .click();
-  await help.getByRole('button', { name: 'S’entraîner sur cette notion' }).click();
+  // Sous la fiche, une question corrigée sur place.
+  const check = help.getByRole('region', { name: 'Pour vérifier' });
+  await check.getByRole('radio', { name: 'À relier les équipements d’un même réseau local' }).check();
+  await check.getByRole('button', { name: 'Valider' }).click();
+  await expect(check).toContainText('Bonne réponse !');
+  await check.getByRole('button', { name: 'Quiz sur cette notion' }).click();
   const quiz = page.getByRole('dialog', { name: 'Quiz' });
   await quiz.getByRole('button', { name: 'Commencer (1 question)' }).click();
   await expect(quiz).toContainText('À quoi sert un switch (commutateur) ?');

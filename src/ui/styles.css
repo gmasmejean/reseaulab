@@ -1757,6 +1757,31 @@ button.term-help[aria-expanded='true'] {
 .knowledge-quiz {
   flex: none;
 }
+.knowledge-progress {
+  flex: none;
+  margin: 0;
+}
+.read-mark {
+  flex: none;
+  color: var(--ok);
+  font-size: 0.8em;
+  font-weight: 700;
+}
+.card-check {
+  margin: 14px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.card-check header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.card-check h3 {
+  margin: 0 0 4px;
+}
 .knowledge-reader {
   display: flex;
   flex-direction: column;

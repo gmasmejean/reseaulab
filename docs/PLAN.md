@@ -398,10 +398,17 @@ proposition à faire valider par l'enseignant, comme celui de l'étape 22.
       fiches de prise en main les utilisent, et citent F1 et « Qu'est-ce que
       c'est ? ». Les lignes « À retenir » acceptent désormais la même mise en
       forme que l'explication (gras, liens, touches, éléments d'écran).
-- [ ] **Étape 34 — Vérifier sur place** : une question du quiz, posée et
-      corrigée en bas de la fiche, sans ouvrir d'autre fenêtre ; « une autre
-      question » en tire une nouvelle. Les fiches lues sont cochées dans la
-      liste (gardé sur le poste).
+- [x] **Étape 34 — Vérifier sur place** : sous chaque fiche qui a des
+      questions, l'encadré **Pour vérifier** en pose une et la corrige sur
+      place (verdict, réponse attendue, explication), avec le même
+      formulaire que le quiz (`src/ui/learn/Question.tsx`). « Une autre
+      question » passe aux suivantes, puis les retire (« Recommencer » quand
+      la fiche n'en a qu'une : choix remélangés, nouvelles adresses). Le
+      lien « Quiz sur cette notion » remplace le bouton « S'entraîner sur
+      cette notion ». Une fiche ouverte est cochée ✓ dans la liste ; « N
+      fiches lues sur M » sous la liste, avec « effacer » pour un autre
+      élève sur le même poste (clé `reseaulab:fiches-lues`). Une fiche
+      s'affiche désormais depuis son début.
 - [ ] **Étape 35 — Erreurs fréquentes** : champ facultatif `mistakes` d'une
       fiche (« On croit que… / En fait… »), affiché en encadré, validé dans
       un fichier de pack et exporté avec lui ; rédigé pour les fiches clés
@@ -532,6 +539,10 @@ réseau prêt à l'emploi depuis une fiche.
   champ `curriculum` d'une fiche est laissé à l'enseignant. L'import et
   l'export d'un pack depuis l'interface arrivent à l'étape 28 ; d'ici là le
   mécanisme existe et est testé, mais sans bouton.
+- **« Lue » veut dire « ouverte »** (étape 34) : RéseauLab ne sait pas si
+  la fiche a été lue jusqu'au bout. Les coches restent sur le poste, sans
+  compte élève ; elles sont communes à ceux qui s'en servent, d'où
+  « effacer ».
 - **Le bouton Aide ignore la sélection** (étape 31) : la feuille de route
   prévoyait d'ouvrir l'aide sur l'équipement sélectionné. En conception, un
   équipement reste presque toujours sélectionné : le bouton Aide aurait
