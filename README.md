@@ -28,6 +28,43 @@ celui de l'élève précédent. Pour garder ou rendre son travail, l'élève uti
 obtient un fichier `.reseaulab.json` dans les téléchargements, qu'on rouvre
 ensuite avec **Ouvrir…**.
 
+### Intégrer RéseauLab dans une autre application
+
+Le même fichier `index.html` peut être affiché dans une **iframe** par une
+application de gestion de classe (par exemple classroomOrchestrator), qui
+garde alors le travail des élèves à la place du navigateur. Il suffit
+d'ajouter `?integre` à l'adresse : `reseaulab.html?integre=1`. Ouvert sans ce
+paramètre, RéseauLab fonctionne exactement comme d'habitude.
+
+En mode intégré :
+
+- les boutons **Nouveau**, **Ouvrir…**, **Enregistrer**, **Exemple**,
+  **Activités**, **Réglages** et **Quitter l'activité** sont masqués. C'est
+  l'application qui choisit l'activité et qui garde le travail. Le panneau
+  d'activité rappelle à l'élève que son travail est enregistré
+  automatiquement ;
+- la sauvegarde automatique dans le navigateur est coupée, ce qui évite que
+  le travail d'un élève réapparaisse chez le suivant. Les préférences du
+  poste (fiches lues, largeur du panneau) restent gardées ;
+- en **consultation** (le professeur regarde le travail d'un élève), tout
+  reste manipulable : simulation, ping, compte rendu. Mais rien n'est
+  renvoyé à l'application, et un bandeau le signale. **Enregistrer** reste
+  disponible pour télécharger le fichier `.reseaulab.json` de l'élève.
+
+Le dialogue passe par `postMessage`. Chaque message porte `reseaulab: 1` et
+un `type` (code : `src/embed/bridge.ts`).
+
+| Sens               | `type`   | Contenu                                                                                                                                                                                                                                                                                                                      |
+| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RéseauLab → parent | `pret`   | Répété toutes les 500 ms jusqu'à l'`init`.                                                                                                                                                                                                                                                                                   |
+| parent → RéseauLab | `init`   | `projet` : texte d'un fichier `.reseaulab.json` à reprendre, **ou** `activite` : identifiant d'une activité intégrée à commencer, par exemple `salle-techno`. En option : `consultation: true`, `eleve: { name, className }` (proposés pour le compte rendu s'il n'est pas encore signé), `nom` (nom du fichier téléchargé). |
+| RéseauLab → parent | `etat`   | `projet` (le fichier complet, en texte), `progression` (de 0 à 1, objectifs hors bonus) et `resume` (une ligne, par exemple « Étape 3/8 · 9/20 objectifs · 7/9 bonnes réponses »). Envoyé environ 1 s après chaque changement, une fois juste après l'`init` et en quittant la page, mais jamais en consultation.            |
+| RéseauLab → parent | `erreur` | `message`. Le travail reçu est illisible ou l'activité est inconnue. Dans ce cas, rien n'est renvoyé, pour ne pas écraser le travail.                                                                                                                                                                                        |
+
+Seuls les messages de la page parente sont pris en compte. Les réponses
+partent vers l'origine qui a envoyé l'`init`. Le fichier d'une activité
+complète pèse moins de 100 Ko.
+
 ## Prise en main
 
 - **Mode conception** : cliquer (ou glisser) un équipement de la palette pour

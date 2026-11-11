@@ -2803,3 +2803,19 @@ button.screen-chip:focus-visible {
 .settings section {
   margin-top: 4px;
 }
+
+/* ---------- integrated mode (inside another application) ---------- */
+.embed-badge {
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+.activity-autosave {
+  margin: 0 12px 8px;
+  color: var(--muted);
+  font-size: 0.88em;
+}

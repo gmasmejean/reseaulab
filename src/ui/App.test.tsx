@@ -2498,3 +2498,52 @@ describe('Espace enseignant', () => {
     expect(session.notion('box')).toBeDefined();
   });
 });
+
+describe('App en mode intégré', () => {
+  const salle = BUILTIN_ACTIVITIES.find((a) => a.id === 'salle-techno');
+
+  function toolbarButton(name: string) {
+    return within(screen.getByRole('navigation', { name: 'Projet' })).queryByRole('button', { name });
+  }
+
+  test('seul, RéseauLab propose les fichiers, les activités et les réglages', () => {
+    const { session } = setup();
+    act(() => {
+      if (salle) session.startActivity(salle);
+    });
+    for (const name of ['Nouveau', 'Ouvrir…', 'Enregistrer', 'Exemple', 'Activités']) {
+      expect(toolbarButton(name)).toBeInTheDocument();
+    }
+    expect(screen.getByRole('button', { name: 'Réglages' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Quitter l’activité' })).toBeInTheDocument();
+    expect(screen.queryByText(/enregistré automatiquement/)).not.toBeInTheDocument();
+  });
+
+  test('pour l’élève : ni fichier, ni changement d’activité, le travail est gardé par l’application', () => {
+    const { session } = setup();
+    act(() => {
+      session.setEmbed({ consultation: false });
+      if (salle) session.startActivity(salle);
+    });
+    for (const name of ['Nouveau', 'Ouvrir…', 'Enregistrer', 'Exemple', 'Activités']) {
+      expect(toolbarButton(name)).not.toBeInTheDocument();
+    }
+    expect(toolbarButton('Compte rendu')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Réglages' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Quitter l’activité' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Ton travail est enregistré automatiquement/)).toBeInTheDocument();
+    expect(screen.queryByText(/Consultation/)).not.toBeInTheDocument();
+  });
+
+  test('pour le professeur : consultation signalée, le travail se télécharge', () => {
+    const { session } = setup();
+    act(() => {
+      session.setEmbed({ consultation: true });
+      if (salle) session.startActivity(salle);
+    });
+    expect(screen.getByText('Consultation : les modifications ne sont pas enregistrées')).toBeInTheDocument();
+    expect(toolbarButton('Enregistrer')).toBeInTheDocument();
+    expect(toolbarButton('Ouvrir…')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ton travail est enregistré automatiquement/)).not.toBeInTheDocument();
+  });
+});

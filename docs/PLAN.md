@@ -540,6 +540,31 @@ Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
 activités qui la travaillent, et un bouton « Essayer » qui chargerait un
 réseau prêt à l'emploi depuis une fiche.
 
+## Feuille de route : RéseauLab dans la gestion de classe
+
+Demande de l'enseignant (2026-11-11) : faire l'activité « La salle de
+techno » depuis les postes élèves de classroomOrchestrator. Le travail est
+gardé par cette application (et repris au cours suivant), et le professeur
+le consulte ou le récupère. RéseauLab doit rester utilisable seul.
+
+- [x] **Étape 43 — Mode intégré** (`?integre`, `src/embed/`). Un protocole
+      `postMessage` générique (`pret`, `init`, `etat`, `erreur`, décrit dans
+      le README) : l'application parente donne le travail à reprendre ou
+      l'activité à commencer. RéseauLab lui renvoie le fichier complet,
+      l'avancement et un résumé d'une ligne, peu après chaque changement, et
+      jamais en consultation. Un travail illisible n'est jamais écrasé.
+      L'interface masque les commandes de fichier, d'activité et de réglages
+      (« Enregistrer » reste disponible en consultation, pour télécharger).
+      La sauvegarde automatique du navigateur est coupée : `withoutAutosave`
+      garde les préférences du poste. Seul, RéseauLab ne change pas. Tests :
+      prêt répété puis arrêté, messages étrangers ignorés, activité
+      commencée et envoyée aussitôt, envois groupés et sans doublon, envoi
+      en quittant la page, reprise avec la même date de début (mêmes
+      questions), consultation muette, travail illisible signalé, fichier de
+      la salle de techno sous 300 Ko, interface seul, intégrée et en
+      consultation. Bout en bout : une page hôte intègre RéseauLab, garde le
+      travail et le redonne ; consultation sans envoi, puis téléchargement.
+
 ## Écarts au plan
 
 - **pnpm au lieu de npm** : npm 10.9 plante (`Cannot read properties of null

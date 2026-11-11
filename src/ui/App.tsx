@@ -158,7 +158,7 @@ function Layout() {
   );
 }
 
-function browserStorage() {
+export function browserStorage() {
   try {
     return window.localStorage;
   } catch {
@@ -166,7 +166,7 @@ function browserStorage() {
   }
 }
 
-export function App({ session }: { session?: Session }) {
+export function App({ session }: { session?: Session | undefined }) {
   const value = useMemo(() => session ?? new Session(browserStorage()), [session]);
   return (
     <SessionProvider session={value}>

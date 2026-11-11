@@ -468,6 +468,11 @@ export function ActivityPanel() {
         {done} objectif{done > 1 ? 's' : ''} sur {all.length}
         {bonus.length > 0 && finished && ` · bonus ${bonusDone}/${bonus.length}`}
       </p>
+      {session.embed?.consultation === false && (
+        <p className="activity-autosave">
+          Ton travail est enregistré automatiquement : pas besoin d’Enregistrer ni d’Ouvrir.
+        </p>
+      )}
       <div className="activity-scroll">
         {activity.intro !== '' && (
           <details className="activity-intro" open={done === 0}>
@@ -497,7 +502,14 @@ export function ActivityPanel() {
         </ol>
         {finished && (
           <p className="activity-finished" role="status">
-            ✔ Tous les objectifs sont atteints. Bravo ! Pensez à <b>Enregistrer</b> votre travail.
+            ✔ Tous les objectifs sont atteints. Bravo !{' '}
+            {session.embed ? (
+              'Ton travail est enregistré automatiquement.'
+            ) : (
+              <>
+                Pensez à <b>Enregistrer</b> votre travail.
+              </>
+            )}
             {bonus.length > 0 && bonusDone < bonus.length && ' Tu peux maintenant faire le bonus.'}
           </p>
         )}
@@ -515,15 +527,18 @@ export function ActivityPanel() {
             Vérifier mon travail
           </button>
         )}
-        <button
-          type="button"
-          title="Garder le réseau et fermer l’activité"
-          onClick={() => {
-            session.quitActivity();
-          }}
-        >
-          Quitter l’activité
-        </button>
+        {/* Embedded, the application chose the activity: it is not left from here. */}
+        {!session.embed && (
+          <button
+            type="button"
+            title="Garder le réseau et fermer l’activité"
+            onClick={() => {
+              session.quitActivity();
+            }}
+          >
+            Quitter l’activité
+          </button>
+        )}
       </footer>
     </aside>
   );

@@ -174,6 +174,14 @@ export interface Reading {
   readonly path?: PathId;
 }
 
+/**
+ * RéseauLab inside another application, which keeps the work (see src/embed).
+ * `consultation`: the teacher looks at a pupil's work; nothing is sent back.
+ */
+export interface Embed {
+  readonly consultation: boolean;
+}
+
 export interface Storage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -260,6 +268,8 @@ export class Session {
   activityWidth: number | null = null;
   /** Set while the pupil has not said what to do with the work found at start-up. */
   resumed: Resumed | null = null;
+  /** Set when RéseauLab runs inside another application; null on its own. */
+  embed: Embed | null = null;
   /** Validates the text field being edited; false when its value is refused. */
   private pendingEdit: (() => boolean) | null = null;
   /** Knowledge cards, questions and messages: the default pack, completed by the teacher's. */
@@ -599,6 +609,13 @@ export class Session {
   /** Names the project file from what the pupil typed (without the extension). */
   setProjectName(name: string): void {
     this.fileName = `${projectBaseName(name)}${PROJECT_EXTENSION}`;
+    this.touch();
+  }
+
+  /** Runs inside another application, which loads and keeps the work. */
+  setEmbed(embed: Embed): void {
+    this.embed = embed;
+    this.resumed = null;
     this.touch();
   }
 

@@ -31,6 +31,9 @@ export function Toolbar() {
     else setPendingReplace(() => action);
   };
   const simulation = session.mode === 'simulation';
+  /** Inside another application, which opens and keeps the work: no file nor activity to choose. */
+  const embedded = session.embed !== null;
+  const consultation = session.embed?.consultation === true;
   const problems = useLint().filter((f) => f.severity === 'error' || f.severity === 'warning').length;
   const speedIndex = Math.max(
     0,
@@ -50,7 +53,7 @@ export function Toolbar() {
       </div>
       <nav className="toolbar-group" aria-label="Projet">
         {/* Replacing the network is a design action: not offered during a simulation. */}
-        {!simulation && (
+        {!simulation && !embedded && (
           <>
             <button
               type="button"
@@ -87,16 +90,20 @@ export function Toolbar() {
             });
           }}
         />
-        <button
-          type="button"
-          data-ui="enregistrer"
-          onClick={() => {
-            session.commitEdit();
-            setSaving(true);
-          }}
-        >
-          Enregistrer
-        </button>
+        {/* Embedded, the work is kept by the application; the teacher can still download it. */}
+        {(!embedded || consultation) && (
+          <button
+            type="button"
+            data-ui="enregistrer"
+            title={consultation ? 'Télécharger le travail de l’élève (fichier .reseaulab.json)' : undefined}
+            onClick={() => {
+              session.commitEdit();
+              setSaving(true);
+            }}
+          >
+            Enregistrer
+          </button>
+        )}
         <button
           type="button"
           data-ui="compte-rendu"
@@ -108,7 +115,7 @@ export function Toolbar() {
         >
           Compte rendu
         </button>
-        {!simulation && (
+        {!simulation && !embedded && (
           <>
             <button
               type="button"
@@ -252,18 +259,25 @@ export function Toolbar() {
       >
         Aide
       </button>
-      <button
-        type="button"
-        className="icon-button"
-        aria-label="Réglages"
-        data-ui="reglages"
-        title={`Réglages de la classe (niveau : ${PROFILE_LABEL[session.profile.base]})`}
-        onClick={() => {
-          session.openWindow({ type: 'settings' });
-        }}
-      >
-        ⚙
-      </button>
+      {!embedded && (
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Réglages"
+          data-ui="reglages"
+          title={`Réglages de la classe (niveau : ${PROFILE_LABEL[session.profile.base]})`}
+          onClick={() => {
+            session.openWindow({ type: 'settings' });
+          }}
+        >
+          ⚙
+        </button>
+      )}
+      {consultation && (
+        <p className="embed-badge" role="status">
+          Consultation : les modifications ne sont pas enregistrées
+        </p>
+      )}
       {saving && (
         <SaveDialog
           fileName={session.fileName}
