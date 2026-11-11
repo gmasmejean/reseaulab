@@ -495,6 +495,34 @@ partie bonus (≈ 30 min) ; questions corrigées à un seul essai.
       serveur, réseau local et Internet). Les autres noms (cookie, FAI,
       extension, chemin, doublon, descripteur…) entrent dans le lexique.
       Contenu **à faire valider par l'enseignant**.
+- [x] **Étape 41 — Activité « La salle de techno »** (4e, 120 min + bonus
+      30 min, `src/learn/activity/salle-techno.ts`). Réseau de départ : la
+      salle (192.168.10.0/24) autour d'un switch avec Wi-Fi « Salle-Techno »,
+      un routeur vers Internet (82.64.12.34 côté FAI), quatre postes, un
+      serveur (page « ENT » et dossiers `Documents/Commun`, `4A`, `4B`), une
+      imprimante, une tablette et une station météo dont la page est une
+      table de mesures (heure, température, humidité). Pannes préparées :
+      Poste 4 débranché, tablette hors Wi-Fi, Poste 3 avec l'adresse de
+      Poste 2, imprimante dans 192.168.1.0, tablette en 192.168.11.21 ;
+      station non reliée et sans adresse. **Partie 1** (6 étapes : réseau de
+      la salle, composants, câbler et connecter, pourquoi une adresse, où
+      sont mes fichiers, bons usages) ; **partie 2** (9 étapes : lire une
+      adresse avec `ipconfig`, masque, `ping`, dépanner, ajouter la station
+      à l'adresse réservée 192.168.10.50, lire ses mesures, adresses privée
+      et publique, usage raisonné, bilan) ; **bonus** (serveur DHCP et
+      smartphone en configuration automatique ; défi sur les octets et les
+      masques). 62 objectifs (73 avec le bonus), dont 51 questions (3 à réponse libre). La consigne
+      donne le plan d'adressage de la salle et demande d'enregistrer à la
+      fin de chaque séance. Nouvelle option de l'objectif « réglage » :
+      `unique`, une adresse qu'aucun autre équipement n'a (un `ping` vers
+      une adresse en double reçoit une réponse : il ne prouve pas la
+      réparation). Les utilitaires des activités fournies passent dans
+      `define.ts`. Tests : solution complète (réponses comprises) qui atteint
+      tout, rien d'atteint au départ, pannes réelles réparées une à une,
+      panneau du routeur lisible en 4e ; bout en bout : questions corrigées,
+      station câblée et adressée, sa page lue dans le navigateur, fichier
+      enregistré puis rouvert avec ses réponses, compte rendu. Contenu **à
+      faire valider par l'enseignant**.
 
 Mis de côté à la demande de l'enseignant : le renvoi d'une fiche vers les
 activités qui la travaillent, et un bouton « Essayer » qui chargerait un
@@ -546,6 +574,16 @@ réseau prêt à l'emploi depuis une fiche.
   autres s'écrivent dans le fichier d'activité, dont le format est validé à
   l'ouverture. Le brouillon d'une activité vit le temps de la session : il
   n'est pas gardé après un rechargement de la page.
+- **Mesures de la station non exportables** (étape 41) : le programme
+  propose d'exploiter les mesures d'un objet dans un tableur. La station
+  affiche sa table dans le navigateur simulé ; RéseauLab ne permet pas de la
+  télécharger. L'élève la lit et l'interprète sur place (questions de
+  l'étape « Lire les mesures ») ; l'enseignant peut fournir le même tableau
+  en CSV pour la suite au tableur.
+- **Activité longue dans un seul fichier** (étape 41) : les deux séances
+  forment une seule activité (une seule progression, un seul compte rendu)
+  plutôt que deux activités enchaînées ; l'élève rouvre son fichier à la
+  seconde séance.
 - **Questions écrites dans le fichier** (étape 39) : l'éditeur d'activité
   ne crée ni question, ni partie, ni étape bonus ; elles s'écrivent dans le
   fichier d'activité (format documenté dans le README), validé à

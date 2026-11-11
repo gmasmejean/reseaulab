@@ -2065,6 +2065,27 @@ describe('Questions d’une activité', () => {
   });
 });
 
+describe('Activité « La salle de techno »', () => {
+  test('en 4e, le panneau du routeur montre l’adresse publique ; le serveur garde ses fichiers', () => {
+    const { session } = setup();
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'salle-techno');
+    act(() => {
+      if (builtin) session.startActivity(builtin);
+    });
+    expect(session.profile.base).toBe('4e');
+    const router = session.network.devices.find((d) => d.name === 'Routeur du collège');
+    act(() => {
+      if (router) session.select({ kind: 'device', id: router.id });
+    });
+    expect(screen.getByRole('textbox', { name: 'IP eth1' })).toHaveValue('82.64.12.34');
+    expect(screen.getByRole('textbox', { name: 'IP eth0' })).toHaveValue('192.168.10.254');
+    const server = session.network.devices.find((d) => d.name === 'Serveur');
+    expect(
+      server && session.network.host(server.id).fs.readFile('/Documents/4A/Lea/plan-salle.png'),
+    ).not.toBeNull();
+  });
+});
+
 describe('Compte rendu', () => {
   test('nom, classe et conclusion s’écrivent dans le compte rendu, avec le plan et la table d’adressage', () => {
     const { session } = setup();

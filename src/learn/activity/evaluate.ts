@@ -7,6 +7,7 @@ import {
   sameNetwork,
   type Ipv4,
 } from '../../engine/core/ipv4';
+import { Box } from '../../engine/devices/box';
 import type { Device } from '../../engine/devices/device';
 import { Host } from '../../engine/devices/host';
 import { Router } from '../../engine/devices/router';
@@ -98,6 +99,13 @@ function every(network: Network, ref: DeviceRef, test: (device: Device) => Outco
   return DONE;
 }
 
+/** Fixed addresses of a device (none for a terminal in automatic configuration). */
+function addressesOf(device: Device): Ipv4[] {
+  if (device instanceof Host) return device.config.useDhcp ? [] : [device.config.ip];
+  if (device instanceof Router || device instanceof Box) return device.interfaces.map((i) => i.ip);
+  return [];
+}
+
 function evaluateStateCheck(network: Network, check: Check): Outcome {
   switch (check.type) {
     case 'deviceCount': {
@@ -150,6 +158,11 @@ function evaluateStateCheck(network: Network, check: Check): Outcome {
         if (check.isSet !== undefined && (value !== IP_ANY) !== check.isSet) return todo();
         if (check.equals !== undefined && formatIp(value) !== check.equals.trim()) return todo();
         if (check.inNetwork !== undefined && !inNetwork(value, check.inNetwork)) return todo();
+        if (check.unique === true && check.field === 'ip') {
+          if (value === IP_ANY) return todo();
+          const twin = network.devices.find((d) => d !== device && addressesOf(d).includes(value));
+          if (twin) return todo(`${twin.name} a la même adresse.`);
+        }
         return DONE;
       });
     case 'routerInterface': {

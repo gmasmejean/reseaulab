@@ -906,3 +906,103 @@ test('le fichier unique reste léger', () => {
   // Distribué par ENT, clé USB ou courriel : au-delà de 900 Ko, il faut se demander pourquoi.
   expect(readFileSync(file).length).toBeLessThan(900_000);
 });
+
+test('activité « La salle de techno » : questions corrigées, station météo, travail rendu puis rouvert', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : La salle de techno' }).click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  await expect(panel.getByRole('heading', { name: 'Partie 1 — Ce que je sais depuis la 5e' })).toBeVisible();
+  await expect(panel).toContainText(/0 objectif sur \d+/);
+  await shot(page, '60-salle-techno-depart');
+
+  // Partie 1 : une question à plusieurs réponses, corrigée sur place.
+  const usages = panel.getByRole('region', { name: 'Question : À quoi sert le réseau' });
+  for (const choice of [
+    'Partager des fichiers',
+    'Imprimer depuis tous les postes',
+    'Accéder à Internet',
+    'Communiquer (ENT, messagerie)',
+  ])
+    await usages.getByRole('checkbox', { name: choice }).check();
+  await usages.getByRole('button', { name: 'Valider' }).click();
+  await expect(usages).toContainText('✔ Bonne réponse !');
+  // Une réponse fausse : la réponse attendue est donnée, la fiche proposée.
+  const lan = panel.getByRole('region', { name: 'Question : Réseau local ou Internet' });
+  await lan.getByRole('radio', { name: 'Internet', exact: true }).check();
+  await lan.getByRole('button', { name: 'Valider' }).click();
+  await expect(lan).toContainText('Réponse attendue : un réseau local (LAN)');
+  await expect(lan.getByRole('button', { name: /Relire la fiche/ })).toBeVisible();
+  await shot(page, '61-salle-techno-question-corrigee');
+
+  // Installer la station météo : câble, adresse fixe, puis lire ses mesures.
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  for (const name of ['Station météo', 'Switch salle']) await page.locator(`[aria-label^="${name}"]`).click();
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  await page.locator('[aria-label^="Station météo"]').click();
+  for (const [label, value] of [
+    ['Adresse IP', '192.168.10.50'],
+    ['Masque', '255.255.255.0'],
+  ] as const) {
+    const field = page.getByRole('textbox', { name: label, exact: true });
+    await field.fill(value);
+    await field.press('Enter');
+  }
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page
+    .getByRole('button', { name: /^Poste 1/ })
+    .first()
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Bureau de Poste 1' })
+    .getByRole('button', { name: 'Navigateur web' })
+    .click();
+  const browser = page.getByRole('dialog', { name: 'Navigateur web — Poste 1' });
+  await browser.getByRole('textbox', { name: 'Adresse', exact: true }).fill('http://192.168.10.50');
+  await browser.getByRole('button', { name: 'Aller' }).click();
+  await expect(browser.getByRole('heading', { name: 'Station météo de la salle' })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(browser.getByRole('cell', { name: '23,1' })).toBeVisible();
+  await shot(page, '62-salle-techno-station');
+  await browser.getByRole('button', { name: /Fermer/ }).click();
+  await page.getByRole('radio', { name: /Conception/ }).click();
+
+  // Le fichier rendu garde les réponses ; rouvert ailleurs, les questions restent corrigées.
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Enregistrer le projet' });
+  const download = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  const text = readFileSync(await (await download).path(), 'utf8');
+  const saved = JSON.parse(text) as { work: { answers: Partial<Record<string, { right: boolean | null }>> } };
+  expect(saved.work.answers['q-usages']?.right).toBe(true);
+  expect(saved.work.answers['q-lan']?.right).toBe(false);
+
+  await page.evaluate(() => {
+    localStorage.clear();
+  });
+  await page.reload();
+  await page.getByTestId('open-project').setInputFiles({
+    name: 'salle-techno.reseaulab.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(text),
+  });
+  await page
+    .getByRole('alertdialog', { name: 'Remplacer le réseau ?' })
+    .getByRole('button', { name: 'Remplacer' })
+    .click();
+  const reopened = page.getByRole('complementary', { name: 'Activité' });
+  await expect(reopened.getByRole('heading', { name: 'La salle de techno' })).toBeVisible();
+  const again = reopened.getByRole('region', { name: 'Question : Réseau local ou Internet' });
+  await expect(again).toContainText('Ta réponse : Internet');
+  await expect(again.getByRole('radio')).toHaveCount(0);
+
+  // Le compte rendu recopie les réponses.
+  await page.getByRole('button', { name: 'Compte rendu' }).click();
+  const report = page.getByRole('dialog', { name: 'Compte rendu' }).getByLabel('Aperçu du compte rendu');
+  await expect(report).toContainText('Réponse : Internet — attendu : un réseau local (LAN)');
+  await shot(page, '63-salle-techno-compte-rendu');
+});

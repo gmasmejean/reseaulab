@@ -1,8 +1,10 @@
-import { IP_ANY, parseIp, prefixToMask, type Ipv4 } from '../../engine/core/ipv4';
+import { IP_ANY } from '../../engine/core/ipv4';
 import { Network } from '../../engine/network';
 import { exampleNetwork } from '../../project/example';
 import type { Level } from '../content/types';
-import { activitySchema, type Activity, type ActivityInput } from './schema';
+import { MASK_24, define, existing, ip, named } from './define';
+import type { Activity } from './schema';
+import { classroom } from './salle-techno';
 
 /* Activities shipped with RéseauLab: ready to use, and examples of what a
  * teacher can write. Each one is a starting network and an activity whose
@@ -16,27 +18,6 @@ export interface BuiltinActivity {
   readonly summary: string;
   /** A new starting network and the activity, at each call. */
   build(): { network: Network; activity: Activity };
-}
-
-const MASK_24 = prefixToMask(24);
-
-function ip(text: string): Ipv4 {
-  const value = parseIp(text);
-  if (value === null) throw new Error(`Activité : adresse invalide « ${text} »`);
-  return value;
-}
-
-const named = (name: string) => ({ by: 'name', name }) as const;
-
-/** Reference to a device of the starting network, by its name at that time. */
-function existing(network: Network, name: string) {
-  const device = network.devices.find((d) => d.name === name);
-  if (!device) throw new Error(`Activité : équipement « ${name} » absent du réseau de départ`);
-  return { by: 'id', id: device.id, label: name } as const;
-}
-
-function define(network: Network, activity: ActivityInput): { network: Network; activity: Activity } {
-  return { network, activity: activitySchema.parse(activity) };
 }
 
 const firstNetwork: BuiltinActivity = {
@@ -588,6 +569,7 @@ export const BUILTIN_ACTIVITIES: readonly BuiltinActivity[] = [
   firstNetwork,
   connectedObject,
   homeNetwork,
+  classroom,
   twoNetworks,
   troubleshooting,
 ];

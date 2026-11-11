@@ -144,6 +144,24 @@ describe('Vérification des objectifs : état du réseau', () => {
     expect(statuses(net, [{ type: 'config', device, field: 'dhcp' }])).toEqual(['done']);
   });
 
+  test('adresse unique : ni un autre poste ni une interface de routeur ne l’ont', () => {
+    const { net, a, b } = routedNetwork();
+    const unique = { type: 'config', device: named('A'), field: 'ip', unique: true } as const;
+    expect(statuses(net, [unique])).toEqual(['done']);
+    b.updateConfig({ ip: ip('192.168.1.10') });
+    const outcome = evaluateNow(activity(unique), net, EMPTY_WORK).get('o0');
+    expect(outcome).toEqual({ status: 'todo', detail: 'B a la même adresse.' });
+    b.updateConfig({ ip: ip('192.168.2.10') });
+    a.updateConfig({ ip: ip('192.168.1.1') });
+    expect(evaluateNow(activity(unique), net, EMPTY_WORK).get('o0')).toEqual({
+      status: 'todo',
+      detail: 'R a la même adresse.',
+    });
+    // Sans adresse, ou en configuration automatique, il n'y a rien d'unique à vérifier.
+    a.updateConfig({ ip: IP_ANY });
+    expect(statuses(net, [unique])).toEqual(['todo']);
+  });
+
   test('interface de routeur, logiciel installé, serveur démarré', () => {
     const { net, b } = routedNetwork();
     b.install('webserver');

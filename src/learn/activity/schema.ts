@@ -98,6 +98,8 @@ const check = z.discriminatedUnion('type', [
     inNetwork: network.optional(),
     /** Filled in (or left empty when false). */
     isSet: z.boolean().optional(),
+    /** For `ip`: an address that no other device of the plan has. */
+    unique: z.boolean().optional(),
   }),
   /** A router has an interface in this network. */
   z.object({ type: z.literal('routerInterface'), device: oneDevice, inNetwork: network }),
