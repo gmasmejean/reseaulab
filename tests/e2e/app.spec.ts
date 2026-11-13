@@ -950,8 +950,9 @@ test('activité : le panneau s’élargit en tirant son bord, sans écraser le p
 
 test('le fichier unique reste léger', () => {
   const file = fileURLToPath(new URL('../../dist/index.html', import.meta.url));
-  // Distribué par ENT, clé USB ou courriel : au-delà de 900 Ko, il faut se demander pourquoi.
-  expect(readFileSync(file).length).toBeLessThan(900_000);
+  // Distribué par ENT, clé USB ou courriel : au-delà de 1 Mo, il faut se demander pourquoi.
+  // (900 Ko jusqu'à l'étape 45 : le texte des activités de 4e et de 3e pèse à lui seul plus de 100 Ko.)
+  expect(readFileSync(file).length).toBeLessThan(1_000_000);
 });
 
 test('activité « La salle de techno » : questions corrigées, station météo, travail rendu puis rouvert', async ({
@@ -1053,4 +1054,72 @@ test('activité « La salle de techno » : questions corrigées, station météo
   const report = page.getByRole('dialog', { name: 'Compte rendu' }).getByLabel('Aperçu du compte rendu');
   await expect(report).toContainText('Réponse : Internet — attendu : un réseau local (LAN)');
   await shot(page, '63-salle-techno-compte-rendu');
+});
+
+test('activité « Du collège au musée » : passerelle, DNS et route ajoutée, le site du musée s’affiche', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : Du collège au musée' }).click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  await expect(
+    panel.getByRole('heading', { name: 'Partie 1 — Ce que je sais depuis la 5e et la 4e' }),
+  ).toBeVisible();
+  await shot(page, '64-college-musee-depart');
+
+  const lan = panel.getByRole('region', { name: 'Question : Réseau local ou Internet' });
+  await lan.getByRole('radio', { name: 'un réseau local (LAN)' }).check();
+  await lan.getByRole('button', { name: 'Valider' }).click();
+  await expect(lan).toContainText('✔ Bonne réponse !');
+
+  // Poste 1 : passerelle et serveur DNS.
+  await page.locator('[aria-label^="Poste 1"]').click();
+  for (const [label, value] of [
+    ['Passerelle', '192.168.10.254'],
+    ['Serveur DNS', '80.10.0.53'],
+  ] as const) {
+    const field = page.getByRole('textbox', { name: label, exact: true });
+    await field.fill(value);
+    await field.press('Enter');
+  }
+
+  // La route qui manque au Routeur Internet.
+  await page.locator('[aria-label^="Routeur Internet"]').click();
+  await page.getByRole('tab', { name: 'Routage' }).click();
+  await page.getByRole('textbox', { name: 'Réseau de destination' }).fill('203.0.113.0');
+  await page.getByRole('textbox', { name: 'Masque de la route' }).fill('255.255.255.0');
+  await page.getByRole('textbox', { name: 'Passerelle de la route' }).fill('192.0.2.2');
+  await page.getByRole('button', { name: 'Ajouter la route' }).click();
+  await expect(page.getByRole('cell', { name: '203.0.113.0' })).toBeVisible();
+  await shot(page, '65-college-musee-route');
+
+  // Le site du musée, par son nom.
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page
+    .getByRole('button', { name: /^Poste 1/ })
+    .first()
+    .click();
+  await page
+    .getByRole('dialog', { name: 'Bureau de Poste 1' })
+    .getByRole('button', { name: 'Navigateur web' })
+    .click();
+  const browser = page.getByRole('dialog', { name: 'Navigateur web — Poste 1' });
+  await browser.getByRole('textbox', { name: 'Adresse', exact: true }).fill('www.musee-des-reseaux.fr');
+  await browser.getByRole('button', { name: 'Aller' }).click();
+  await expect(browser.getByRole('heading', { name: 'Musée des réseaux' })).toBeVisible({ timeout: 30_000 });
+  await shot(page, '66-college-musee-site');
+  await browser.getByRole('button', { name: /Fermer/ }).click();
+  await page.getByRole('radio', { name: /Conception/ }).click();
+
+  // Le fichier rendu garde la réponse et la route ajoutée.
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page
+    .getByRole('dialog', { name: 'Enregistrer le projet' })
+    .getByRole('button', { name: 'Enregistrer' })
+    .click();
+  const text = readFileSync(await (await download).path(), 'utf8');
+  const saved = JSON.parse(text) as { work: { answers: Partial<Record<string, { right: boolean | null }>> } };
+  expect(saved.work.answers['q-lan']?.right).toBe(true);
+  expect(text).toContain('203.0.113.0');
 });

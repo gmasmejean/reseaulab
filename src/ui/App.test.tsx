@@ -2172,6 +2172,40 @@ describe('Activité « La salle de techno »', () => {
   });
 });
 
+describe('Activité « Du collège au musée »', () => {
+  test('en 3e, la route qui manque au Routeur Internet s’ajoute dans l’onglet Routage', () => {
+    const { session } = setup();
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    act(() => {
+      if (builtin) session.startActivity(builtin);
+    });
+    expect(session.profile.base).toBe('3e');
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    expect(
+      within(panel).getByRole('heading', { name: 'Partie 1 — Ce que je sais depuis la 5e et la 4e' }),
+    ).toBeInTheDocument();
+    const core = session.network.devices.find((d) => d.name === 'Routeur Internet');
+    act(() => {
+      if (core) session.select({ kind: 'device', id: core.id });
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Routage' }));
+    expect(screen.getAllByRole('button', { name: 'Supprimer la route' })).toHaveLength(3);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Réseau de destination' }), {
+      target: { value: '203.0.113.0' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Masque de la route' }), {
+      target: { value: '255.255.255.0' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Passerelle de la route' }), {
+      target: { value: '192.0.2.2' },
+    });
+    expect(screen.getByRole('combobox', { name: 'Interface de sortie' })).toHaveValue('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter la route' }));
+    expect(screen.getAllByRole('button', { name: 'Supprimer la route' })).toHaveLength(4);
+    expect(screen.getByRole('cell', { name: '203.0.113.0' })).toBeInTheDocument();
+  });
+});
+
 describe('Compte rendu', () => {
   test('nom, classe et conclusion s’écrivent dans le compte rendu, avec le plan et la table d’adressage', () => {
     const { session } = setup();

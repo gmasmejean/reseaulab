@@ -168,10 +168,10 @@ pédagogique » plus bas).
 
 ### Activités guidées
 
-Le bouton **Activités** propose six activités prêtes à l'emploi : « Mon
+Le bouton **Activités** propose sept activités prêtes à l'emploi : « Mon
 premier réseau », « Ajouter un objet connecté », « Le réseau de la maison »
-et « La salle de techno » (4e), « Relier deux réseaux » et « Dépannage : le
-site du collège ne s'affiche plus » (3e).
+et « La salle de techno » (4e), « Relier deux réseaux », « Dépannage : le
+site du collège ne s'affiche plus » et « Du collège au musée » (3e).
 
 **La salle de techno** dure deux séances, plus un bonus. La partie 1 fait
 réviser la 5e par des questions et des manipulations (composants, câble et
@@ -183,6 +183,20 @@ table de mesures, adresses privée et publique, DHCP, usage raisonné. Le bonus
 fait distribuer les adresses par un serveur DHCP et pose un défi sur les
 octets et les masques. L'élève enregistre son fichier à la fin de la première
 séance et le rouvre à la suivante.
+
+**Du collège au musée** (3e) dure deux séances de 1 h 30, plus un bonus. La
+partie 1 vérifie les acquis de 5e et de 4e au CDI (composants, câble et
+Wi-Fi, fichiers, bons usages, adresse et masque, une faute de frappe à
+réparer, un capteur de CO2 à installer et sa table de mesures à lire). La
+partie 2 sort du réseau local pour consulter le site d'un musée hébergé
+dans un data center : Internet comme réseau de réseaux, la passerelle,
+des tables de routage à lire pas à pas (à la place du jeu débranché), la
+route qui manque à ajouter, `traceroute`, le DNS et `nslookup`, la page
+web, les paquets et les protocoles, puis des questions sur le débit, la
+représentation des données, deux objets qui communiquent et les enjeux du
+numérique. Le bonus relie la médiathèque au fournisseur d'accès et propose
+un défi de routage sans ordinateur.
+
 Chacune ouvre un réseau de départ et un **panneau d'activité** à droite du
 plan : la consigne, des étapes, et des objectifs qui **se cochent tout seuls**
 quand ils sont atteints. Certains se lisent sur le plan (équipements reliés,

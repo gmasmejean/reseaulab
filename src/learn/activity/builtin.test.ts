@@ -2,6 +2,7 @@ import type { Network } from '../../engine/network';
 import { MASK_24, ip } from '../../engine/testing';
 import { DEFAULT_PACK } from '../content/default-pack';
 import { lintNetwork } from '../diagnose/lint';
+import { tracePath } from '../diagnose/trace';
 import { linkedNotions } from '../richtext';
 import { BUILTIN_ACTIVITIES } from './builtin';
 import { currentStep, evaluateAll, gateSteps, journalEntry } from './evaluate';
@@ -31,6 +32,28 @@ function answerAll(activity: Activity, work: Work): Work {
     answers[objective.id] = markAnswer(item, given, 0);
   }
   return { ...work, answers };
+}
+
+/** Du collège au musée : la partie 1 réparée, et la passerelle sur chaque ordinateur du CDI. */
+function repairLibrary(network: Network): void {
+  const sw = find(network, 'Switch CDI').id;
+  network.connect(find(network, 'Poste 3').id, sw);
+  network.joinWifi(find(network, 'Tablette').id, 'CDI-College');
+  network.host(find(network, 'Poste 2').id).updateConfig({ ip: ip('192.168.10.2') });
+  const sensor = network.host(find(network, 'Capteur CO2').id);
+  network.connect(sensor.id, sw);
+  sensor.updateConfig({ ip: ip('192.168.10.50'), mask: MASK_24 });
+  for (const name of ['Poste 1', 'Poste 2', 'Poste 3'])
+    network.host(find(network, name).id).updateConfig({ gateway: ip('192.168.10.254') });
+}
+
+/** Du collège au musée : la route qui manque au Routeur Internet. */
+function routeToDataCenter(network: Network): void {
+  const core = network.router(find(network, 'Routeur Internet').id);
+  core.setStaticRoutes([
+    ...core.staticRoutes,
+    { destination: ip('203.0.113.0'), mask: MASK_24, gateway: ip('192.0.2.2'), iface: 0 },
+  ]);
 }
 
 /** What a pupil who succeeds does, for each activity: changes to the network, and the journal. */
@@ -104,6 +127,28 @@ const SOLUTIONS: Record<string, (network: Network) => Work> = {
       ...EMPTY_WORK,
       simulated: true,
       commands: [journalEntry(poste1, 'ipconfig'), journalEntry(poste1, 'ping')],
+    };
+    return activity ? answerAll(activity, work) : work;
+  },
+  'college-musee': (network) => {
+    const poste1 = find(network, 'Poste 1').id;
+    repairLibrary(network);
+    routeToDataCenter(network);
+    network.host(poste1).updateConfig({ dns: ip('80.10.0.53') });
+    // Bonus : relier la médiathèque au FAI.
+    const fai = network.router(find(network, 'Routeur du FAI').id);
+    network.addRouterInterface(fai.id);
+    network.connect(fai.id, find(network, 'Routeur de la médiathèque').id);
+    fai.setInterface(3, { ip: ip('82.64.13.1'), mask: MASK_24 });
+    fai.setStaticRoutes([
+      ...fai.staticRoutes,
+      { destination: ip('192.168.20.0'), mask: MASK_24, gateway: ip('82.64.13.34'), iface: 3 },
+    ]);
+    const { activity } = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee')?.build() ?? {};
+    const work = {
+      ...EMPTY_WORK,
+      simulated: true,
+      commands: ['ipconfig', 'ping', 'traceroute', 'nslookup'].map((c) => journalEntry(poste1, c)),
     };
     return activity ? answerAll(activity, work) : work;
   },
@@ -209,6 +254,53 @@ describe('Activités fournies', () => {
     // La station n'est pas encore installée : Vérifier la signale encore.
     expect(status('reseau-sain')).toBe('todo');
     expect(status('mesures-lues')).toBe('todo');
+  });
+
+  test('Du collège au musée : vraies pannes au CDI, puis le chemin se répare route, DNS et site', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    if (!builtin) throw new Error('college-musee');
+    const { network, activity } = builtin.build();
+    const status = (id: string) => evaluateAll(activity, network, EMPTY_WORK).get(id)?.status;
+    for (const id of [
+      'poste3-relie',
+      'tablette-wifi',
+      'poste2-repare',
+      'ping-poste2',
+      'cdi-sain',
+      'capteur-joignable',
+      'mesures-lues',
+      'passerelles',
+      'ping-fai',
+      'ping-musee',
+      'dns-regle',
+      'nom-traduit',
+      'site-affiche',
+      'ping-mediatheque',
+    ])
+      expect(status(id), id).toBe('todo');
+    expect(lintNetwork(network).map((f) => f.code)).toEqual(
+      expect.arrayContaining(['not-cabled', 'wifi-not-joined', 'ip-missing']),
+    );
+
+    // Partie 1 et passerelles : le CDI est sain, le FAI répond, le musée pas encore.
+    repairLibrary(network);
+    for (const id of ['poste2-repare', 'ping-poste2', 'cdi-sain', 'mesures-lues', 'passerelles', 'ping-fai'])
+      expect(status(id), id).toBe('done');
+    const poste1 = find(network, 'Poste 1').id;
+    expect(status('ping-musee')).toBe('todo');
+    expect(tracePath(network, poste1, { kind: 'text', text: '203.0.113.80' }).findings[0]?.code).toBe(
+      'trace-router-no-route',
+    );
+
+    // La route ajoutée : le musée répond, mais son nom n'est pas traduit sans DNS.
+    routeToDataCenter(network);
+    expect(status('ping-musee')).toBe('done');
+    expect(status('site-affiche')).toBe('todo');
+    network.host(poste1).updateConfig({ dns: ip('80.10.0.53') });
+    expect(status('nom-traduit')).toBe('done');
+    expect(status('site-affiche')).toBe('done');
+    // La médiathèque reste à relier (bonus).
+    expect(status('ping-mediatheque')).toBe('todo');
   });
 
   test('chaque appel construit un nouveau réseau de départ', () => {

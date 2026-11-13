@@ -590,8 +590,62 @@ questions.
       information, protocole, objet connecté, données d'un objet, réseau
       local et Internet). Les chiffres sont des ordres de grandeur. Contenu
       **à faire valider par l'enseignant**.
+- [x] **Étape 45 — Activité « Du collège au musée »** (3e, 180 min +
+      bonus, `src/learn/activity/college-musee.ts`). Réseau de départ : le
+      CDI (192.168.10.0/24, switch avec Wi-Fi « CDI-College », trois
+      postes, une tablette, un serveur avec `Documents/Commun`, `3A`,
+      `3B`, un capteur de CO2 dont la page est une table heure / CO2 /
+      température), puis quatre routeurs en chaîne jusqu'au site du musée :
+      collège (route par défaut vers le FAI), FAI (avec son serveur DNS
+      80.10.0.53), cœur d'Internet, data center (serveur web 203.0.113.80,
+      `www.musee-des-reseaux.fr`). Pannes préparées : Poste 3 débranché,
+      tablette hors Wi-Fi, Poste 2 en 192.168.1.2, capteur ni relié ni
+      adressé, postes sans passerelle ni DNS, et **la route vers le data
+      center manque au Routeur Internet** (le test de communication répond
+      « trace-router-no-route »). Une médiathèque préréglée attend d'être
+      reliée au FAI (bonus). **Partie 1** (6 étapes : réseau du CDI,
+      brancher et connecter, fichiers et bons usages, adresse et masque,
+      dépanner, capteur de CO2) ; **partie 2** (12 étapes : réseau de
+      réseaux, passerelle, lire une table de routage, réparer le chemin
+      avec `traceroute`, DNS avec `nslookup`, afficher le site, paquets et
+      protocoles, débit, représenter des données, deux objets qui
+      communiquent, enjeux du numérique, bilan) ; **bonus** (relier la
+      médiathèque : interface ajoutée au FAI, câble, route ; défi de
+      routage sur trois tables données, NAT, justification d'un protocole
+      de routage). 74 objectifs (82 avec le bonus), dont 60 questions (3
+      à réponse libre). Aucun nouveau type d'objectif : les `ping` à
+      travers les routeurs prouvent le routage. Tests : solution complète
+      qui atteint tout, rien d'atteint au départ, pannes réelles réparées
+      une à une (le musée ne répond qu'avec la route, son site ne s'affiche
+      qu'avec le DNS), onglet Routage du routeur utilisable en 3e, travail
+      sous 300 Ko en mode intégré ; bout en bout : passerelle, DNS et route
+      saisis dans l'interface, site du musée affiché par son nom, fichier
+      enregistré avec la réponse et la route. Contenu **à faire valider par
+      l'enseignant**.
 
 ## Écarts au plan
+
+- **Pas de jeu débranché dans « Du collège au musée »** (étape 45) : le
+  programme de 3e demande de justifier le routage par une activité
+  débranchée, avec une table de routage donnée. À la demande de
+  l'enseignant, tout se fait dans RéseauLab : l'élève suit un paquet en
+  lisant les tables des routeurs à l'écran, puis complète une vraie table.
+  Le défi bonus reprend des tables données dans la consigne, sans
+  simulateur.
+- **Deux objets communicants en questions** (étape 45) : les objets
+  connectés de RéseauLab servent une page web mais ne dialoguent pas entre
+  eux. L'échange radio entre deux cartes (émetteur, récepteur, canal,
+  format de message) est donc travaillé par des questions ; la manipulation
+  se fait avec de vraies cartes.
+- **Fichier unique sous 1 Mo au lieu de 900 Ko** (étape 45) : avec les
+  consignes, questions et explications de « Du collège au musée »
+  (≈ 51 Ko, du texte que la minification ne réduit pas), le fichier
+  construit passe de 864 Ko à 916 Ko. La limite du test de bout en bout
+  passe à 1 Mo ; l'alléger demanderait de retirer du contenu.
+- **Le FAI connaît le réseau privé du CDI** (étape 45) : faute de
+  traduction d'adresses (voir la box, étape 29), le routeur du FAI a une
+  route vers 192.168.10.0. La consigne le signale et une question du bonus
+  explique le NAT.
 
 - **pnpm au lieu de npm** : npm 10.9 plante (`Cannot read properties of null
 (reading 'edgesOut')`) en résolvant les dépendances optionnelles de Vitest 5.

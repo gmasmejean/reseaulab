@@ -115,11 +115,14 @@ describe('mode intégré', () => {
     expect(state.resume).toMatch(/^Étape 1\/\d+ · 0\/\d+ objectifs$/);
   });
 
-  test('le travail de « La salle de techno » tient largement dans un enregistrement', () => {
-    const { host } = setup();
-    host.init({ activite: 'salle-techno' });
-    expect(new TextEncoder().encode(host.lastState().projet).length).toBeLessThan(300_000);
-  });
+  test.each(['salle-techno', 'college-musee'])(
+    'le travail de « %s » tient largement dans un enregistrement',
+    (id) => {
+      const { host } = setup();
+      host.init({ activite: id });
+      expect(new TextEncoder().encode(host.lastState().projet).length).toBeLessThan(300_000);
+    },
+  );
 
   test('envoie le travail une fois, peu après une série de changements, et seulement s’il a changé', () => {
     const { session, host } = setup();
