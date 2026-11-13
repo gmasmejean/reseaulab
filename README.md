@@ -327,6 +327,7 @@ pnpm run build      # produit le fichier unique dist/index.html
 
 - Architecture, étapes, feuille de route et écarts : [`docs/PLAN.md`](docs/PLAN.md).
 - Règles de développement suivies : [`docs/REGLES.md`](docs/REGLES.md).
+- Bilan de l'interface et de l'activité de 3e, avec les pistes d'amélioration : [`docs/BILAN.md`](docs/BILAN.md).
 
 En bref : `src/engine` contient le moteur de simulation (TypeScript pur,
 déterministe, sans DOM, couvert à plus de 90 % par les tests) ; `src/project`
