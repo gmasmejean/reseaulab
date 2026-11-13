@@ -565,6 +565,32 @@ le consulte ou le récupère. RéseauLab doit rester utilisable seul.
       consultation. Bout en bout : une page hôte intègre RéseauLab, garde le
       travail et le redonne ; consultation sans envoi, puis téléchargement.
 
+## Feuille de route : une activité complète de 3e
+
+Demande de l'enseignant (2026-11-13) : une activité de 3e en deux séances
+de 1 h 30. La première partie vérifie les acquis de 5e et de 4e, la seconde
+fait découvrir, comprendre et maîtriser le programme de 3e (circulation de
+l'information dans Internet, nécessité du routage, deux objets
+communicants, données, enjeux et métiers). Choix de l'enseignant : tout se
+fait dans RéseauLab (le jeu débranché devient la lecture de tables de
+routage à l'écran), et l'échange entre deux objets se travaille par des
+questions.
+
+- [x] **Étape 44 — Fiches manquantes du programme de 3e** : quatre fiches
+      de 3e. « Débit et ordres de grandeur » (bit/s, Mbit/s, Gbit/s ; ADSL,
+      4G/5G, fibre ; 1 octet = 8 bits ; temps = taille ÷ débit),
+      « Représenter des données » (nombre en binaire, texte, image en
+      pixels, taille d'un fichier, format et extension), « Deux objets qui
+      communiquent » (émetteur, récepteur, canal, format de message
+      convenu) et « Infrastructures et enjeux du numérique » (câbles
+      sous-marins, centres de données, énergie et fabrication des
+      appareils, souveraineté, métiers). Chacune a ses erreurs fréquentes
+      et deux questions de quiz (8 en tout, dont une liste à ordonner et
+      une réponse courte) ; les fiches voisines y renvoient (chemin d'une
+      information, protocole, objet connecté, données d'un objet, réseau
+      local et Internet). Les chiffres sont des ordres de grandeur. Contenu
+      **à faire valider par l'enseignant**.
+
 ## Écarts au plan
 
 - **pnpm au lieu de npm** : npm 10.9 plante (`Cannot read properties of null

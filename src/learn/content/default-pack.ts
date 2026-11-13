@@ -300,7 +300,7 @@ C’est pour cela qu’à la maison on branche un appareil, ou on choisit le Wi-
           'Internet est un réseau de réseaux : des milliers de réseaux reliés entre eux par des routeurs.',
       },
     ],
-    related: ['reseau', 'routeur', 'passerelle', 'chemin-internet', 'ip-privee-publique'],
+    related: ['reseau', 'routeur', 'passerelle', 'chemin-internet', 'ip-privee-publique', 'enjeux-numerique'],
   },
   {
     id: 'topologie',
@@ -619,7 +619,15 @@ Pour le réseau, c’est un [[terminal]] comme un autre : pour communiquer il lu
     ],
     inApp:
       'Ajoutez un « Objet connecté » à un réseau existant, donnez-lui une adresse libre du même réseau, puis vérifiez par un ping, ou tapez son adresse dans le navigateur d’un poste pour lire sa mesure.',
-    related: ['terminal', 'adresse-ip', 'masque', 'wifi', 'donnees-objet', 'usage-raisonne'],
+    related: [
+      'terminal',
+      'adresse-ip',
+      'masque',
+      'wifi',
+      'donnees-objet',
+      'usage-raisonne',
+      'objets-communicants',
+    ],
   },
   {
     id: 'ip-privee-publique',
@@ -726,7 +734,7 @@ On peut télécharger la table au format \`.csv\` (valeurs séparées par des vi
           'il ne fournit qu’un nombre ; c’est nous, ou un programme, qui l’interprétons à l’aide de l’unité et des autres mesures.',
       },
     ],
-    related: ['objet-connecte', 'usage-raisonne', 'client-serveur'],
+    related: ['objet-connecte', 'usage-raisonne', 'client-serveur', 'donnees-numeriques'],
   },
   {
     id: 'usage-raisonne',
@@ -889,7 +897,7 @@ Chaque protocole a un rôle précis : IP achemine les [[trame-paquet|paquets]] d
       'Chaque protocole a un rôle ; ils se complètent.',
     ],
     inApp: 'Sur le plan, chaque trame porte le nom de son protocole ; la légende rappelle le rôle de chacun.',
-    related: ['couches', 'trame-paquet', 'ping'],
+    related: ['couches', 'trame-paquet', 'ping', 'objets-communicants'],
   },
   {
     id: 'couches',
@@ -1077,7 +1085,178 @@ Aucun équipement ne connaît le chemin complet : chaque routeur ne décide que 
     ],
     inApp:
       'Dans le réseau d’exemple, lancez traceroute www.college.fr depuis Poste 1, ou « Tester une communication » : le trajet de la demande est affiché.',
-    related: ['routeur', 'table-de-routage', 'passerelle', 'ttl', 'reseau-local-internet'],
+    related: [
+      'routeur',
+      'table-de-routage',
+      'passerelle',
+      'ttl',
+      'reseau-local-internet',
+      'debit',
+      'enjeux-numerique',
+    ],
+  },
+  {
+    id: 'debit',
+    title: 'Débit et ordres de grandeur',
+    aliases: [
+      'bit/s',
+      'Mbit/s',
+      'Gbit/s',
+      'bande passante',
+      'ADSL',
+      'fibre',
+      '4G',
+      '5G',
+      'temps de transfert',
+    ],
+    level: '3e',
+    category: 'materiel',
+    short:
+      'Le débit est la quantité de données transmise par seconde ; il se mesure en bits par seconde (bit/s).',
+    body: `Une liaison transporte des **bits** (des 0 et des 1). Son **débit** dit combien de bits elle transmet en une seconde :
+
+- 1 **kbit/s** = 1 000 bit/s ;
+- 1 **Mbit/s** = 1 000 000 bit/s (un million) ;
+- 1 **Gbit/s** = 1 000 Mbit/s (un milliard de bits par seconde).
+
+Les tailles de fichiers, elles, s’écrivent en **octets** (o, Ko, Mo, Go) : **1 octet = 8 bits**. Pour estimer le temps d’envoi d’un fichier, on convertit sa taille en bits, puis on divise par le débit :
+
+**temps (s) = taille (bits) ÷ débit (bit/s)**
+
+Ordres de grandeur d’un abonnement : ADSL (par la ligne téléphonique) quelques Mbit/s à une vingtaine ; 4G quelques dizaines de Mbit/s ; 5G et fibre optique plusieurs centaines de Mbit/s, jusqu’à quelques Gbit/s. Le [[wifi|Wi-Fi]] de la maison partage son débit entre tous les appareils connectés.`,
+    remember: [
+      'Débit = bits transmis par seconde (bit/s, Mbit/s, Gbit/s).',
+      '1 octet = 8 bits : une taille en Mo se multiplie par 8 pour l’avoir en Mbit.',
+      'Temps = taille ÷ débit.',
+    ],
+    example:
+      'Une photo de 4 Mo fait 4 × 8 = 32 Mbit. À 8 Mbit/s (ADSL), elle part en 32 ÷ 8 = 4 s ; à 1 Gbit/s (fibre), en 0,032 s.',
+    mistakes: [
+      {
+        belief: '« 8 Mbit/s » veut dire 8 Mo par seconde.',
+        truth: 'un octet fait 8 bits : 8 Mbit/s, c’est 1 Mo par seconde.',
+      },
+    ],
+    inApp:
+      'Dans la simulation, les messages avancent au ralenti sur les câbles pour qu’on les voie : leur vitesse n’est pas un vrai débit.',
+    related: ['liaison', 'wifi', 'donnees-numeriques', 'chemin-internet'],
+  },
+  {
+    id: 'donnees-numeriques',
+    title: 'Représenter des données',
+    aliases: ['bit', 'octet', 'binaire', 'pixel', 'codage', 'taille d’un fichier', 'format de fichier'],
+    level: '3e',
+    category: 'materiel',
+    short:
+      'Texte, image, nombre : pour être stockée ou transmise, toute information est représentée par des bits, regroupés en octets.',
+    body: `Un ordinateur ne manipule que des **bits** : 0 ou 1. Huit bits forment un **octet**, qui peut prendre 256 valeurs (de 0 à 255).
+
+- **Un nombre** s’écrit en **binaire** : 5 s’écrit 101 (4 + 0 + 1) ; 255 s’écrit 11111111, le plus grand nombre sur un octet.
+- **Un texte** est une suite de caractères ; chaque caractère courant est codé par un nombre (A = 65), sur un octet en général. Un texte de 1 000 caractères pèse donc environ 1 Ko.
+- **Une image** est une grille de **pixels**. En couleurs, chaque pixel est souvent codé par 3 octets (rouge, vert, bleu). Une image de 100 × 100 pixels pèse ainsi 100 × 100 × 3 = 30 000 octets, avant compression.
+
+Le **format** d’un fichier (souvent indiqué par son extension : \`.txt\`, \`.csv\`, \`.png\`, \`.jpg\`, \`.mp4\`) dit comment ses octets doivent être lus. Les formats **compressés** (\`.jpg\`, \`.mp4\`) réduisent la taille pour stocker et transmettre plus vite.
+
+Sur le réseau, un fichier est découpé en [[trame-paquet|paquets]] : ce sont toujours des octets qui circulent.`,
+    remember: [
+      '1 octet = 8 bits = 256 valeurs (0 à 255).',
+      'Nombre en binaire, texte en codes de caractères, image en pixels.',
+      'Le format (l’extension) dit comment lire les octets d’un fichier.',
+    ],
+    example:
+      'Le message « BONJOUR » compte 7 caractères : 7 octets. L’adresse IP 192.168.10.1 tient sur 4 octets.',
+    mistakes: [
+      {
+        belief: 'changer l’extension d’un fichier le convertit dans un autre format.',
+        truth:
+          'renommer photo.png en photo.txt ne change pas ses octets : le fichier devient seulement illisible pour les logiciels.',
+      },
+    ],
+    inApp:
+      'Dans l’explorateur de fichiers d’un poste, l’extension des fichiers indique leur type ; la commande `cat` affiche le contenu d’un fichier texte.',
+    related: ['fichiers-arborescence', 'donnees-objet', 'debit', 'adresse-ip'],
+  },
+  {
+    id: 'objets-communicants',
+    title: 'Deux objets qui communiquent',
+    aliases: ['émetteur', 'récepteur', 'message', 'radio', 'Bluetooth', 'format de message'],
+    level: '3e',
+    category: 'materiel',
+    short:
+      'Deux objets communiquent quand l’un émet un message que l’autre reçoit et comprend, grâce à un format convenu à l’avance.',
+    body: `Deux cartes programmables (par exemple deux micro:bit) peuvent échanger des messages par **radio**, par **Bluetooth** ou par [[wifi|Wi-Fi]]. Dans chaque échange :
+
+- l’**émetteur** envoie le message ;
+- le **récepteur** le reçoit et le traite (afficher, allumer une LED, déclencher un moteur) ;
+- un même objet peut être tour à tour émetteur et récepteur.
+
+Pour se comprendre, les deux programmes doivent suivre les mêmes règles — c’est un petit [[protocole]] :
+
+- le **canal** (ou groupe radio) : les deux cartes doivent écouter le même ;
+- le **format du message** : par exemple \`T:21\` pour « température 21 °C », ou \`ALARME\` ;
+- ce que le récepteur fait de chaque message, et éventuellement la réponse qu’il renvoie (\`OK\`).
+
+Si l’émetteur envoie \`21\` alors que le récepteur attend \`T:21\`, le message arrive mais n’est pas compris.`,
+    remember: [
+      'Émetteur → message → récepteur.',
+      'Même canal, même format de message : on le décide avant de programmer.',
+      'Un message arrivé n’est pas forcément compris.',
+    ],
+    example:
+      'Une carte mesure la température dans la serre et envoie « T:28 » toutes les minutes ; une autre, dans la maison, reçoit le message et affiche 28 ; au-dessus de 30, elle sonne.',
+    mistakes: [
+      {
+        belief: 'il suffit que les deux cartes soient allumées pour qu’elles se comprennent.',
+        truth: 'elles doivent utiliser le même canal et le même format de message, décidés à l’avance.',
+      },
+    ],
+    inApp:
+      'Les objets connectés de RéseauLab ne dialoguent pas entre eux : ils servent une page web. Le dialogue entre deux cartes se travaille avec de vraies cartes programmables.',
+    related: ['objet-connecte', 'protocole', 'donnees-objet', 'wifi'],
+  },
+  {
+    id: 'enjeux-numerique',
+    title: 'Infrastructures et enjeux du numérique',
+    aliases: [
+      'câble sous-marin',
+      'data center',
+      'centre de données',
+      'souveraineté numérique',
+      'empreinte environnementale',
+      'métiers du numérique',
+    ],
+    level: '3e',
+    category: 'materiel',
+    short:
+      'Internet repose sur des infrastructures bien réelles — câbles, routeurs, centres de données — qui consomment de l’énergie et posent des choix de société.',
+    body: `Internet n’est pas « dans les nuages » : il repose sur du matériel.
+
+- **Les câbles** : presque toutes les communications entre continents (plus de 95 %) passent par des **câbles sous-marins** en fibre optique ; il en existe plusieurs centaines. Sur terre, les opérateurs relient villes et quartiers par la fibre.
+- **Les centres de données (data centers)** : des bâtiments remplis de serveurs qui hébergent sites, vidéos, messageries, stockage en ligne. Ils fonctionnent jour et nuit et doivent être refroidis.
+- **L’énergie et l’environnement** : les centres de données consomment de l’ordre de 1 à 2 % de l’électricité mondiale. Mais la plus grande part de l’empreinte du numérique vient de la **fabrication** de nos appareils (métaux, eau, énergie) : les garder longtemps est le geste le plus efficace.
+- **La souveraineté** : un pays qui dépend de câbles, de serveurs ou de logiciels contrôlés ailleurs dépend aussi des lois et des décisions d’autres pays. Héberger ses données sur son territoire, former ses propres spécialistes en sont des réponses.
+- **Les métiers** : technicien et administrateur réseau, installateur de fibre, spécialiste en cybersécurité, développeur, technicien de data center…
+
+*Chiffres donnés en ordre de grandeur, à vérifier et actualiser par l’enseignant.*`,
+    remember: [
+      'Internet repose sur des câbles (dont sous-marins), des routeurs et des centres de données.',
+      'La fabrication des appareils pèse plus que leur utilisation : les garder longtemps.',
+      'Dépendre d’infrastructures étrangères pose une question de souveraineté.',
+    ],
+    example:
+      'Une vidéo regardée en France peut venir d’un serveur aux États-Unis : elle traverse l’Atlantique par un câble posé au fond de l’océan.',
+    mistakes: [
+      {
+        belief: 'les données sont stockées « dans le cloud », sans matériel.',
+        truth:
+          'le « cloud », ce sont des serveurs bien réels, dans des centres de données quelque part dans le monde.',
+      },
+      {
+        belief: 'les satellites transportent l’essentiel d’Internet entre les continents.',
+        truth: 'ce sont les câbles sous-marins : ils transportent bien plus de données, plus vite.',
+      },
+    ],
+    related: ['chemin-internet', 'reseau-local-internet', 'debit', 'client-serveur'],
   },
 ];
 

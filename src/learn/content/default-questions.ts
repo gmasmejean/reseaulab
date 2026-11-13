@@ -694,4 +694,98 @@ export const DEFAULT_QUESTIONS: readonly Question[] = [
     explanation:
       'Un protocole fixe la forme des messages et leur ordre, pour que les deux équipements se comprennent.',
   },
+  {
+    id: 'debit-unite',
+    notion: 'debit',
+    level: '3e',
+    type: 'mcq',
+    prompt:
+      'Une connexion annonce un débit de 8 Mbit/s. Combien de mégaoctets (Mo) reçoit-elle par seconde ?',
+    choices: ['1 Mo', '8 Mo', '64 Mo', '0,8 Mo'],
+    correct: one,
+    explanation: 'Un octet fait 8 bits : 8 Mbit/s ÷ 8 = 1 Mo par seconde.',
+  },
+  {
+    id: 'debit-classer',
+    notion: 'debit',
+    level: '3e',
+    type: 'order',
+    prompt: 'Range ces connexions de la plus lente à la plus rapide (ordres de grandeur habituels).',
+    items: ['ADSL', '4G', 'Fibre optique'],
+    explanation:
+      'ADSL : quelques Mbit/s ; 4G : quelques dizaines de Mbit/s ; fibre : plusieurs centaines de Mbit/s, voire des Gbit/s.',
+  },
+  {
+    id: 'donnees-octet',
+    notion: 'donnees-numeriques',
+    level: '3e',
+    type: 'short',
+    prompt:
+      'Combien d’octets faut-il, sans compression, pour une image en couleurs de 10 × 10 pixels, à 3 octets par pixel ?',
+    accepted: ['300', '300 octets'],
+    explanation: '10 × 10 = 100 pixels, et 100 × 3 = 300 octets.',
+  },
+  {
+    id: 'donnees-binaire',
+    notion: 'donnees-numeriques',
+    level: '3e',
+    type: 'mcq',
+    prompt: 'Quel nombre s’écrit 101 en binaire ?',
+    choices: ['5', '101', '3', '7'],
+    correct: one,
+    explanation: 'En binaire, 101 = 1 × 4 + 0 × 2 + 1 × 1 = 5.',
+  },
+  {
+    id: 'objets-format',
+    notion: 'objets-communicants',
+    level: '3e',
+    type: 'mcq',
+    prompt:
+      'Une carte envoie « 21 » par radio ; l’autre attend des messages de la forme « T:21 ». Que se passe-t-il ?',
+    choices: [
+      'Le message arrive mais n’est pas compris : les formats ne correspondent pas',
+      'Le message n’est pas envoyé',
+      'Le récepteur corrige le message tout seul',
+      'Tout fonctionne : le nombre est le même',
+    ],
+    correct: one,
+    explanation: 'Émetteur et récepteur doivent utiliser le même format de message, décidé à l’avance.',
+  },
+  {
+    id: 'objets-roles',
+    notion: 'objets-communicants',
+    level: '3e',
+    type: 'mcq',
+    prompt: 'Dans un échange entre deux cartes, comment appelle-t-on celle qui envoie le message ?',
+    choices: ['L’émetteur', 'Le récepteur', 'Le routeur', 'Le serveur DNS'],
+    correct: one,
+    explanation: 'L’émetteur envoie le message, le récepteur le reçoit et le traite.',
+  },
+  {
+    id: 'enjeux-cables',
+    notion: 'enjeux-numerique',
+    level: '3e',
+    type: 'mcq',
+    prompt: 'Par où passent presque toutes les communications Internet entre l’Europe et l’Amérique ?',
+    choices: ['Par des câbles sous-marins', 'Par des satellites', 'Par les ondes 4G', 'Par le Wi-Fi'],
+    correct: one,
+    explanation:
+      'Plus de 95 % des communications entre continents passent par des câbles en fibre optique posés au fond des océans.',
+  },
+  {
+    id: 'enjeux-empreinte',
+    notion: 'enjeux-numerique',
+    level: '3e',
+    type: 'mcq',
+    prompt: 'Quel geste réduit le plus l’empreinte environnementale de ton numérique ?',
+    choices: [
+      'Garder son smartphone plus longtemps',
+      'Changer de smartphone chaque année',
+      'Laisser les appareils en veille',
+      'Envoyer ses photos en meilleure qualité',
+    ],
+    correct: one,
+    explanation:
+      'La fabrication des appareils pèse plus que leur utilisation : les garder longtemps, les réparer, c’est le geste le plus efficace.',
+  },
 ];
