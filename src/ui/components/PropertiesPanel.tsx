@@ -53,12 +53,17 @@ function wifiEnds(net: Network, cable: CableEnds) {
   return { host, sw, port };
 }
 
+/** Why a setting is greyed out: the activity protects its starting network. */
+const PROTECTED_TITLE = 'Réglage du réseau de départ : il ne se modifie pas pendant l’activité';
+
 function NameField({ device }: { device: Device }) {
-  const { network } = useSession();
+  const session = useSession();
+  const { network } = session;
   return (
     <TextField
       label="Nom"
       value={device.name}
+      disabled={session.guard.device(device.id)}
       onCommit={(value) => {
         if (value.trim() === '') return 'Le nom ne peut pas être vide.';
         if (value.trim().length > 64) return '64 caractères maximum.';
@@ -79,6 +84,8 @@ function ConnectionSection({ host }: { host: Host }) {
   const [pendingMode, setPendingMode] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cable = host.iface.port.cable;
+  // A protected terminal keeps its card ; so does one whose cable belongs to the starting network.
+  const locked = session.guard.device(host.id) || (cable !== null && session.guard.cable(cable.id));
   const peer = cable ? neighbour(network, host, 0) : null;
   const accessPoint = network.wifiAccessPoint(host);
   const ssids = network.accessPoints.map((s) => s.ssid).sort((a, b) => a.localeCompare(b, 'fr'));
@@ -114,6 +121,7 @@ function ConnectionSection({ host }: { host: Host }) {
                 type="radio"
                 name={`${id}-mode`}
                 checked={host.wifi === wifi}
+                disabled={locked}
                 onChange={() => {
                   chooseMode(wifi);
                 }}
@@ -129,6 +137,7 @@ function ConnectionSection({ host }: { host: Host }) {
           <select
             id={`${id}-ssid`}
             value={accessPoint?.ssid ?? ''}
+            disabled={locked}
             onChange={(e) => {
               setError(null);
               const ssid = e.target.value;
@@ -153,6 +162,9 @@ function ConnectionSection({ host }: { host: Host }) {
         </div>
       )}
       <p className="muted">{status}</p>
+      {locked && wifiOffered && (
+        <p className="muted small">La carte réseau ne se change pas pendant l’activité (réseau de départ).</p>
+      )}
       {error && (
         <p className="field-error" role="alert">
           {error}
@@ -184,6 +196,7 @@ function SwitchProperties({ device }: { device: Switch }) {
   const session = useSession();
   const { network } = session;
   const wifiClients = device.ports.filter((p) => p.cable?.wireless).length;
+  const locked = session.guard.device(device.id);
   return (
     <div className="properties-grid">
       <Section title="Switch (commutateur)">
@@ -199,6 +212,7 @@ function SwitchProperties({ device }: { device: Switch }) {
             label="Nom Wi-Fi (SSID)"
             term="wifi"
             value={device.ssid}
+            disabled={locked}
             hint="Les postes en Wi-Fi rejoignent ce switch en choisissant ce nom. Le changer les déconnecte."
             onCommit={(value) => {
               const problem = network.ssidProblem(value, device.id);
@@ -227,6 +241,7 @@ function BoxProperties({ box }: { box: Box }) {
   const wifiClients = box.homePorts.filter((p) => p.cable?.wireless).length;
   const plugged = box.homePorts.filter((p) => p.isConnected).length;
   const dhcpOffered = session.can('feature:dhcp-client');
+  const locked = session.guard.device(box.id);
   const internetOffered =
     session.can('feature:gateway') || box.wanPort.isConnected || wan.ip !== IP_ANY || box.gateway !== IP_ANY;
   return (
@@ -245,6 +260,7 @@ function BoxProperties({ box }: { box: Box }) {
             label="Nom Wi-Fi (SSID)"
             term="wifi"
             value={box.ssid}
+            disabled={locked}
             hint="Les terminaux en Wi-Fi rejoignent la box en choisissant ce nom. Le changer les déconnecte."
             onCommit={(value) => {
               const problem = network.ssidProblem(value, box.id);
@@ -261,6 +277,7 @@ function BoxProperties({ box }: { box: Box }) {
             label="Adresse IP de la box"
             term="adresse-ip"
             value={lan.ip}
+            disabled={locked}
             hint="C’est la passerelle des terminaux de la maison."
             onChange={(ip) => {
               box.setLan({ ip, mask: maskFor(ip, lan.mask) });
@@ -271,6 +288,7 @@ function BoxProperties({ box }: { box: Box }) {
             term="masque"
             mask
             value={lan.mask}
+            disabled={locked}
             onChange={(mask) => {
               box.setLan({ ip: lan.ip, mask });
             }}
@@ -282,6 +300,7 @@ function BoxProperties({ box }: { box: Box }) {
               label="Distribuer les adresses (serveur DHCP)"
               term="dhcp"
               checked={box.dhcp.active}
+              disabled={locked}
               onChange={(active) => {
                 box.dhcp.setActive(active);
               }}
@@ -290,7 +309,7 @@ function BoxProperties({ box }: { box: Box }) {
               <IpField
                 label="Première adresse distribuée"
                 value={dhcp.rangeStart}
-                disabled={!box.dhcp.active}
+                disabled={locked || !box.dhcp.active}
                 onChange={(rangeStart) => {
                   box.dhcp.updateConfig({ rangeStart });
                 }}
@@ -298,7 +317,7 @@ function BoxProperties({ box }: { box: Box }) {
               <IpField
                 label="Dernière adresse distribuée"
                 value={dhcp.rangeEnd}
-                disabled={!box.dhcp.active}
+                disabled={locked || !box.dhcp.active}
                 onChange={(rangeEnd) => {
                   box.dhcp.updateConfig({ rangeEnd });
                 }}
@@ -309,7 +328,7 @@ function BoxProperties({ box }: { box: Box }) {
                 label="Serveur DNS distribué"
                 term="dns"
                 value={dhcp.dns}
-                disabled={!box.dhcp.active}
+                disabled={locked || !box.dhcp.active}
                 onChange={(dns) => {
                   box.dhcp.updateConfig({ dns });
                 }}
@@ -329,6 +348,7 @@ function BoxProperties({ box }: { box: Box }) {
               label="Adresse IP côté Internet"
               term="adresse-ip"
               value={wan.ip}
+              disabled={locked}
               onChange={(ip) => {
                 box.setWan({ ip, mask: maskFor(ip, wan.mask) });
               }}
@@ -338,6 +358,7 @@ function BoxProperties({ box }: { box: Box }) {
               term="masque"
               mask
               value={wan.mask}
+              disabled={locked}
               onChange={(mask) => {
                 box.setWan({ ip: wan.ip, mask });
               }}
@@ -347,6 +368,7 @@ function BoxProperties({ box }: { box: Box }) {
             label="Passerelle vers Internet"
             term="passerelle"
             value={box.gateway}
+            disabled={locked}
             hint="L’adresse du routeur du fournisseur d’accès."
             onChange={(gateway) => {
               box.setGateway(gateway);
@@ -356,6 +378,7 @@ function BoxProperties({ box }: { box: Box }) {
             <Checkbox
               label="Routage automatique (RIP)"
               checked={box.rip}
+              disabled={locked}
               onChange={(enabled) => {
                 box.ripService.setEnabled(enabled);
               }}
@@ -373,6 +396,7 @@ function HostProperties({ host }: { host: Host }) {
   const dhcpOffered = session.can('feature:dhcp-client') || c.useDhcp;
   const gatewayOffered = session.can('feature:gateway') || c.gateway !== IP_ANY;
   const dnsOffered = session.can('feature:dns-field') || c.dns !== IP_ANY;
+  const locked = session.guard.device(host.id);
   return (
     <div className="properties-grid">
       <Section title={DEVICE_LABEL[host.kind]}>
@@ -387,6 +411,7 @@ function HostProperties({ host }: { host: Host }) {
         <Checkbox
           label="Afficher l’adresse IP comme nom"
           checked={host.showIpAsName}
+          disabled={locked}
           onChange={(v) => {
             host.setShowIpAsName(v);
           }}
@@ -399,6 +424,7 @@ function HostProperties({ host }: { host: Host }) {
             label="Configuration automatique (DHCP)"
             term="dhcp"
             checked={c.useDhcp}
+            disabled={locked}
             onChange={(useDhcp) => {
               host.updateConfig({ useDhcp });
             }}
@@ -409,7 +435,7 @@ function HostProperties({ host }: { host: Host }) {
             label="Adresse IP"
             term="adresse-ip"
             value={c.ip}
-            disabled={c.useDhcp}
+            disabled={locked || c.useDhcp}
             onChange={(ip) => {
               host.updateConfig({ ip, mask: maskFor(ip, c.mask) });
             }}
@@ -419,7 +445,7 @@ function HostProperties({ host }: { host: Host }) {
             term="masque"
             mask
             value={c.mask}
-            disabled={c.useDhcp}
+            disabled={locked || c.useDhcp}
             onChange={(mask) => {
               host.updateConfig({ mask });
             }}
@@ -432,7 +458,7 @@ function HostProperties({ host }: { host: Host }) {
                 label="Passerelle"
                 term="passerelle"
                 value={c.gateway}
-                disabled={c.useDhcp}
+                disabled={locked || c.useDhcp}
                 onChange={(gateway) => {
                   host.updateConfig({ gateway });
                 }}
@@ -443,7 +469,7 @@ function HostProperties({ host }: { host: Host }) {
                 label="Serveur DNS"
                 term="dns"
                 value={c.dns}
-                disabled={c.useDhcp}
+                disabled={locked || c.useDhcp}
                 onChange={(dns) => {
                   host.updateConfig({ dns });
                 }}
@@ -574,6 +600,8 @@ function RouterProperties({ router }: { router: Router }) {
     firewall: session.can('feature:router-firewall') || router.firewall.enabled,
   };
   const tab = offered[chosenTab] ? chosenTab : 'interfaces';
+  const { guard } = session;
+  const locked = guard.device(router.id);
   const [pendingRemoval, setPendingRemoval] = useState<{
     readonly index: number;
     readonly consequences: readonly string[];
@@ -629,6 +657,7 @@ function RouterProperties({ router }: { router: Router }) {
                       <IpField
                         label={`IP eth${i}`}
                         value={iface.ip}
+                        disabled={guard.iface(router.id, i)}
                         onChange={(ip) => {
                           router.setInterface(i, { ip, mask: maskFor(ip, iface.mask) });
                         }}
@@ -639,6 +668,7 @@ function RouterProperties({ router }: { router: Router }) {
                         label={`Masque eth${i}`}
                         mask
                         value={iface.mask}
+                        disabled={guard.iface(router.id, i)}
                         onChange={(mask) => {
                           router.setInterface(i, { ip: iface.ip, mask });
                         }}
@@ -652,11 +682,13 @@ function RouterProperties({ router }: { router: Router }) {
                         type="button"
                         aria-label={`Retirer eth${i}`}
                         title={
-                          router.canRemoveInterface
-                            ? `Retirer eth${i}`
-                            : `Un routeur garde au moins ${MIN_ROUTER_INTERFACES} interfaces`
+                          guard.iface(router.id, i)
+                            ? PROTECTED_TITLE
+                            : router.canRemoveInterface
+                              ? `Retirer eth${i}`
+                              : `Un routeur garde au moins ${MIN_ROUTER_INTERFACES} interfaces`
                         }
-                        disabled={!router.canRemoveInterface}
+                        disabled={guard.iface(router.id, i) || !router.canRemoveInterface}
                         onClick={() => {
                           const consequences = removalConsequences(network, router, i);
                           if (consequences.length === 0) network.removeRouterInterface(router.id, i);
@@ -709,6 +741,7 @@ function RouterProperties({ router }: { router: Router }) {
               label="Routage automatique (RIP) : les routeurs s’échangent leurs routes"
               term="table-de-routage"
               checked={router.rip}
+              disabled={locked}
               onChange={(v) => {
                 router.ripService.setEnabled(v);
               }}
@@ -742,15 +775,21 @@ function RouterProperties({ router }: { router: Router }) {
                   <td>{r.gateway === IP_ANY ? 'directe' : formatIp(r.gateway)}</td>
                   <td>eth{r.iface}</td>
                   <td>
-                    <button
-                      type="button"
-                      aria-label="Supprimer la route"
-                      onClick={() => {
-                        router.setStaticRoutes(router.staticRoutes.filter((_, j) => j !== i));
-                      }}
-                    >
-                      ✕
-                    </button>
+                    {guard.route(router.id, i) ? (
+                      <span className="muted small" title={PROTECTED_TITLE}>
+                        de départ
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label="Supprimer la route"
+                        onClick={() => {
+                          router.setStaticRoutes(router.staticRoutes.filter((_, j) => j !== i));
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -761,13 +800,20 @@ function RouterProperties({ router }: { router: Router }) {
       )}
       {tab === 'firewall' && (
         <Section title="Pare-feu du routeur">
-          <FirewallEditor
-            firewall={router.firewall}
-            scope="traversant le routeur"
-            onChange={() => {
-              router.changed();
-            }}
-          />
+          {locked ? (
+            <p className="muted">
+              Pare-feu {router.firewall.enabled ? 'activé' : 'désactivé'} ({router.firewall.rules.length}{' '}
+              règle(s)). Il ne se modifie pas pendant l’activité.
+            </p>
+          ) : (
+            <FirewallEditor
+              firewall={router.firewall}
+              scope="traversant le routeur"
+              onChange={() => {
+                router.changed();
+              }}
+            />
+          )}
         </Section>
       )}
     </div>
@@ -879,17 +925,20 @@ function SimulationBar({ device }: { device: Device | null }) {
       {device ? (
         <>
           <strong>{device.name}</strong>
-          {device instanceof Host && (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                session.openWindow({ type: 'desktop', deviceId: device.id });
-              }}
-            >
-              Afficher le bureau
-            </button>
-          )}
+          {device instanceof Host &&
+            (session.guard.device(device.id) ? (
+              <span className="muted">Réseau de départ de l’activité : son bureau ne s’ouvre pas.</span>
+            ) : (
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  session.openWindow({ type: 'desktop', deviceId: device.id });
+                }}
+              >
+                Afficher le bureau
+              </button>
+            ))}
           {((device instanceof Router && session.can('feature:tables')) ||
             (device instanceof Box &&
               (session.can('feature:tables') || session.can('feature:mac-table')))) && (
@@ -998,17 +1047,24 @@ export function PropertiesPanel() {
         <Section
           title={cable.wireless ? 'Connexion Wi-Fi' : 'Câble'}
           actions={
-            <button
-              type="button"
-              className="danger"
-              onClick={() => {
-                session.deleteSelection();
-              }}
-            >
-              {cable.wireless ? 'Déconnecter le Wi-Fi' : 'Supprimer le câble'}
-            </button>
+            session.guard.cable(cable.id) ? undefined : (
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  session.deleteSelection();
+                }}
+              >
+                {cable.wireless ? 'Déconnecter le Wi-Fi' : 'Supprimer le câble'}
+              </button>
+            )
           }
         >
+          {session.guard.cable(cable.id) && (
+            <p className="protected-note">
+              Ce câble fait partie du réseau de départ de l’activité : il ne peut pas être supprimé.
+            </p>
+          )}
           {cable.wireless ? (
             (() => {
               const { host, sw, port } = wifiEnds(net, cable);
@@ -1031,19 +1087,29 @@ export function PropertiesPanel() {
   }
   const device = net.device(selection.id);
   if (!device) return null;
+  const locked = session.guard.device(device.id);
   return (
     <div className="properties">
-      <div className="properties-actions">
-        <button
-          type="button"
-          className="danger"
-          onClick={() => {
-            session.deleteSelection();
-          }}
-        >
-          Supprimer
-        </button>
-      </div>
+      {locked ? (
+        <p className="protected-note">
+          <b>Équipement du réseau de départ.</b> Ses réglages ne se modifient pas pendant l’activité
+          {device instanceof Router
+            ? ' ; une interface ou une route peut lui être ajoutée, puis retirée.'
+            : '.'}
+        </p>
+      ) : (
+        <div className="properties-actions">
+          <button
+            type="button"
+            className="danger"
+            onClick={() => {
+              session.deleteSelection();
+            }}
+          >
+            Supprimer
+          </button>
+        </div>
+      )}
       {device instanceof Host && <HostProperties host={device} />}
       {device instanceof Router && <RouterProperties router={device} />}
       {device instanceof Switch && <SwitchProperties device={device} />}

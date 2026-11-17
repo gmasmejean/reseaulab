@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App, browserStorage } from './ui/App';
 import { isEmbedded, startEmbed, windowHost } from './embed/bridge';
 import { withoutAutosave } from './embed/storage';
-import { Session } from './ui/session';
+import { Session, isTeacherAddress } from './ui/session';
 import './ui/styles.css';
 
 /** Inside another application (`?integre`), the work comes from it and goes back to it. */
@@ -18,6 +18,6 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Élément #root introuvable');
 createRoot(root).render(
   <StrictMode>
-    <App session={embeddedSession()} />
+    <App session={embeddedSession()} teacher={isTeacherAddress(window.location.search)} />
   </StrictMode>,
 );

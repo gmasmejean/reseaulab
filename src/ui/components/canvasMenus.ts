@@ -81,9 +81,11 @@ export function deviceMenu(session: Session, device: Device, configure: () => vo
 }
 
 function actionsOf(session: Session, device: Device, configure: () => void): MenuEntry[] {
-  const net = session.network;
   if (session.mode === 'simulation') return simulationMenu(session, device);
-  const cables = device.ports.flatMap((p) => (p.cable ? [p.cable.id] : []));
+  // Cables of the starting network of an activity stay: only the others are offered.
+  const cables = device.ports.flatMap((p) =>
+    p.cable && !session.guard.cable(p.cable.id) ? [p.cable.id] : [],
+  );
   const singlePort = device instanceof Host;
   const wifi = singlePort && device.wifi;
   return [
@@ -93,7 +95,7 @@ function actionsOf(session: Session, device: Device, configure: () => void): Men
       label: wifi ? 'Déconnecter le Wi-Fi' : singlePort ? 'Supprimer le câble' : 'Supprimer tous les câbles',
       disabled: cables.length === 0,
       onSelect: () => {
-        for (const id of cables) net.disconnect(id);
+        session.disconnect(cables);
       },
     },
     {
@@ -115,11 +117,13 @@ function simulationMenu(session: Session, device: Device): MenuEntry[] {
     session.openWindow(spec);
   };
   if (device instanceof Host) {
-    entries.push({
-      kind: 'action',
-      label: 'Afficher le bureau',
-      onSelect: open({ type: 'desktop', deviceId: device.id }),
-    });
+    // The desktop of a terminal protected by the activity does not open.
+    if (!session.guard.device(device.id))
+      entries.push({
+        kind: 'action',
+        label: 'Afficher le bureau',
+        onSelect: open({ type: 'desktop', deviceId: device.id }),
+      });
   } else if (device.kind === 'switch') {
     if (session.can('feature:mac-table'))
       entries.push({
@@ -163,9 +167,9 @@ export function cableMenu(session: Session, cableId: string): MenuEntry[] {
       kind: 'action',
       label: session.network.cable(cableId)?.wireless ? 'Déconnecter le Wi-Fi' : 'Supprimer le câble',
       danger: true,
+      disabled: session.guard.cable(cableId),
       onSelect: () => {
-        session.network.disconnect(cableId);
-        if (session.selection?.kind === 'cable' && session.selection.id === cableId) session.select(null);
+        session.disconnect([cableId]);
       },
     },
   ];

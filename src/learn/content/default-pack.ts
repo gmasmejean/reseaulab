@@ -1211,7 +1211,7 @@ Si l’émetteur envoie \`21\` alors que le récepteur attend \`T:21\`, le messa
       },
     ],
     inApp:
-      'Les objets connectés de RéseauLab ne dialoguent pas entre eux : ils servent une page web. Le dialogue entre deux cartes se travaille avec de vraies cartes programmables.',
+      'Deux terminaux peuvent s’échanger des lignes de texte : le récepteur ouvre le « Serveur écho » et le démarre sur un port, l’émetteur ouvre le « Client écho », se connecte à ce port et envoie son message. Le port joue le rôle du canal, et le serveur renvoie chaque ligne reçue en accusé de réception. RéseauLab ne programme pas les objets : faire réagir le récepteur (afficher, sonner) se travaille avec de vraies cartes programmables.',
     related: ['objet-connecte', 'protocole', 'donnees-objet', 'wifi'],
   },
   {

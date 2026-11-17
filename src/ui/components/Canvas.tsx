@@ -82,8 +82,10 @@ function portLabel(device: Device | undefined, port: number): string | null {
 }
 
 function openDevice(session: Session, device: Device): void {
-  if (device instanceof Host) session.openWindow({ type: 'desktop', deviceId: device.id });
-  else if (device.kind === 'switch') session.openWindow({ type: 'switch', deviceId: device.id });
+  if (device instanceof Host) {
+    // A terminal protected by the activity has no desktop to open: the bar below says so.
+    if (!session.guard.device(device.id)) session.openWindow({ type: 'desktop', deviceId: device.id });
+  } else if (device.kind === 'switch') session.openWindow({ type: 'switch', deviceId: device.id });
   else session.openWindow({ type: 'router', deviceId: device.id });
 }
 

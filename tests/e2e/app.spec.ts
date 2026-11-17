@@ -1063,7 +1063,7 @@ test('activité « Du collège au musée » : passerelle, DNS et route ajoutée,
   await page.getByRole('button', { name: 'Commencer : Du collège au musée' }).click();
   const panel = page.getByRole('complementary', { name: 'Activité' });
   await expect(
-    panel.getByRole('heading', { name: 'Partie 1 — Ce que je sais depuis la 5e et la 4e' }),
+    panel.getByRole('heading', { name: 'Séance 1 — Partie 1 : ce que je sais depuis la 5e et la 4e' }),
   ).toBeVisible();
   await shot(page, '64-college-musee-depart');
 
@@ -1071,6 +1071,35 @@ test('activité « Du collège au musée » : passerelle, DNS et route ajoutée,
   await lan.getByRole('radio', { name: 'un réseau local (LAN)' }).check();
   await lan.getByRole('button', { name: 'Valider' }).click();
   await expect(lan).toContainText('✔ Bonne réponse !');
+
+  // Une erreur : le score de la partie le dit, et un nouvel essai la corrige.
+  const terminals = panel.getByRole('region', { name: 'Question : Les terminaux du CDI' });
+  await terminals.getByRole('checkbox', { name: 'Switch CDI' }).check();
+  await terminals.getByRole('button', { name: 'Valider' }).click();
+  await expect(terminals).toContainText('✘ Ce n’est pas ça.');
+  await expect(panel).toContainText('Questions : 1 juste sur 2');
+  await expect(panel.getByRole('button', { name: 'Revoir mes erreurs (1)' })).toBeVisible();
+  await terminals.getByRole('button', { name: 'Réessayer' }).click();
+  const retry = terminals.getByRole('group', { name: 'Nouvel essai' });
+  for (const name of ['Poste 1', 'Tablette', 'Serveur', 'Capteur CO2'])
+    await retry.getByRole('checkbox', { name, exact: true }).check();
+  await retry.getByRole('button', { name: 'Valider' }).click();
+  await expect(terminals).toContainText('✔ Corrigé au nouvel essai.');
+  await expect(panel).toContainText('Questions : 1 juste sur 2 · 1 corrigée ensuite');
+  await shot(page, '64b-college-musee-nouvel-essai');
+
+  // Une association : une liste par équipement, corrigée paire par paire.
+  const roles = panel.getByRole('region', { name: 'Question : Switch, serveur, routeur' });
+  await expect(roles.getByRole('button', { name: 'Valider' })).toBeDisabled();
+  for (const [device, role] of [
+    ['Switch CDI', 'Relier les équipements du CDI entre eux'],
+    ['Serveur', 'Stocker et fournir les fichiers et les services'],
+    ['Routeur du collège', 'Relier le réseau du collège aux autres réseaux'],
+  ] as const)
+    await roles.getByRole('combobox', { name: device }).selectOption(role);
+  await shot(page, '64c-college-musee-associer');
+  await roles.getByRole('button', { name: 'Valider' }).click();
+  await expect(roles).toContainText('✔ Bonne réponse !');
 
   // Poste 1 : passerelle et serveur DNS.
   await page.locator('[aria-label^="Poste 1"]').click();
@@ -1083,8 +1112,26 @@ test('activité « Du collège au musée » : passerelle, DNS et route ajoutée,
     await field.press('Enter');
   }
 
-  // La route qui manque au Routeur Internet.
+  // Le capteur de CO2 rejoint le réseau du CDI.
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  await palette.getByRole('button', { name: 'Câble' }).click();
+  await page.locator('[aria-label^="Capteur CO2"]').click();
+  await page.locator('[aria-label^="Switch CDI"]').click();
+  await page.keyboard.press('Escape');
+  await page.locator('[aria-label^="Capteur CO2"]').click();
+  for (const [label, value] of [
+    ['Adresse IP', '192.168.10.50'],
+    ['Masque', '255.255.255.0'],
+  ] as const) {
+    const field = page.getByRole('textbox', { name: label, exact: true });
+    await field.fill(value);
+    await field.press('Enter');
+  }
+
+  // La route qui manque au Routeur Internet : celles de départ ne se retirent pas.
   await page.locator('[aria-label^="Routeur Internet"]').click();
+  await expect(page.getByText('Équipement du réseau de départ.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Supprimer', exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Routage' }).click();
   await page.getByRole('textbox', { name: 'Réseau de destination' }).fill('203.0.113.0');
   await page.getByRole('textbox', { name: 'Masque de la route' }).fill('255.255.255.0');
@@ -1108,7 +1155,72 @@ test('activité « Du collège au musée » : passerelle, DNS et route ajoutée,
   await browser.getByRole('button', { name: 'Aller' }).click();
   await expect(browser.getByRole('heading', { name: 'Musée des réseaux' })).toBeVisible({ timeout: 30_000 });
   await shot(page, '66-college-musee-site');
+
+  // Représenter des données : le fichier de mesures du capteur, puis la taille d'un texte.
+  await browser
+    .getByRole('textbox', { name: 'Adresse', exact: true })
+    .fill('http://192.168.10.50/mesures.csv');
+  await browser.getByRole('button', { name: 'Aller' }).click();
+  await expect(browser).toContainText('heure;co2_ppm;temperature_c', { timeout: 30_000 });
+  await expect(browser).toContainText('10:00;1150;');
   await browser.getByRole('button', { name: /Fermer/ }).click();
+  await page
+    .getByRole('dialog', { name: 'Bureau de Poste 1' })
+    .getByRole('button', { name: /Fermer/ })
+    .click();
+  await page
+    .getByRole('button', { name: /^Serveur\b(?! du musée)/ })
+    .first()
+    .click();
+  const serverDesktop = page.getByRole('dialog', { name: 'Bureau de Serveur', exact: true });
+  await serverDesktop.getByRole('button', { name: 'Explorateur de fichiers' }).click();
+  const explorer = page.getByRole('dialog', { name: 'Explorateur de fichiers — Serveur', exact: true });
+  for (const folder of ['Documents', '3A', 'Nora'])
+    await explorer.getByRole('button', { name: folder }).click();
+  await expect(explorer.getByRole('row', { name: /titre\.txt/ })).toContainText('5 octets');
+  // Le dossier Commun est en lecture seule : le serveur refuse d'y créer un dossier.
+  for (let up = 0; up < 2; up++) await explorer.getByRole('button', { name: '↑ Dossier parent' }).click();
+  await expect(explorer.getByRole('button', { name: /Commun/ })).toContainText('lecture seule');
+  await explorer.getByRole('button', { name: /Commun/ }).click();
+  await explorer.getByRole('textbox', { name: 'Nom du dossier' }).fill('Essai');
+  await explorer.getByRole('button', { name: 'Créer' }).click();
+  await expect(explorer.getByRole('alert')).toContainText('Dossier en lecture seule : /Documents/Commun');
+  await shot(page, '66b-college-musee-lecture-seule');
+  await explorer.getByRole('button', { name: /Fermer/ }).click();
+  await serverDesktop.getByRole('button', { name: /Fermer/ }).click();
+
+  // Deux objets qui communiquent : mauvais port refusé, bon port, message écrit au journal.
+  await page
+    .getByRole('button', { name: /^Afficheur/ })
+    .first()
+    .click();
+  const displayDesktop = page.getByRole('dialog', { name: 'Bureau de Afficheur' });
+  await displayDesktop.getByRole('button', { name: 'Serveur écho' }).click();
+  const echoServer = page.getByRole('dialog', { name: 'Serveur écho — Afficheur' });
+  await echoServer.getByRole('button', { name: 'Démarrer' }).click();
+  await displayDesktop.getByRole('button', { name: /Fermer/ }).click();
+  await page
+    .getByRole('button', { name: /^Capteur CO2/ })
+    .first()
+    .click();
+  const sensorDesktop = page.getByRole('dialog', { name: 'Bureau de Capteur CO2' });
+  await sensorDesktop.getByRole('button', { name: 'Client écho' }).click();
+  await sensorDesktop.getByRole('button', { name: /Fermer/ }).click();
+  const echoClient = page.getByRole('dialog', { name: 'Client écho — Capteur CO2' });
+  await echoClient.getByRole('textbox', { name: 'Serveur' }).fill('192.168.10.51');
+  await echoClient.getByRole('textbox', { name: 'Port' }).fill('8');
+  await echoClient.getByRole('button', { name: 'Connecter' }).click();
+  await expect(echoClient.getByRole('log')).toContainText('Connexion refusée', { timeout: 30_000 });
+  await echoClient.getByRole('textbox', { name: 'Port' }).fill('7');
+  await echoClient.getByRole('button', { name: 'Connecter' }).click();
+  await expect(echoClient.getByRole('log')).toContainText('Connecté à 192.168.10.51:7', { timeout: 30_000 });
+  await echoClient.getByRole('textbox', { name: 'Message' }).fill('CO2:1150');
+  await echoClient.getByRole('button', { name: 'Envoyer' }).click();
+  await expect(echoClient.getByRole('log')).toContainText('← CO2:1150', { timeout: 30_000 });
+  await expect(echoServer).toContainText('192.168.10.50 : CO2:1150');
+  await shot(page, '67-college-musee-objets');
+  await echoClient.getByRole('button', { name: /Fermer/ }).click();
+  await echoServer.getByRole('button', { name: /Fermer/ }).click();
   await page.getByRole('radio', { name: /Conception/ }).click();
 
   // Le fichier rendu garde la réponse et la route ajoutée.
@@ -1121,5 +1233,75 @@ test('activité « Du collège au musée » : passerelle, DNS et route ajoutée,
   const text = readFileSync(await (await download).path(), 'utf8');
   const saved = JSON.parse(text) as { work: { answers: Partial<Record<string, { right: boolean | null }>> } };
   expect(saved.work.answers['q-lan']?.right).toBe(true);
+  // La première réponse reste la note ; le nouvel essai est gardé à côté.
+  expect(saved.work.answers['q-terminaux']).toMatchObject({ right: false, retry: { right: true, tries: 1 } });
   expect(text).toContain('203.0.113.0');
+});
+
+test('corrigé du professeur : absent pour les élèves, ouvert avec « ?prof » dans l’adresse', async ({
+  page,
+}) => {
+  // L'adresse des élèves : rien ne mène au corrigé.
+  await page.getByRole('button', { name: 'Activités' }).click();
+  const list = page.getByRole('dialog', { name: 'Activités' });
+  await expect(list.getByRole('button', { name: 'Commencer : Du collège au musée' })).toBeVisible();
+  await expect(list.getByRole('button', { name: /^Corrigé/ })).toHaveCount(0);
+  await expect(page.getByText('Mode professeur')).toHaveCount(0);
+
+  await page.goto('/?prof');
+  await expect(page.getByText('Mode professeur')).toBeVisible();
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page
+    .getByRole('dialog', { name: 'Activités' })
+    .getByRole('button', { name: 'Corrigé : Du collège au musée' })
+    .click();
+  const key = page.getByRole('dialog', { name: 'Corrigé (professeur)' });
+  await expect(key.getByRole('heading', { name: 'Corrigé — Du collège au musée' })).toBeVisible();
+  await expect(key.getByRole('img', { name: 'Plan du réseau' })).toBeVisible();
+  await expect(key.getByRole('heading', { name: 'Déroulement' })).toBeVisible();
+  await expect(key).toContainText('Réponse attendue : un réseau local (LAN)');
+  await expect(key).toContainText('passerelle 192.0.2.2 (le Routeur du data center), interface eth0');
+  await shot(page, '68-corrige-professeur');
+  await key.getByRole('heading', { name: 'Déroulement' }).scrollIntoViewIfNeeded();
+  await shot(page, '68a-corrige-deroulement');
+  await key.getByRole('heading', { name: /^11\. Réparer le chemin/ }).scrollIntoViewIfNeeded();
+  await shot(page, '68b-corrige-etape');
+
+  // La version à distribuer aux élèves : la correction seule.
+  await key.getByRole('button', { name: 'Élèves' }).click();
+  await expect(key.getByRole('heading', { name: 'Correction — Du collège au musée' })).toBeVisible();
+  await expect(key.getByRole('heading', { name: 'Déroulement' })).toHaveCount(0);
+  await expect(key).not.toContainText('Indices, donnés un par un');
+  await expect(key).toContainText('Explication : Il relie les équipements d’un même lieu');
+  await shot(page, '68c-correction-eleves');
+  await key.getByRole('button', { name: 'Professeur', exact: true }).click();
+
+  // À l'impression, le corrigé part seul : le reste de l'écran est masqué.
+  await page.emulateMedia({ media: 'print' });
+  await page.addScriptTag({ content: "document.body.dataset.print = 'answers';" });
+  const printed = page.locator('.print-root.print-answers');
+  await expect(printed).toBeVisible();
+  await expect(page.locator('#root')).toBeHidden();
+  // Les sauts de page sont choisis : le plan sur une page en paysage, le déroulement
+  // sur la sienne, une page par partie, et rien de coupé dans une question.
+  await expect(printed.locator('.key-front-plan')).toHaveCSS('page', 'key-plan');
+  await expect(printed.locator('.key-schedule')).toHaveCSS('break-after', 'page');
+  const parts = printed.locator('.key-part');
+  await expect(parts).toHaveCount(4);
+  await expect(parts.nth(0)).toHaveCSS('break-before', 'auto');
+  for (const index of [1, 2, 3]) await expect(parts.nth(index)).toHaveCSS('break-before', 'page');
+  await expect(printed.locator('.key-item').first()).toHaveCSS('break-inside', 'avoid');
+  await expect(printed.locator('.key-step-head').first()).toHaveCSS('break-inside', 'avoid');
+  await expect(printed.locator('.key-step-head').first()).toHaveCSS('break-after', 'avoid');
+  await expect(printed.locator('.key-hints-box').first()).toHaveCSS('break-before', 'avoid');
+
+  // Le PDF du professeur : la page du plan, celle du déroulement, puis les parties.
+  const pdf = (await page.pdf({ preferCSSPageSize: true })).toString('latin1');
+  const pages = [...pdf.matchAll(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)/g)].map(
+    ([, width, height]) => Number(width) > Number(height),
+  );
+  expect(pages.length).toBeGreaterThan(8);
+  // Seule la première page est en paysage.
+  expect(pages.indexOf(true)).toBe(0);
+  expect(pages.filter(Boolean)).toHaveLength(1);
 });

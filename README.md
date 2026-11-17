@@ -184,18 +184,29 @@ fait distribuer les adresses par un serveur DHCP et pose un défi sur les
 octets et les masques. L'élève enregistre son fichier à la fin de la première
 séance et le rouvre à la suivante.
 
-**Du collège au musée** (3e) dure deux séances de 1 h 30, plus un bonus. La
-partie 1 vérifie les acquis de 5e et de 4e au CDI (composants, câble et
-Wi-Fi, fichiers, bons usages, adresse et masque, une faute de frappe à
-réparer, un capteur de CO2 à installer et sa table de mesures à lire). La
-partie 2 sort du réseau local pour consulter le site d'un musée hébergé
-dans un data center : Internet comme réseau de réseaux, la passerelle,
-des tables de routage à lire pas à pas (à la place du jeu débranché), la
-route qui manque à ajouter, `traceroute`, le DNS et `nslookup`, la page
-web, les paquets et les protocoles, puis des questions sur le débit, la
-représentation des données, deux objets qui communiquent et les enjeux du
-numérique. Le bonus relie la médiathèque au fournisseur d'accès et propose
-un défi de routage sans ordinateur.
+**Du collège au musée** (3e) dure deux séances de 1 h 30, plus un bonus. Les
+titres des parties disent la séance. En séance 1, la partie 1 vérifie les
+acquis de 5e et de 4e au CDI (composants, câble et Wi-Fi, fichiers et
+dossier en lecture seule, bons usages, adresse et masque, une faute de
+frappe à réparer en respectant le plan d'adressage, un capteur de CO2 à
+installer et sa table de mesures à lire), puis la partie 2 sort du réseau
+local : Internet comme réseau de réseaux, la passerelle, des tables de
+routage à lire pas à pas (à la place du jeu débranché). La séance 2
+(partie 3) mène jusqu'au site d'un musée hébergé dans un data center : une
+panne de routage à localiser avec `traceroute` puis à réparer en ajoutant
+la route qui manque, le DNS et `nslookup`, la page
+web, les paquets et les protocoles, la représentation des données (la
+taille d'un vrai fichier, le fichier de mesures `mesures.csv` du capteur),
+le débit, deux objets qui communiquent (le capteur envoie un message à un
+afficheur : même port, même format de message) et les enjeux du numérique.
+Le bonus relie la médiathèque au fournisseur d'accès et propose un défi de
+routage sans ordinateur.
+
+Dans cette activité, le **réseau de départ est protégé** : les routeurs,
+les switchs et les serveurs d'Internet ne peuvent être ni supprimés, ni
+déréglés, ni débranchés. L'élève y ajoute ce que l'activité demande (une
+route, une interface, un câble) et peut retirer ce qu'il a ajouté ; ses
+postes, sa tablette et ses objets restent entièrement réglables.
 
 Chacune ouvre un réseau de départ et un **panneau d'activité** à droite du
 plan : la consigne, des étapes, et des objectifs qui **se cochent tout seuls**
@@ -206,13 +217,41 @@ bouton **Vérifier mon travail**. Chaque étape propose des indices, donnés un
 par un, et renvoie aux fiches de connaissances.
 
 Une étape peut aussi poser des **questions** dans le panneau : choix simple ou
-multiple, liste à remettre dans l'ordre, réponse courte, « ces deux adresses
-sont-elles dans le même réseau ? » ou réponse libre. L'élève répond **une
-fois** : la correction s'affiche aussitôt (réponse attendue, explication,
-fiche à relire) et la réponse est gardée. Une réponse libre n'est pas
-corrigée : elle est recopiée sur le compte rendu. Les étapes peuvent être
+multiple, liste à remettre dans l'ordre, paires à associer (un équipement et
+son rôle), réponse courte, « ces deux adresses
+sont-elles dans le même réseau ? » ou réponse libre. La **première réponse**
+est celle qui compte : la correction s'affiche aussitôt (réponse attendue,
+explication, fiche à relire) et la réponse est gardée. Après une erreur,
+l'élève peut **réessayer** sur un nouveau tirage, pour montrer qu'il a
+compris la correction. Chaque partie affiche son score (« Questions : 12
+justes sur 15 ») et un lien « Revoir mes erreurs ». Une réponse libre n'est
+pas corrigée : elle est recopiée sur le compte rendu. Les étapes peuvent être
 groupées en **parties**, et les dernières marquées **bonus** : elles ne
-comptent pas pour finir l'activité et s'ouvrent ensuite.
+comptent pas pour finir l'activité et s'ouvrent ensuite. Une étape peut
+aussi être un **approfondissement** : l'élève qui manque de temps la passe
+d'un clic (« Passer cette étape ») et peut y revenir ; le compte rendu le
+signale.
+
+**Corrigé pour le professeur.** Ajoutez `?prof` à l'adresse de RéseauLab
+(`index.html?prof`) : un bouton **Corrigé** apparaît à côté de chaque
+activité de la liste, et dans le panneau de l'activité en cours. Deux
+versions, à choisir en haut de la fenêtre :
+
+- **Professeur** : le plan du réseau, le déroulement (étapes,
+  manipulations, questions, durée estimée, temps écoulé), puis pour chaque
+  étape la consigne, ce qu'il fallait faire, la réponse attendue et
+  l'explication de chaque question, les indices ;
+- **Élèves** : la correction seule, à distribuer — le plan, ce qu'il
+  fallait faire, les réponses et leur explication, les fiches à relire.
+
+**Imprimer ou enregistrer en PDF** envoie la version affichée : le titre et
+le plan sur une page en paysage, le déroulement sur une page à lui, puis
+une page par partie, sans question coupée entre deux pages. Pour économiser
+le papier, la fenêtre d'impression du navigateur propose « 2 pages par
+feuille » et le recto verso.
+Sans `?prof`, rien dans l'interface n'y mène ; un badge « Mode professeur »
+rappelle quand il est actif. Ce n'est pas une protection : ne donnez pas
+cette adresse aux élèves.
 
 L'élève rend son travail avec **Enregistrer** : le fichier contient le réseau,
 l'activité et ce qui a été réussi. Il se rouvre avec **Ouvrir…**, comme tout
@@ -262,11 +301,61 @@ l'ouverture. Un objectif « question » :
 }
 ```
 
-Autres types : `order` (`items` dans le bon ordre), `short` (`accepted` : les
-réponses acceptées, sans tenir compte des accents ni des majuscules),
-`same-network` et `open` (réponse libre). Une étape prend `"part": "Partie 1 —
-…"` pour commencer une partie et `"bonus": true` pour être un bonus (les
-étapes bonus viennent en dernier).
+Autres types : `order` (`items` dans le bon ordre), `match` (`pairs` : des
+paires à associer, `[["Switch", "Relier les équipements"], ["Routeur",
+"Relier des réseaux"]]`), `short` (`accepted` : les réponses acceptées),
+`same-network` (deux adresses tirées au sort, avec le
+masque `255.255.255.0` ; `"masks": ["255.255.255.0", "255.255.0.0"]` pour en
+proposer d'autres) et `open` (réponse libre, une phrase d'au moins trois
+mots).
+
+Une réponse courte est comparée sans tenir compte des accents, des
+majuscules, des espaces ni de la ponctuation finale, et un nombre peut être
+suivi de son unité : avec `"accepted": ["4"]`, « 4 routeurs » est juste, mais
+pas « 4 ou 5 ». Une équivalence dans une autre unité se liste : `["30000",
+"30 Ko"]`.
+
+Après une réponse fausse, l'élève lit la correction et peut **réessayer** sur
+un nouveau tirage. Sa première réponse reste celle qui est notée ; le compte
+rendu indique les erreurs reprises avec succès. Pour l'y obliger, ajoutez
+`"requireCorrection": true` à l'activité : une réponse fausse ne compte alors
+qu'une fois corrigée, et l'étape suivante reste fermée en attendant.
+
+Une étape prend `"part": "Partie 1 — …"` pour commencer une partie, avec si
+besoin `"partNote"` (un texte affiché sous ce titre : « La 1re séance
+s'arrête ici : enregistre ton travail »), `"bonus": true` pour être un bonus
+(les étapes bonus viennent en dernier) et `"optional": true` pour être un
+approfondissement que l'élève peut passer. `"solution"` dit ce qu'il fallait
+faire ou trouver : il n'est affiché que dans le corrigé (`?prof`), y compris
+dans la version à distribuer aux élèves. `"teacherNote"` est une remarque
+pour vous seul, absente de cette version. Comme les réponses des questions,
+ces textes restent lisibles par qui ouvre le fichier dans un éditeur de
+texte.
+
+Un objectif `config` sur une adresse peut imposer la plage d'un plan
+d'adressage, bornes comprises : `"range": { "from": "192.168.10.1", "to":
+"192.168.10.9" }`.
+
+Pour **protéger le réseau de départ**, l'activité prend un champ `protect` :
+
+```json
+"protect": {
+  "devices": [{ "id": "n14", "interfaces": 2, "routes": 3 }],
+  "cables": ["c1", "c2"]
+}
+```
+
+Les équipements cités ne se suppriment plus et gardent leurs réglages ; pour
+un routeur, `interfaces` et `routes` comptent les interfaces et les routes
+statiques de départ, que l'élève ne peut pas retirer (il peut en ajouter).
+Les câbles cités ne se débranchent pas. Les identifiants sont ceux du champ
+`network` du fichier.
+
+Un terminal peut avoir des **dossiers en lecture seule**, comme le dossier
+commun d'un serveur de collège : dans `network`, il porte la liste
+`"readOnly": ["/Documents/Commun"]`. L'explorateur de fichiers et la ligne de
+commande refusent alors d'y créer, d'y modifier ou d'y supprimer quoi que ce
+soit, et le disent.
 
 ### Compte rendu
 
@@ -397,8 +486,9 @@ aussi contenir des questions de quiz (`questions`), par exemple :
 }
 ```
 
-Les autres types sont `order` (`items` dans le bon ordre), `short`
-(`accepted` : réponses admises) et `same-network` (question calculée).
+Les autres types sont `order` (`items` dans le bon ordre), `match` (`pairs` :
+des paires à associer), `short` (`accepted` : réponses admises) et
+`same-network` (question calculée).
 
 ## Licence
 

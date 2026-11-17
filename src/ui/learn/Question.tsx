@@ -8,6 +8,8 @@ export function solution(item: QuizItem): string {
       return item.correct.map((index) => item.choices[index] ?? '').join(' ; ');
     case 'order':
       return item.solution.join(' → ');
+    case 'match':
+      return item.lefts.map((left, i) => `${left} : ${item.solution[i] ?? ''}`).join(' ; ');
     case 'short':
       return item.accepted[0] ?? '';
   }
@@ -25,10 +27,20 @@ export function QuestionForm({ item, onAnswer, locked }: QuestionProps) {
   const id = useId();
   const [chosen, setChosen] = useState<readonly number[]>([]);
   const [sequence, setSequence] = useState<readonly string[]>(item.kind === 'order' ? item.shuffled : []);
+  /** For a match: what is chosen for each first item (empty until chosen). */
+  const [matched, setMatched] = useState<readonly string[]>(
+    item.kind === 'match' ? item.lefts.map(() => '') : [],
+  );
   const [text, setText] = useState('');
   const several = item.kind === 'choice' && item.correct.length > 1;
   const ready =
-    item.kind === 'choice' ? chosen.length > 0 : item.kind === 'short' ? text.trim() !== '' : true;
+    item.kind === 'choice'
+      ? chosen.length > 0
+      : item.kind === 'short'
+        ? text.trim() !== ''
+        : item.kind === 'match'
+          ? matched.every((value) => value !== '')
+          : true;
   const move = (index: number, by: -1 | 1) => {
     const target = index + by;
     if (target < 0 || target >= sequence.length) return;
@@ -42,7 +54,15 @@ export function QuestionForm({ item, onAnswer, locked }: QuestionProps) {
       onSubmit={(e) => {
         e.preventDefault();
         if (locked || !ready) return;
-        onAnswer(item.kind === 'choice' ? chosen : item.kind === 'order' ? sequence : text);
+        onAnswer(
+          item.kind === 'choice'
+            ? chosen
+            : item.kind === 'order'
+              ? sequence
+              : item.kind === 'match'
+                ? matched
+                : text,
+        );
       }}
     >
       <p className="quiz-prompt" id={`${id}-prompt`}>
@@ -102,6 +122,39 @@ export function QuestionForm({ item, onAnswer, locked }: QuestionProps) {
             </li>
           ))}
         </ol>
+      )}
+      {item.kind === 'match' && (
+        // The propositions are written in full, with a letter: a list cuts a long text, the letter stays readable.
+        <ol className="quiz-match-list" type="A" aria-label="Propositions">
+          {item.shuffled.map((right) => (
+            <li key={right}>{right}</li>
+          ))}
+        </ol>
+      )}
+      {item.kind === 'match' && (
+        <ul className="quiz-match" aria-labelledby={`${id}-prompt`}>
+          {item.lefts.map((left, index) => (
+            <li key={left}>
+              <label>
+                <span>{left}</span>
+                <select
+                  value={matched[index] ?? ''}
+                  disabled={locked}
+                  onChange={(e) => {
+                    setMatched(matched.map((value, i) => (i === index ? e.target.value : value)));
+                  }}
+                >
+                  <option value="">— choisir —</option>
+                  {item.shuffled.map((right, position) => (
+                    <option key={right} value={right}>
+                      {String.fromCharCode(65 + position)} — {right}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </li>
+          ))}
+        </ul>
       )}
       {item.kind === 'short' && (
         <input

@@ -140,6 +140,14 @@ export function Toolbar() {
             </button>
           </>
         )}
+        {session.teacher && (
+          <span
+            className="teacher-badge"
+            title="Adresse ouverte avec ?prof : les corrigés des activités sont accessibles"
+          >
+            Mode professeur
+          </span>
+        )}
       </nav>
       {/* Each mode shows its own controls, so that the bar fits on a 1366 px screen. */}
       {!simulation && (

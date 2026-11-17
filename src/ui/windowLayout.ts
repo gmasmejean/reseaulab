@@ -28,7 +28,8 @@ export type WindowKind =
         | 'activities'
         | 'report'
         | 'quiz'
-        | 'author';
+        | 'author'
+        | 'answers';
     }
   | { readonly type: 'app'; readonly app: AppId | 'software' };
 
@@ -55,6 +56,7 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   report: { width: 760, height: 560 },
   quiz: { width: 560, height: 520 },
   author: { width: 760, height: 580 },
+  answers: { width: 780, height: 600 },
 };
 
 const MIN_WIDTH = 320;

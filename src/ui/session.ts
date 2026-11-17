@@ -32,9 +32,25 @@ import {
   protectedDevices,
   type Outcome,
 } from '../learn/activity/evaluate';
-import { EMPTY_WORK, familyOf, objectivesOf, type Activity, type Work } from '../learn/activity/schema';
+import { guardOf, type Guard } from '../learn/activity/protect';
+import {
+  EMPTY_WORK,
+  familyOf,
+  isOptionalStep,
+  objectivesOf,
+  type Activity,
+  type Work,
+} from '../learn/activity/schema';
 import { parseLearnFile, serializeLearnFile } from '../learn/file';
-import { askQuestion, drawSalt, fitsQuestion, markAnswer } from '../learn/activity/questions';
+import {
+  askQuestion,
+  askRetry,
+  drawSalt,
+  fitsQuestion,
+  isOpenAnswer,
+  markAnswer,
+  markRetry,
+} from '../learn/activity/questions';
 import type { Answer } from '../learn/quiz/types';
 import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
@@ -70,7 +86,17 @@ export type WindowSpec =
   /** Self-assessment quiz, about one knowledge card when `notion` is given. */
   | { readonly type: 'quiz'; readonly notion?: string; readonly at?: number }
   /** Activities shipped with RéseauLab. */
-  | { readonly type: 'activities' };
+  | { readonly type: 'activities' }
+  /**
+   * « Corrigé » : the answer key, for the teacher. Of the activity shipped
+   * with RéseauLab that `builtin` names, or else of the activity being done.
+   */
+  | { readonly type: 'answers'; readonly builtin?: string };
+
+/** True when the address asks for the teacher's view (`?prof`). */
+export function isTeacherAddress(search: string): boolean {
+  return new URLSearchParams(search).has('prof');
+}
 
 export interface OpenWindow {
   readonly id: string;
@@ -196,6 +222,7 @@ function windowKey(spec: WindowSpec): string {
     case 'report':
     case 'quiz':
     case 'author':
+    case 'answers':
       return spec.type;
     case 'app':
       return `app:${spec.deviceId}:${spec.app}`;
@@ -227,6 +254,8 @@ export function contentSize(network: Network): Size {
 
 export const PROJECT_EXTENSION = '.reseaulab.json';
 const DEFAULT_PROJECT_NAME = 'reseau';
+const PROTECTED_CABLE =
+  'Ce câble fait partie du réseau de départ de l’activité : il ne peut pas être supprimé.';
 
 /**
  * File name without its extension, cleaned from the characters that file
@@ -270,6 +299,8 @@ export class Session {
   resumed: Resumed | null = null;
   /** Set when RéseauLab runs inside another application; null on its own. */
   embed: Embed | null = null;
+  /** The teacher's view (`?prof` in the address): gives access to the answer keys. */
+  teacher = false;
   /** Validates the text field being edited; false when its value is refused. */
   private pendingEdit: (() => boolean) | null = null;
   /** Knowledge cards, questions and messages: the default pack, completed by the teacher's. */
@@ -288,6 +319,7 @@ export class Session {
   /** What the pupil did in the activity. */
   work: Work = EMPTY_WORK;
   /** Results of the objectives tested on a copy, and the design they were tested on. */
+  private guardFor: { activity: Activity | null; guard: Guard } | null = null;
   private probed = new Map<string, Outcome>();
   private probedAt = -1;
   /** Counts the changes of the design, to know when a test is outdated. */
@@ -496,7 +528,10 @@ export class Session {
   activityOutcomes(): Map<string, Outcome> {
     const activity = this.activity;
     if (!activity) return new Map();
-    const key = `${this.network.version}:${this.designRevision}:${this.probedAt}:${this.work.commands.length}:${String(this.work.simulated)}:${Object.keys(this.work.answers).length}`;
+    // A new try changes an answer without adding one: it counts in the key too.
+    const answers = Object.values(this.work.answers);
+    const tries = answers.reduce((sum, answer) => sum + (answer.retry?.tries ?? 0), 0);
+    const key = `${this.network.version}:${this.designRevision}:${this.probedAt}:${this.work.commands.length}:${String(this.work.simulated)}:${answers.length}:${tries}:${this.work.skipped.join(',')}`;
     if (this.outcomeCache?.key === key) return this.outcomeCache.value;
     const fresh = this.probedAt === this.designRevision;
     const outcomes = evaluateNow(activity, this.network, this.work);
@@ -515,7 +550,7 @@ export class Session {
             },
       );
     }
-    const value = gateSteps(activity, outcomes);
+    const value = gateSteps(activity, outcomes, this.work.skipped);
     this.outcomeCache = { key, value };
     return value;
   }
@@ -527,7 +562,22 @@ export class Session {
 
   /** Step the pupil is working on. */
   get activityStep(): number {
-    return this.activity ? currentStep(this.activity, this.objectivesDone()) : 0;
+    return this.activity ? currentStep(this.activity, this.objectivesDone(), this.work.skipped) : 0;
+  }
+
+  /**
+   * Skips an « approfondissement » step: the next one opens. Only the step
+   * the pupil is working on can be skipped; it can still be done afterwards.
+   */
+  skipStep(stepId: string): void {
+    const activity = this.activity;
+    const step = activity?.steps[this.activityStep];
+    if (!activity || step?.id !== stepId || !isOptionalStep(step)) return;
+    if (this.work.skipped.includes(stepId)) return;
+    this.work = { ...this.work, skipped: [...this.work.skipped, stepId] };
+    this.noteProgress();
+    this.scheduleSave();
+    this.touch();
   }
 
   /** « Vérifier mon travail » : tests on a copy of the network what cannot be read on the plan. */
@@ -599,8 +649,30 @@ export class Session {
     const item = askQuestion(objectiveId, objective.check.question, drawSalt(this.work));
     if (!fitsQuestion(item, given)) return;
     const answer = markAnswer(item, given, this.now());
-    if (answer.right === null && answer.given === '') return;
+    // An open answer is a sentence, not a letter typed to get through.
+    if (answer.right === null && (typeof answer.given !== 'string' || !isOpenAnswer(answer.given))) return;
     this.work = { ...this.work, answers: { ...this.work.answers, [objectiveId]: answer } };
+    this.noteProgress();
+    this.scheduleSave();
+    this.touch();
+  }
+
+  /**
+   * A new try at a question answered wrongly, on a new draw. The first answer
+   * stays the one that is marked; the new try is kept beside it.
+   */
+  retryQuestion(objectiveId: string, given: Answer): void {
+    const objective = this.activity
+      ? objectivesOf(this.activity).find((o) => o.id === objectiveId)
+      : undefined;
+    const answer = this.work.answers[objectiveId];
+    if (objective?.check.type !== 'question' || answer === undefined) return;
+    const retry = askRetry(objectiveId, objective.check.question, this.work);
+    if (!retry || !fitsQuestion(retry.item, given)) return;
+    this.work = {
+      ...this.work,
+      answers: { ...this.work.answers, [objectiveId]: markRetry(answer, retry, given, this.now()) },
+    };
     this.noteProgress();
     this.scheduleSave();
     this.touch();
@@ -609,6 +681,17 @@ export class Session {
   /** Names the project file from what the pupil typed (without the extension). */
   setProjectName(name: string): void {
     this.fileName = `${projectBaseName(name)}${PROJECT_EXTENSION}`;
+    this.touch();
+  }
+
+  /**
+   * The teacher's view, asked for in the address (`?prof`): the answer keys
+   * can be opened. Nothing in the interface of the pupils leads to it.
+   */
+  setTeacher(teacher: boolean): void {
+    if (this.teacher === teacher) return;
+    this.teacher = teacher;
+    if (!teacher) this.windows = this.windows.filter((w) => w.spec.type !== 'answers');
     this.touch();
   }
 
@@ -1042,11 +1125,37 @@ export class Session {
     this.touch();
   }
 
+  /** What the activity protects in its starting network (nothing without an activity). */
+  get guard(): Guard {
+    if (this.guardFor?.activity !== this.activity) {
+      this.guardFor = { activity: this.activity, guard: guardOf(this.activity) };
+    }
+    return this.guardFor.guard;
+  }
+
+  /** Removes the cables the activity lets the pupil remove; false when one of them is protected. */
+  disconnect(cableIds: readonly string[]): boolean {
+    const free = cableIds.filter((id) => !this.guard.cable(id));
+    if (free.length > 0) {
+      this.commitHistory();
+      for (const id of free) this.network.disconnect(id);
+      if (this.selection?.kind === 'cable' && free.includes(this.selection.id)) this.selection = null;
+    }
+    const kept = free.length < cableIds.length;
+    if (kept) this.notify(PROTECTED_CABLE, 'error');
+    this.touch();
+    return !kept;
+  }
+
   deleteSelection(): void {
     const sel = this.selection;
     if (!sel || this.mode !== 'design') return;
     if (sel.kind === 'device' && this.activity && protectedDevices(this.activity).has(sel.id)) {
       this.notify('Cet équipement fait partie de l’activité : il ne peut pas être supprimé.', 'error');
+      return;
+    }
+    if (sel.kind === 'cable' && this.guard.cable(sel.id)) {
+      this.notify(PROTECTED_CABLE, 'error');
       return;
     }
     // Each deletion is a step of its own, whatever was changed just before.
@@ -1195,6 +1304,16 @@ export class Session {
   /* ---------- windows ---------- */
 
   openWindow(spec: WindowSpec): void {
+    // The answer key is for the teacher only.
+    if (spec.type === 'answers' && !this.teacher) return;
+    // The software and the files of a protected terminal are part of what the activity relies on.
+    if ((spec.type === 'desktop' || spec.type === 'app') && this.guard.device(spec.deviceId)) {
+      const name = this.network.device(spec.deviceId)?.name ?? '';
+      this.notify(
+        `« ${name} » fait partie du réseau de départ de l’activité : son bureau ne s’ouvre pas. Ses échanges de données restent visibles.`,
+      );
+      return;
+    }
     const key = windowKey(spec);
     const existing = this.windows.find((w) => w.id === key);
     if (existing) {

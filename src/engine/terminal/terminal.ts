@@ -42,6 +42,8 @@ export type TerminalCommand = (typeof TERMINAL_COMMANDS)[number];
 /** What the pupil did in a terminal, for whoever watches it (activity journal, help). */
 export type TerminalEvent =
   | { readonly kind: 'command'; readonly name: TerminalCommand; readonly line: string }
+  /** The command was given what it needs (it did not answer « Utilisation : … »): it really ran. */
+  | { readonly kind: 'used'; readonly name: TerminalCommand }
   | {
       readonly kind: 'ping-done';
       readonly target: Ipv4;
@@ -89,6 +91,8 @@ export class Terminal {
   private cwdPath = '/';
   private cancel: (() => void) | null = null;
   private busyFlag = false;
+  /** Times a command answered « Utilisation : … »: it was not given what it needs. */
+  private misuses = 0;
   /** Identifies the running command so that late callbacks of an interrupted one are ignored. */
   private runId = 0;
   private readonly commands: CommandSpec[];
@@ -139,8 +143,10 @@ export class Terminal {
       this.cancel = null;
       onFinished();
     };
+    const misuses = this.misuses;
     try {
       const result = spec.run(args, done);
+      if (this.misuses === misuses) this.options.onEvent?.({ kind: 'used', name: spec.names[0] });
       if (result === 'sync') done();
       else if (typeof result === 'function') this.cancel = result;
     } catch (error) {
@@ -256,6 +262,7 @@ export class Terminal {
   }
 
   private usage(name: string): 'sync' {
+    this.misuses++;
     const spec = this.commands.find((c) => c.names.includes(name));
     return this.say(`Utilisation : ${spec?.usage ?? name}`);
   }

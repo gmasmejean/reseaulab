@@ -722,7 +722,7 @@ export const DEFAULT_QUESTIONS: readonly Question[] = [
     type: 'short',
     prompt:
       'Combien d’octets faut-il, sans compression, pour une image en couleurs de 10 × 10 pixels, à 3 octets par pixel ?',
-    accepted: ['300', '300 octets'],
+    accepted: ['300'],
     explanation: '10 × 10 = 100 pixels, et 100 × 3 = 300 octets.',
   },
   {

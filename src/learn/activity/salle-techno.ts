@@ -109,6 +109,8 @@ function startingNetwork(): Network {
     server.fs.mkdir(path.slice(0, path.lastIndexOf('/')), true);
     server.fs.writeFile(path, content);
   }
+  // As on the network drive of a school: pupils read the shared folder, they do not write in it.
+  server.fs.setReadOnly('/Documents/Commun');
 
   // The printer is in another network: 192.168.1 instead of 192.168.10.
   const printer = network.addHost('printer', {
@@ -155,7 +157,7 @@ export const classroom: BuiltinActivity = {
 
 **Plan d’adressage de la salle** (réseau \`192.168.10.0\`, masque \`255.255.255.0\`) : postes de \`.1\` à \`.9\`, serveur \`.10\`, tablettes de \`.20\` à \`.29\`, imprimante \`.30\`, objets connectés de \`.50\` à \`.59\`, routeur \`.254\`.
 
-Les questions se corrigent tout de suite, **une seule réponse** par question : réfléchis avant de valider ! À la fin de chaque séance, clique sur [[ecran:enregistrer]] ; à la séance suivante, rouvre ton fichier avec [[ecran:ouvrir]].`,
+Les questions se corrigent tout de suite et c’est ta **première réponse** qui est notée : réfléchis avant de valider ! À la fin de chaque séance, clique sur [[ecran:enregistrer]] ; à la séance suivante, rouvre ton fichier avec [[ecran:ouvrir]].`,
       profile: { base: '4e' },
       steps: [
         /* ---------- Partie 1 ---------- */
@@ -441,7 +443,7 @@ Passe en mode [[ecran:simulation]]. Double-clique sur **Poste 1** pour ouvrir so
           title: 'Où sont mes fichiers ?',
           body: `Toujours en simulation, double-clique sur le **Serveur** et ouvre son **Explorateur de fichiers**. Les dossiers des classes sont rangés dans \`Documents\`.
 
-Le dossier \`Commun\` est en **lecture seule** pour les élèves ; chaque élève peut écrire dans **son** dossier.`,
+Ouvre le dossier \`Commun\` : comme sur le réseau du collège, il est en **lecture seule**. Essaie d’y créer un dossier et lis le message. Dans le dossier d’un élève, au contraire, on peut écrire.`,
           notions: ['fichiers-arborescence', 'client-serveur'],
           hints: [
             'Ouvre Documents, puis 4A, puis Lea.',
@@ -490,16 +492,17 @@ Le dossier \`Commun\` est en **lecture seule** pour les élèves ; chaque élèv
                 type: 'question',
                 question: {
                   type: 'mcq',
-                  prompt: 'Le dossier Commun est en lecture seule pour les élèves. Que peux-tu y faire ?',
+                  prompt:
+                    'Tu as essayé de créer un dossier dans Commun, qui est en lecture seule. Que peut-on y faire ?',
                   choices: [
-                    'Ouvrir et copier ses fichiers, mais ni les modifier ni en ajouter',
+                    'Consulter ses fichiers, mais ni les modifier, ni en ajouter, ni en supprimer',
                     'Modifier et supprimer ses fichiers',
                     'Y enregistrer mes propres fichiers',
                     'Rien, pas même ouvrir ses fichiers',
                   ],
                   correct: [0],
                   explanation:
-                    'Lecture seule : on consulte, on copie chez soi, mais on ne modifie rien. Écrire (modifier, ajouter, supprimer) demande le droit d’écriture.',
+                    'Lecture seule : on consulte, on peut copier chez soi, mais le serveur refuse tout changement (« Dossier en lecture seule »). Écrire (modifier, ajouter, supprimer) demande le droit d’écriture ; au collège, ce droit dépend du compte : les professeurs l’ont sur Commun, pas les élèves.',
                   notion: 'fichiers-arborescence',
                 },
               },
@@ -810,7 +813,7 @@ Le dossier \`Commun\` est en **lecture seule** pour les élèves ; chaque élèv
 Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran:conception]], clique sur l’équipement et change son réglage. Le bouton [[ecran:verifier]] t’aide à repérer ce qui ne va pas. Respecte le plan d’adressage de la salle (dans la consigne, en haut).`,
           notions: ['depannage', 'adresse-ip', 'ping'],
           hints: [
-            'Compare l’adresse de chaque équipement au plan d’adressage : réseau 192.168.10.0.',
+            'Compare l’adresse de chaque équipement au plan d’adressage : réseau 192.168.10.0, postes de .1 à .9.',
             'Deux équipements ont la même adresse : lequel doit en changer ?',
             'Une adresse en 192.168.1. ou 192.168.11. n’est pas dans le réseau 192.168.10.0.',
           ],
@@ -837,12 +840,14 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
             },
             {
               id: 'poste3-repare',
-              label: 'Poste 3 a une adresse que personne d’autre n’utilise',
+              label: 'Poste 3 a une adresse libre réservée aux postes : de 192.168.10.1 à 192.168.10.9',
               check: {
                 type: 'config',
                 device: ref('Poste 3'),
                 field: 'ip',
                 inNetwork: '192.168.10.0/24',
+                // The addressing plan: without it, .50 would be accepted here and clash with the station later.
+                range: { from: '192.168.10.1', to: '192.168.10.9' },
                 unique: true,
               },
             },
@@ -910,7 +915,7 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
             },
             {
               id: 'reseau-sain',
-              label: 'Le bouton Vérifier ne signale plus rien',
+              label: 'Vérifier ne signale plus rien, sauf des passerelles manquantes',
               check: { type: 'lintClean', ignore: ['gateway-missing'] },
             },
             {
@@ -984,7 +989,7 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
                   type: 'short',
                   prompt:
                     'À quelle heure la température a-t-elle été la plus élevée ? (écris-la comme dans le tableau)',
-                  accepted: ['14:00', '14h00', '14h', '14 h', '14'],
+                  accepted: ['14:00', '14h00', '14h', '14'],
                   explanation:
                     'La valeur la plus élevée de la colonne Température est 23,1 °C, mesurée à 14:00.',
                   notion: 'donnees-objet',
@@ -1298,7 +1303,7 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
             },
             {
               id: 'bonus-sain',
-              label: 'Le bouton Vérifier ne signale plus rien',
+              label: 'Vérifier ne signale plus rien, sauf des passerelles manquantes',
               check: { type: 'lintClean', ignore: ['gateway-missing'] },
             },
             {
@@ -1369,30 +1374,6 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
               },
             },
             {
-              id: 'q-meme-reseau-2',
-              label: 'Même réseau ? (1)',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'same-network',
-                  prompt: 'Ces deux adresses sont-elles dans le même réseau ?',
-                  notion: 'masque',
-                },
-              },
-            },
-            {
-              id: 'q-meme-reseau-3',
-              label: 'Même réseau ? (2)',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'same-network',
-                  prompt: 'Ces deux adresses sont-elles dans le même réseau ?',
-                  notion: 'masque',
-                },
-              },
-            },
-            {
               id: 'q-masque-16',
               label: 'Le masque 255.255.0.0',
               check: {
@@ -1408,6 +1389,32 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
                   correct: [0],
                   explanation:
                     'Avec 255.255.0.0, la partie réseau est 192.168 pour les deux : elles sont dans le même réseau, qui peut contenir plus de 65 000 équipements.',
+                  notion: 'masque',
+                },
+              },
+            },
+            {
+              id: 'q-meme-reseau-2',
+              label: 'Même réseau ? (1)',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'same-network',
+                  prompt: 'Ces deux adresses sont-elles dans le même réseau ?',
+                  masks: ['255.255.0.0'],
+                  notion: 'masque',
+                },
+              },
+            },
+            {
+              id: 'q-meme-reseau-3',
+              label: 'Même réseau ? (2)',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'same-network',
+                  prompt: 'Regarde bien le masque : ces deux adresses sont-elles dans le même réseau ?',
+                  masks: ['255.255.255.0', '255.255.0.0'],
                   notion: 'masque',
                 },
               },

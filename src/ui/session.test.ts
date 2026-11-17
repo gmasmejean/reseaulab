@@ -3,15 +3,16 @@ import { LINK_DELAY, Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
 import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
 import { EMPTY_STEP, emptyDraft, type Draft } from '../learn/activity/draft';
-import { askQuestion, drawSalt } from '../learn/activity/questions';
+import { askQuestion, askRetry, drawSalt } from '../learn/activity/questions';
 import { EMPTY_WORK } from '../learn/activity/schema';
 import { suggestObjectives } from '../learn/activity/suggest';
 import { serializePack } from '../learn/content/schema';
 import { parseLearnFile } from '../learn/file';
+import { rightAnswer } from '../learn/quiz/quiz';
 import { serializeProject } from '../project/serialize';
 import fixture from '../project/filius/fixtures/konfiguration.xml?raw';
 import { FILIUS_CONFIG_ENTRY } from '../project/filius';
-import { QUESTIONS_BUILTIN } from '../test/activities';
+import { OPTIONAL_BUILTIN, QUESTIONS_BUILTIN } from '../test/activities';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { makeZip } from '../test/zip';
 import {
@@ -25,6 +26,7 @@ import {
   Session,
   ZOOM_STEPS,
   contentSize,
+  isTeacherAddress,
   projectBaseName,
 } from './session';
 
@@ -733,6 +735,12 @@ describe('Session : activités', () => {
     expect(session.work.hints).toEqual({ reparer: 2 });
   });
 
+  const objectiveQuestion = (session: Session, id: string) => {
+    const objective = session.activity?.steps.flatMap((step) => step.objectives).find((o) => o.id === id);
+    if (objective?.check.type !== 'question') throw new Error(id);
+    return objective.check.question;
+  };
+
   test('questions : une réponse par question, corrigée ; pas avant que l’étape soit ouverte', () => {
     const session = new Session(null, new ManualFrames(), () => 42_000);
     session.startActivity(QUESTIONS_BUILTIN);
@@ -754,9 +762,28 @@ describe('Session : activités', () => {
     // Un seul essai : une seconde réponse ne remplace pas la première.
     session.answerQuestion('q-switch', item.correct);
     expect(session.work.answers['q-switch']?.right).toBe(false);
-    // Une réponse libre vide ne compte pas.
+    // Un nouvel essai, lui, se tente : autre tirage, première réponse gardée telle quelle.
+    const retry = askRetry('q-switch', objectiveQuestion(session, 'q-switch'), session.work);
+    if (retry?.item.kind !== 'choice') throw new Error('nouvel essai attendu');
+    session.retryQuestion('q-switch', 'pas la bonne forme');
+    expect(session.work.answers['q-switch']?.retry).toBeUndefined();
+    session.retryQuestion('q-switch', retry.item.correct);
+    expect(session.work.answers['q-switch']).toMatchObject({
+      right: false,
+      given: [wrong],
+      retry: { right: true, tries: 1, at: 42_000 },
+    });
+    expect(statusOf(session, 'q-switch')).toBe('done');
+    // Corrigée : plus rien à réessayer.
+    session.retryQuestion('q-switch', [0]);
+    expect(session.work.answers['q-switch']?.retry?.tries).toBe(1);
+    // Une réponse libre vide, ou d'un seul mot, ne compte pas.
     session.answerQuestion('q-pourquoi', '   ');
+    session.answerQuestion('q-pourquoi', 'ok');
     expect(statusOf(session, 'q-pourquoi')).toBe('todo');
+    // Pas de nouvel essai sans première réponse.
+    session.retryQuestion('q-pourquoi', 'Une phrase assez longue.');
+    expect(session.work.answers['q-pourquoi']).toBeUndefined();
     session.answerQuestion('q-pourquoi', 'Pour trouver le bon destinataire.');
     expect(statusOf(session, 'q-pourquoi')).toBe('done');
     expect(session.activityStep).toBe(1);
@@ -765,6 +792,55 @@ describe('Session : activités', () => {
     // Un objectif qui n'est pas une question n'accepte pas de réponse.
     session.answerQuestion('inconnu', 'texte');
     expect(session.work.answers.inconnu).toBeUndefined();
+  });
+
+  test('passer une étape d’approfondissement : seulement celle en cours, et la suite s’ouvre', () => {
+    const session = new Session(null, new ManualFrames(), () => 42_000);
+    session.startActivity(OPTIONAL_BUILTIN);
+    // Pas encore arrivé à l'étape : rien ne se passe. Une étape ordinaire ne se passe jamais.
+    session.skipStep('plus');
+    session.skipStep('base');
+    expect(session.work.skipped).toEqual([]);
+    const item = askQuestion('q-switch', objectiveQuestion(session, 'q-switch'), drawSalt(session.work));
+    session.answerQuestion('q-switch', item === null ? '' : rightAnswer(item));
+    expect(session.activityStep).toBe(1);
+    expect(statusOf(session, 'q-roles')).toBe('locked');
+
+    session.skipStep('plus');
+    session.skipStep('plus');
+    expect(session.work.skipped).toEqual(['plus']);
+    expect(session.activityStep).toBe(2);
+    expect(statusOf(session, 'q-roles')).toBe('todo');
+    // L'étape passée reste ouverte : l'élève peut y revenir et y répondre.
+    expect(statusOf(session, 'q-combien')).toBe('todo');
+    session.answerQuestion('q-combien', '4 routeurs');
+    expect(statusOf(session, 'q-combien')).toBe('done');
+
+    // Rouvert, le fichier reprend après l'étape passée.
+    const other = new Session(null, new ManualFrames());
+    expect(other.openProject(session.serialize(), 'eleve.reseaulab.json')).toBe(true);
+    expect(other.work.skipped).toEqual(['plus']);
+    expect(other.activityStep).toBe(2);
+  });
+
+  test('le corrigé ne s’ouvre que pour le professeur (« ?prof » dans l’adresse)', () => {
+    expect(isTeacherAddress('?prof')).toBe(true);
+    expect(isTeacherAddress('?integre&prof=1')).toBe(true);
+    expect(isTeacherAddress('')).toBe(false);
+    expect(isTeacherAddress('?professeur')).toBe(false);
+
+    const session = new Session(null, new ManualFrames());
+    expect(session.teacher).toBe(false);
+    session.openWindow({ type: 'answers', builtin: 'college-musee' });
+    expect(session.windows).toEqual([]);
+    session.setTeacher(true);
+    session.openWindow({ type: 'answers', builtin: 'college-musee' });
+    expect(session.windows.map((w) => w.spec)).toEqual([{ type: 'answers', builtin: 'college-musee' }]);
+    // Une seule fenêtre de corrigé : demander celui d'une autre activité la remplace.
+    session.openWindow({ type: 'answers', builtin: 'salle-techno' });
+    expect(session.windows.map((w) => w.spec)).toEqual([{ type: 'answers', builtin: 'salle-techno' }]);
+    session.setTeacher(false);
+    expect(session.windows).toEqual([]);
   });
 
   test('les réponses voyagent dans le fichier rendu : rouvert, il reprend à la même étape', () => {
@@ -805,6 +881,51 @@ describe('Session : activités', () => {
     session.select({ kind: 'device', id: first });
     session.deleteSelection();
     expect(session.network.device(first)).toBeUndefined();
+  });
+
+  test('le réseau de départ protégé : ni câble ni équipement supprimé, pas de bureau, mais on y ajoute', () => {
+    const session = new Session(null, new ManualFrames());
+    session.startActivity(builtin('college-musee'));
+    const id = (name: string) => session.network.devices.find((d) => d.name === name)?.id ?? '';
+    const fai = id('Routeur du FAI');
+    const core = id('Routeur Internet');
+    const link = session.network.cables.find((c) => [c.a, c.b].includes(fai) && [c.a, c.b].includes(core));
+    if (!link) throw new Error('câble FAI — Internet');
+    expect(session.guard.cable(link.id)).toBe(true);
+    // Suppr sur le câble, puis sur un routeur que plus aucun objectif ne cite.
+    session.select({ kind: 'cable', id: link.id });
+    session.deleteSelection();
+    expect(session.network.cable(link.id)).toBeDefined();
+    expect(session.notice?.text).toContain('réseau de départ');
+    session.select({ kind: 'device', id: core });
+    session.deleteSelection();
+    expect(session.network.device(core)).toBeDefined();
+    // « Supprimer tous les câbles » ne retire que ceux de l'élève.
+    expect(session.disconnect([link.id])).toBe(false);
+    expect(session.network.cable(link.id)).toBeDefined();
+    const added = session.network.connect(id('Poste 3'), id('Switch CDI'));
+    expect(session.guard.cable(added.id)).toBe(false);
+    expect(session.disconnect([added.id, link.id])).toBe(false);
+    expect(session.network.cable(added.id)).toBeUndefined();
+    expect(session.network.cable(link.id)).toBeDefined();
+    session.undo();
+    expect(session.network.cable(added.id)).toBeDefined();
+
+    // En simulation, le bureau du serveur du musée ne s'ouvre pas ; celui de Poste 1, si.
+    session.setMode('simulation');
+    session.openWindow({ type: 'desktop', deviceId: id('Serveur du musée') });
+    expect(session.windows).toHaveLength(0);
+    expect(session.notice?.text).toContain('son bureau ne s’ouvre pas');
+    session.openWindow({ type: 'capture', deviceId: id('Serveur du musée') });
+    session.openWindow({ type: 'desktop', deviceId: id('Poste 1') });
+    expect(session.windows.map((w) => w.spec.type)).toEqual(['capture', 'desktop']);
+    session.setMode('design');
+
+    // L'activité quittée, le réseau redevient libre.
+    session.quitActivity();
+    session.select({ kind: 'cable', id: link.id });
+    session.deleteSelection();
+    expect(session.network.cable(link.id)).toBeUndefined();
   });
 
   test('le fichier enregistré garde l’activité et le travail ; il se rouvre et se retrouve au démarrage', () => {

@@ -66,6 +66,8 @@ const hostSchema = z.object({
   config: z.object({ ip, mask, gateway: ip, dns: ip, useDhcp: z.boolean() }),
   installed: z.array(z.enum(APP_IDS)).max(APP_IDS.length),
   fs: fsJson,
+  // Added with read-only folders: older projects have none.
+  readOnly: z.array(text(1024)).max(100).default([]),
   firewall,
   dhcpServer: z.object({
     active: z.boolean(),

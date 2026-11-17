@@ -166,8 +166,18 @@ export function browserStorage() {
   }
 }
 
-export function App({ session }: { session?: Session | undefined }) {
+export function App({
+  session,
+  teacher = false,
+}: {
+  session?: Session | undefined;
+  /** The teacher's view, asked for in the address (`?prof`). */
+  teacher?: boolean;
+}) {
   const value = useMemo(() => session ?? new Session(browserStorage()), [session]);
+  useEffect(() => {
+    if (teacher) value.setTeacher(true);
+  }, [value, teacher]);
   return (
     <SessionProvider session={value}>
       <Layout />

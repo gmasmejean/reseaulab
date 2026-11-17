@@ -9,6 +9,7 @@ import { APP_INFO } from '../../i18n/fr';
 import { Window } from '../components/Window';
 import { useSession } from '../context';
 import { ActivitiesWindow } from '../learn/ActivitiesWindow';
+import { AnswerKeyWindow } from '../learn/AnswerKeyWindow';
 import { AuthorWindow } from '../learn/AuthorWindow';
 import { DiagnoseWindow } from '../learn/DiagnoseWindow';
 import { KnowledgeWindow } from '../learn/KnowledgeWindow';
@@ -104,6 +105,13 @@ function WindowContent({ w }: { w: OpenWindow }) {
     return (
       <Window window={w} title="Compte rendu">
         <ReportWindow />
+      </Window>
+    );
+  }
+  if (spec.type === 'answers') {
+    return (
+      <Window window={w} title="Corrigé (professeur)">
+        <AnswerKeyWindow key={spec.builtin ?? ''} builtin={spec.builtin} />
       </Window>
     );
   }

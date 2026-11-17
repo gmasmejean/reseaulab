@@ -40,16 +40,82 @@ export function askQuestion(objectiveId: string, question: ActivityQuestion, sal
       );
     case 'order':
       return instantiate({ ...base, type: 'order', items: question.items }, next);
+    case 'match':
+      return instantiate({ ...base, type: 'match', pairs: question.pairs }, next);
     case 'short':
       return instantiate({ ...base, type: 'short', accepted: question.accepted }, next);
     case 'same-network':
-      return instantiate({ ...base, type: 'same-network' }, next);
+      return instantiate({ ...base, type: 'same-network', masks: question.masks }, next);
   }
 }
 
 /** The draw of a work: fixed from its start. */
 export function drawSalt(work: Work): number {
   return Math.floor(work.startedAt ?? 0) >>> 0;
+}
+
+/** An open answer is a sentence: fewer words than this is not one. */
+export const OPEN_MIN_WORDS = 3;
+
+/** Whether a text is enough for an open question: a few words, not a letter typed to get through. */
+export function isOpenAnswer(text: string): boolean {
+  return (
+    text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => /\p{L}|\d/u.test(word)).length >= OPEN_MIN_WORDS
+  );
+}
+
+/**
+ * Whether a question is settled: answered, and not left wrong. An open
+ * answer and a right one are; a wrong one is once a new try got it right.
+ */
+export function isSettled(answer: QuestionAnswer | undefined): boolean {
+  return answer !== undefined && (answer.right !== false || answer.retry?.right === true);
+}
+
+/** Whether a wrong answer may be tried again (it is not settled yet). */
+export function canRetry(answer: QuestionAnswer | undefined): boolean {
+  return answer?.right === false && answer.retry?.right !== true;
+}
+
+/**
+ * The question as put again after a wrong answer: a new draw each time (other
+ * addresses, choices in another order), so that the correction just read is
+ * not simply copied. Null when there is nothing to try again.
+ */
+export function askRetry(
+  objectiveId: string,
+  question: ActivityQuestion,
+  work: Work,
+): { item: QuizItem; tries: number } | null {
+  const answer = work.answers[objectiveId];
+  if (!canRetry(answer)) return null;
+  const tries = (answer?.retry?.tries ?? 0) + 1;
+  const item = askQuestion(objectiveId, question, (drawSalt(work) + tries * 0x9e3779b1) >>> 0);
+  return item === null ? null : { item, tries };
+}
+
+/** Marks a new try; the first answer is kept as it is. */
+export function markRetry(
+  answer: QuestionAnswer,
+  retry: { item: QuizItem; tries: number },
+  given: Answer,
+  at: number,
+): QuestionAnswer {
+  const kept: QuestionAnswer['given'] =
+    typeof given === 'string' ? given : (given.map((v) => v) as number[] | string[]);
+  return {
+    ...answer,
+    retry: {
+      item: stored(retry.item),
+      given: kept,
+      right: grade(retry.item, given),
+      at,
+      tries: Math.min(retry.tries, 99),
+    },
+  };
 }
 
 /** Whether an answer has the form the question expects (indices, items or a text). */
@@ -77,6 +143,13 @@ function stored(item: QuizItem): NonNullable<QuestionAnswer['item']> {
       return { ...item, choices: [...item.choices], correct: [...item.correct] };
     case 'order':
       return { ...item, shuffled: [...item.shuffled], solution: [...item.solution] };
+    case 'match':
+      return {
+        ...item,
+        lefts: [...item.lefts],
+        shuffled: [...item.shuffled],
+        solution: [...item.solution],
+      };
     case 'short':
       return { ...item, accepted: [...item.accepted] };
   }
@@ -91,6 +164,8 @@ export function givenText(answer: QuestionAnswer): string {
       .map((index) => (typeof index === 'number' ? (item.choices[index] ?? '') : index))
       .join(' ; ');
   }
+  if (item?.kind === 'match')
+    return given.map((value, i) => `${item.lefts[i] ?? ''} : ${String(value) || '—'}`).join(' ; ');
   return given.map(String).join(' → ');
 }
 
@@ -103,7 +178,8 @@ export interface GivenPart {
 /**
  * What the pupil answered, piece by piece: each choice ticked (right if it
  * is one of the expected ones), each item of an order (right if in its
- * place), or the whole text. Empty for an open question.
+ * place), each pair (right if well matched), or the whole text. Empty for an
+ * open question.
  */
 export function givenParts(answer: QuestionAnswer): GivenPart[] {
   const { item, given } = answer;
@@ -116,6 +192,11 @@ export function givenParts(answer: QuestionAnswer): GivenPart[] {
         : { text: index, right: false },
     );
   }
+  if (item.kind === 'match')
+    return given.map((value, i) => ({
+      text: `${item.lefts[i] ?? ''} : ${String(value) || '—'}`,
+      right: item.solution[i] === value,
+    }));
   const solution: readonly string[] = item.kind === 'order' ? item.solution : [];
   return given.map((value, i) => ({ text: String(value), right: solution[i] === value }));
 }
@@ -130,6 +211,8 @@ export interface QuestionScore {
   readonly right: number;
   /** Marked questions answered. */
   readonly marked: number;
+  /** Among the wrong ones, those answered rightly on a new try. */
+  readonly corrected: number;
   /** Questions answered, open ones included. */
   readonly answered: number;
   readonly total: number;
@@ -143,19 +226,34 @@ export function scoreQuestions(steps: readonly Step[], work: Work): QuestionScor
   return {
     right: marked.filter((a) => a.right === true).length,
     marked: marked.length,
+    corrected: marked.filter((a) => a.right === false && a.retry?.right === true).length,
     answered: answers.length,
     total: questions.length,
   };
 }
 
+export interface Part {
+  readonly title: string | null;
+  /** Shown under the title (formatted text); empty when there is none. */
+  readonly note: string;
+  readonly bonus: boolean;
+  readonly steps: Step[];
+}
+
 /** The parts of an activity: consecutive steps under one title, the bonus steps apart. */
-export function partsOf(activity: Activity): { title: string | null; bonus: boolean; steps: Step[] }[] {
-  const parts: { title: string | null; bonus: boolean; steps: Step[] }[] = [];
+export function partsOf(activity: Activity): Part[] {
+  const parts: Part[] = [];
   for (const step of activity.steps) {
     const bonus = step.bonus === true;
     const last = parts.at(-1);
     if (last?.bonus === bonus && step.part === undefined) last.steps.push(step);
-    else parts.push({ title: step.part ?? (bonus ? 'Bonus' : null), bonus, steps: [step] });
+    else
+      parts.push({
+        title: step.part ?? (bonus ? 'Bonus' : null),
+        note: step.part === undefined ? '' : (step.partNote ?? ''),
+        bonus,
+        steps: [step],
+      });
   }
   return parts;
 }

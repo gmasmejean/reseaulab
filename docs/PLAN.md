@@ -621,9 +621,323 @@ questions.
       sous 300 Ko en mode intégré ; bout en bout : passerelle, DNS et route
       saisis dans l'interface, site du musée affiché par son nom, fichier
       enregistré avec la réponse et la route. Contenu **à faire valider par
+      l'enseignant**. La fin de la partie 2 et le nombre d'objectifs ont
+      changé depuis : voir les étapes 46 et 47.
+
+## Feuille de route : suites du bilan
+
+Bilan de l'interface et de l'activité « Du collège au musée » du
+2026-11-13 ([`BILAN.md`](BILAN.md)). Demandes de l'enseignant, dans
+l'ordre : B6 et B1, puis B2, B4, B5 et B3, puis B7, B8 et B9, puis la
+mise en page du corrigé (étape 55). Restent à
+planifier : les constats d'interface A1 à A11, et B10 pour l'activité
+(entamé : voir les étapes 47, 48 et 54).
+
+- [x] **Étape 46 — Réseau de départ protégé** (bilan B6). Une activité peut
+      déclarer `protect` : des équipements (avec, pour un routeur, le
+      nombre d'interfaces et de routes statiques de départ) et des câbles.
+      Sur un équipement protégé, ce qui existe au départ ne se modifie
+      plus : nom, carte réseau, adresses, interfaces et routes de départ
+      (marquées « de départ »), RIP, pare-feu, suppression ; un câble
+      protégé ne se retire ni par le panneau, ni par le menu, ni au
+      clavier ; en simulation, le bureau d'un terminal protégé ne s'ouvre
+      pas (ses échanges de données et ses tables restent visibles). L'élève
+      peut toujours **ajouter** une route, une interface ou un câble, et
+      retirer ce qu'il a ajouté. Le panneau du bas dit pourquoi
+      (« Équipement du réseau de départ. »). La protection voyage dans le
+      fichier d'activité et dans le fichier rendu ; elle compte les
+      interfaces et les routes de départ plutôt que de les copier, donc
+      l'annulation et la réouverture la respectent sans rien changer au
+      moteur ni au format du réseau (`src/learn/activity/protect.ts`).
+      « Du collège au musée » protège douze équipements — Switch CDI, les
+      cinq routeurs, les switchs et serveurs du FAI et du data center, la
+      médiathèque — et leurs câbles ; les postes, la tablette, le Serveur
+      du CDI, le capteur et l'afficheur restent libres. Tests : schéma et
+      garde, solution complète qui n'ajoute qu'au réseau protégé, session
+      (câble, équipement, bureau, ajout permis), interface (champs grisés,
+      routes de départ sans bouton, route de l'élève retirable, câble de
+      départ), bout en bout.
+- [x] **Étape 47 — Fin de la seconde séance ancrée dans le simulateur**
+      (bilan B1). Ordre de la fin de la partie 2 : paquets et protocoles,
+      **représenter des données**, débit, **deux objets qui communiquent**,
+      enjeux, bilan. « Représenter des données » se lit sur de vrais
+      fichiers : la taille de `titre.txt` (5 octets pour « MUSEE ») dans
+      l'explorateur du Serveur, et `mesures.csv`, le fichier de mesures que
+      le capteur exporte (`http://192.168.10.50/mesures.csv`, servi en
+      `text/csv`, mêmes mesures que sa page). « Deux objets qui
+      communiquent » devient une manipulation : un **Afficheur**
+      (192.168.10.51, objet connecté à l'entrée du CDI) reçoit les messages
+      du capteur ; l'élève démarre son Serveur écho (port 7, vérifié par le
+      simulateur), se connecte depuis le Client écho du capteur avec le
+      mauvais port (« Connexion refusée ») puis le bon, envoie `CO2:1150`
+      et lit l'émetteur dans le journal de l'Afficheur. Le port tient le
+      rôle du canal. 75 objectifs (83 avec le bonus), dont 60 questions
+      (3 à réponse libre) ; 20 manipulations vérifiées hors bonus. La fiche
+      « Deux objets qui communiquent » dit comment le faire dans RéseauLab.
+      Tests : ce que l'élève doit observer est confronté au simulateur
+      (taille du fichier, contenu et type de `mesures.csv`, heure du
+      dépassement, refus sur le port 8, message et émetteur au journal,
+      dernier routeur de `traceroute` — bilan B10 pour ces questions) ;
+      bout en bout : capteur branché, fichier de mesures affiché, taille
+      lue dans l'explorateur, échange capteur → afficheur à la souris.
+      « Débit » et « Enjeux du numérique » restent des questions : le
+      simulateur ne modélise pas le débit. Contenu **à faire valider par
       l'enseignant**.
 
+- [x] **Étape 48 — La panne de routage se cherche** (bilan B2). L'étape
+      « Réparer le chemin » de « Du collège au musée » est scindée. Dans
+      **« Trouver où le chemin s'arrête »**, la consigne ne nomme plus le
+      routeur fautif : l'élève lance `traceroute 203.0.113.80` avant toute
+      réparation (la liste s'arrête sur « 198.51.100.2 : destination
+      inaccessible »), retrouve sur le plan le routeur qui porte cette
+      adresse, puis lit sa table. Trois questions : l'adresse du dernier
+      routeur qui répond, le routeur en cause, ce que montre sa table (ni
+      ligne pour le réseau du musée, ni route par défaut). Le bouton
+      « Pourquoi ça ne marche pas ? » devient le deuxième indice.
+      **« Réparer le chemin »** garde la route à ajouter, le `ping`, le
+      second `traceroute` et ses questions. L'activité compte 21 étapes
+      (13 en partie 2) et 78 objectifs (86 avec le bonus), dont 63
+      questions. Tests : la sortie de `traceroute` avant réparation, le
+      routeur qui porte l'adresse et le contenu de sa table sont confrontés
+      aux réponses attendues.
+- [x] **Étape 49 — « Même réseau ? » dans la progression** (bilan B4). Le
+      tirage ne propose plus que le masque `255.255.255.0`, celui que les
+      fiches enseignent. Une question peut demander d'autres masques par
+      `"masks": ["255.255.0.0"]` (activité ou paquet pédagogique).
+      Défaut corrigé au passage : avec `255.255.0.0`, la bonne réponse
+      était toujours « oui » ; les deux réponses sortent maintenant (réseaux
+      172.16 à 172.31), et un « oui » a toujours deux troisièmes nombres
+      différents, ce qui est le piège à déjouer. L'explication rappelle la
+      règle (« les trois premiers nombres désignent le réseau ») et cite
+      les parties réseau. Dans « La salle de techno », le défi bonus
+      explique d'abord `255.255.0.0` par un exemple, puis pose deux tirages
+      avec ce masque. Tests : masques tirés, les deux réponses pour chaque
+      masque, masque inconnu refusé à l'ouverture du fichier.
+- [x] **Étape 50 — Réponses courtes : l'écriture ne compte pas** (bilan
+      B5). La comparaison (`matchesShort`, `src/learn/quiz/quiz.ts`)
+      ignore, en plus des accents et des majuscules, les espaces
+      (« 30 000 », « 10 h 00 », espaces insécables), la ponctuation finale
+      et la différence entre virgule et point décimal. Quand un nombre est
+      attendu, il peut être suivi de son unité : « 4 routeurs », « 8 bits »,
+      « 120 s ». Le nombre doit rester le bon : « 10h30 » n'est pas « 10 »,
+      « 4 ou 5 » n'est pas « 4 ». Une équivalence dans une autre unité se
+      liste (« 30 Ko » et « 2 min » sont ajoutés aux réponses acceptées de
+      « Du collège au musée »). Vaut pour le quiz comme pour les activités.
+      Tests : cas du bilan, cas à refuser, toutes les réponses fournies
+      acceptées telles qu'écrites.
+- [x] **Étape 51 — Finir en ayant compris** (bilan B3). Quatre mesures du
+      moteur, pour toutes les activités. (1) Une commande ne compte pour
+      un objectif que si elle a reçu ce qu'il lui faut : `traceroute` ou
+      `nslookup` seuls répondent « Utilisation : … » et ne valident rien
+      (événement `used` du terminal). (2) Une réponse libre est une phrase
+      d'au moins trois mots. (3) Le panneau affiche le **score des
+      questions de chaque partie** dès la première réponse corrigée, avec
+      un lien « Revoir mes erreurs (n) » qui rouvre les étapes concernées.
+      (4) Après une réponse fausse, **« Réessayer »** pose la question de
+      nouveau sur un autre tirage (autres adresses, choix dans un autre
+      ordre), autant de fois que nécessaire. La première réponse reste
+      celle qui est notée ; le nouvel essai est gardé à côté dans le fichier
+      rendu (`retry`) et le compte rendu l'indique (« Nouvel essai :
+      corrigé au 2e essai »). Une activité peut exiger la correction avec
+      `"requireCorrection": true` : une réponse fausse ne compte alors
+      qu'une fois reprise avec succès, et l'étape suivante reste fermée.
+      Tests : terminal, moteur des questions, session, panneau, compte
+      rendu ; bout en bout : erreur, score, nouvel essai, fichier rendu.
+- [x] **Étape 52 — Consigne courte et repères de séance** (bilan B7). Une
+      étape qui ouvre une partie peut porter une **note** (`partNote`,
+      texte mis en forme) affichée sous le titre de la partie. « Du collège
+      au musée » a maintenant trois parties dont le titre dit la séance :
+      « Séance 1 — Partie 1 » (révisions, 6 étapes), « Séance 1 —
+      Partie 2 » (Internet, passerelle, tables de routage, 3 étapes) et
+      « Séance 2 — Partie 3 » (de la panne au bilan, 10 étapes). Sous le
+      titre de la partie 3, la note dit d'enregistrer en fin de 1re séance
+      et de rouvrir le fichier à la 2e ; elle remplace la phrase perdue au
+      fond de l'étape 9. La consigne générale est réduite à trois
+      paragraphes : la mission, le plan d'adressage, la règle des questions
+      (« ta première réponse est notée », au lieu de « une seule réponse »,
+      inexact depuis l'étape 51). L'encadré sur l'adresse privée remplacée
+      par l'adresse publique quitte la consigne pour l'étape « Lire une
+      table de routage », là où l'élève voit la ligne `192.168.10.0` dans
+      la table du FAI ; la fiche « Adresse IP privée et adresse IP
+      publique » y est proposée. Le score des questions, donné par partie,
+      l'est donc aussi par séance. Tests : note d'une partie (moteur,
+      panneau), longueur et contenu de la consigne, découpage en parties.
+- [x] **Étape 53 — Ce que dit la consigne, le simulateur le montre**
+      (bilan B8). Quatre corrections. (1) **Dossier en lecture seule** :
+      le système de fichiers d'un terminal peut marquer un dossier
+      (`setReadOnly`) ; rien ne s'y crée, ne s'y modifie, ne s'y renomme ni
+      ne s'y supprime, et un dossier qui en contient un ne se renomme ni ne
+      se supprime. L'explorateur le signale (« 🔒 lecture seule ») et
+      affiche le refus (« Dossier en lecture seule : /Documents/Commun ») ;
+      la ligne de commande aussi. La liste est enregistrée avec le projet
+      (`readOnly`, absente des anciens fichiers). Le dossier `Commun` du
+      Serveur l'est dans « Du collège au musée » et « La salle de
+      techno » : la consigne fait essayer d'y créer un dossier. (2) **Plan
+      d'adressage vérifié** : un objectif `config` accepte une plage
+      (`range`, bornes comprises) ; Poste 2 (3e) et Poste 3 (4e) doivent
+      prendre une adresse libre de `.1` à `.9`, sinon « Hors du plan
+      d'adressage ». L'adresse `.50`, réservée à l'objet connecté de
+      l'étape suivante, n'est plus acceptée. (3) Les objectifs « Vérifier
+      ne signale plus rien » disent ce qui est réellement vérifié (« ni
+      doublon, ni mauvais réseau », « sauf des passerelles manquantes »),
+      et la consigne prévient que le bouton garde des alertes. (4)
+      **Question « associer »** (`match`) : des paires à reformer — une
+      liste déroulante par élément, les propositions écrites en entier et
+      repérées par une lettre —, corrigée paire par paire, dans les
+      activités et le quiz. Dans « Du collège au musée », « Switch,
+      serveur, routeur » n'est plus une fausse remise en ordre, et deux
+      choix multiples sur IP et HTTP deviennent une association de quatre
+      protocoles et de leurs rôles : 77 objectifs (85 avec le bonus), dont
+      62 questions. Tests : système de fichiers, projet enregistré,
+      terminal, explorateur, plage d'adresses, tirage et correction d'une
+      association, panneau ; bout en bout : association, refus d'écrire
+      dans `Commun`.
+- [x] **Étape 54 — Corrigé du professeur et approfondissement** (bilan
+      B9). (1) **Corrigé** : avec `?prof` dans l'adresse, un bouton
+      « Corrigé » apparaît dans la liste des activités et dans le panneau
+      de l'activité en cours (badge « Mode professeur » dans la barre) ;
+      sans ce paramètre, rien dans l'interface n'y mène. Le corrigé est
+      construit depuis l'activité (`src/learn/activity/answerKey.ts`) :
+      un tableau de **déroulement** (parties, étapes, manipulations et
+      questions, fiches, durée estimée), la consigne, puis pour chaque
+      étape ce que l'élève doit faire, les objectifs avec la façon dont ils
+      se valident, chaque question avec la réponse attendue, les autres
+      choix et l'explication, et les indices. Il s'imprime seul ou
+      s'enregistre en PDF, et vaut pour toute activité, y compris celles
+      de l'enseignant. Une étape peut porter un texte **pour le
+      professeur** (`solution`), affiché seulement là : les seize étapes à
+      manipulation de « Du collège au musée » en ont un, confronté au
+      réseau de départ par les tests (adresse fautive de Poste 2, tables
+      des routeurs, route à ajouter). Les fiches liées à l'étape sont
+      citées avec leur référence au programme quand l'enseignant l'a
+      saisie. (2) **Approfondissement** : une étape marquée
+      `"optional": true` est signalée dans le panneau, ne compte pas dans
+      les objectifs à atteindre, et l'élève qui y arrive peut la **passer**
+      (« Passer cette étape ») : la suite s'ouvre, l'étape reste faisable.
+      Le fichier rendu garde les étapes passées (`skipped`) ; le compte
+      rendu et le corrigé le disent. Tests : générateur du corrigé,
+      durées, étapes passées (moteur, session, panneau, compte rendu),
+      accès réservé ; bout en bout : corrigé absent sans `?prof`, ouvert
+      avec, seul à l'impression.
+- [x] **Étape 55 — Corrigé : mise en page, impression, version pour les
+      élèves** (demande de l'enseignant après l'étape 54). (1) **Deux
+      versions**, choisies dans la fenêtre du corrigé : « Professeur »
+      (complète) et « Élèves » (la correction seule, à distribuer : ce
+      qu'il fallait faire, les réponses, les explications, les fiches à
+      relire ; ni déroulement, ni consignes, ni indices, ni durées, ni
+      remarques de notation). Une étape peut porter une **note pour le
+      professeur** (`teacherNote`), absente de la version des élèves ;
+      les remarques de ce type ont été sorties des textes `solution` de
+      « Du collège au musée ». (2) **Lisibilité** : en-tête avec
+      l'essentiel en pastilles, une couleur par partie (titre, numéros
+      d'étape, frise et tableau du déroulement), encadrés distincts pour
+      la consigne (gris), ce qu'il fallait faire (vert), les indices et
+      la note du professeur (jaune), étiquettes « À faire » / « Question
+      n », réponse attendue sur fond vert, associations en deux colonnes.
+      Aucune couleur ne porte seule une information (photocopie en noir).
+      (3) **Schémas** : le **plan du réseau** de l'activité sous le titre
+      (noms agrandis, liseré blanc sous les noms) et une **frise** des
+      durées par partie ; le tableau du déroulement gagne une barre par
+      durée et le **temps écoulé** à la fin de chaque étape, et perd la
+      colonne des fiches (citées à chaque étape). (4) **Impression** : le
+      titre et le plan sur une page en paysage, le déroulement sur une
+      page à lui, puis une page par partie ; ni question, ni encadré, ni
+      en-tête d'étape coupés ; un titre reste avec ce qui le suit, les
+      indices et les fiches avec la fin de leur étape. Les couleurs sont
+      imprimées. Le fichier PDF proposé porte le nom du document. Tests :
+      générateur (notes à part), fenêtre (deux versions, ce que la
+      version des élèves ne montre pas, titre à l'impression) ; bout en
+      bout : règles de saut de page, et PDF produit dont seule la
+      première page est en paysage.
+
 ## Écarts au plan
+
+- **Mise en page du corrigé vérifiée dans Chrome seulement** (étape 55) :
+  les PDF des deux versions de « Du collège au musée » ont été relus page
+  par page (27 pages pour le professeur, 15 pour les élèves). Dans un
+  navigateur qui ne connaît pas les pages nommées, le plan reste en
+  portrait, sur la page du titre. Les essais de correction en deux
+  colonnes ont été abandonnés : Chrome y laissait des demi-pages vides.
+- **Le plan du corrigé est celui du départ, pannes comprises** (étape 55) : pour une activité fournie, c'est le réseau que les élèves
+  reçoivent ; pour l'activité en cours, c'est le plan à l'écran. Aucun
+  plan « solution » n'est dessiné.
+- **Aucune étape marquée « approfondissement »** (étape 54) : le
+  mécanisme est livré, mais le choix des étapes qu'un élève peut passer
+  dans « Du collège au musée » revient à l'enseignant ; proposition :
+  « Débit et ordres de grandeur » et « Deux objets qui communiquent ». Il
+  ne se règle pas dans « Créer une activité » : il s'écrit dans le fichier.
+- **Durées du corrigé : une estimation** (étape 54) : la durée indicative
+  de l'activité est répartie entre les étapes selon ce que chacune demande
+  (une manipulation compte double d'une question). Rien n'a été mesuré en
+  classe. Pour « Du collège au musée », cette répartition donne 93 min à
+  la séance 1 et 87 à la séance 2.
+- **`?prof` n'est pas une protection** (étape 54) : le paramètre cache le
+  corrigé, il ne le chiffre pas. Un élève qui le connaît peut l'ajouter à
+  l'adresse, et les réponses restent lisibles dans le fichier de
+  l'application, comme avant. Le badge « Mode professeur » rend la chose
+  visible sur un poste d'élève.
+- **Pas de référence au programme écrite par RéseauLab** (étape 54) :
+  comme pour les fiches (étape 22), le corrigé affiche la référence saisie
+  par l'enseignant dans le champ `curriculum` d'une fiche, et rien sinon.
+- **Corrigé des manipulations pour la seule activité de 3e** (étape 54) :
+  les autres activités fournies ont un corrigé généré complet pour les
+  questions, sans texte « ce que l'élève doit faire ».
+- **Lecture seule sans comptes** (étape 53) : le simulateur n'a pas
+  d'utilisateurs ; un dossier en lecture seule l'est pour tous, alors
+  qu'au collège ce droit dépend du compte. La correction de la question
+  le dit. Aucun bouton ne règle la lecture seule : elle vient du réseau de
+  départ d'une activité ou du fichier.
+- **Le compteur du bouton Vérifier reste rouge** (étape 53) : les libellés
+  des objectifs ne le contredisent plus, mais le diagnostic continue
+  d'afficher les passerelles manquantes dès la partie 1. Le régler par
+  étape est le constat A3 du bilan, non traité.
+- **Séances fixées par les titres des parties** (étape 52) : une classe
+  plus lente ou plus rapide ne s'arrêtera pas à la fin de la partie 2 ; la
+  consigne générale garde donc la règle « enregistre à la fin de chaque
+  séance ».
+- **Correction obligatoire non activée** (étape 51) : `requireCorrection`
+  n'est activé dans aucune activité fournie, car il allonge la séance
+  (180 min déjà justes pour « Du collège au musée ») ; par défaut le
+  nouvel essai est proposé, pas imposé. Le bilan proposait un seuil de
+  réussite : il est remplacé par ce réglage tout ou rien, plus simple à
+  expliquer aux élèves. Ni l'un ni l'autre ne se règle dans la fenêtre
+  « Créer une activité » : ils s'écrivent dans le fichier.
+- **Un nouvel essai après avoir lu la correction** (étape 51) : pour un
+  choix multiple ou une réponse courte, la bonne réponse vient d'être
+  affichée ; le nouvel essai vérifie surtout qu'elle a été lue. Seule
+  « Même réseau ? » repose vraiment la question (autres adresses). C'est
+  pourquoi la note reste celle du premier essai.
+- **Unité non vérifiée dans une réponse courte** (étape 50) : « 4 Mo » est
+  accepté là où « 4 » (secondes) est attendu. La question demande un
+  nombre et son unité est dans l'énoncé ; vérifier l'unité demanderait de
+  la déclarer pour chaque question.
+- **Pas de réglage de la protection dans l'éditeur d'activité**
+  (étape 46) : `protect` s'écrit dans le fichier d'activité ou dans le
+  code d'une activité fournie ; la fenêtre « Créer une activité » ne le
+  propose pas. Seule « Du collège au musée » l'utilise ; « La salle de
+  techno » et les autres activités gardent un réseau entièrement
+  modifiable.
+- **Bureau fermé sur les terminaux protégés** (étape 46) : le serveur DNS
+  du FAI, le serveur du musée et le portable de la médiathèque n'ouvrent
+  plus leur bureau en simulation, sans quoi l'élève pourrait arrêter leurs
+  services ou modifier leurs fichiers. Leurs échanges de données restent
+  consultables ; aucune étape ne demandait d'y travailler.
+- **Protection par comptage** (étape 46) : sont protégées les N premières
+  interfaces et les N premières routes statiques d'un routeur. Cela
+  suppose que l'interface n'insère jamais rien avant elles, ce qui est le
+  cas (ajouts en fin de liste) et qu'un test vérifie.
+- **Le port à la place du canal radio** (étape 47) : l'échange entre deux
+  objets passe par le réseau du CDI (Client écho → Serveur écho) et non par
+  radio ; le port joue le rôle du canal, et l'accusé de réception est
+  l'écho du serveur. RéseauLab ne programme pas les objets : faire réagir
+  le récepteur se travaille toujours avec de vraies cartes. L'Afficheur est
+  signalé « service non démarré » par le bouton Vérifier jusqu'à cette
+  étape ; l'objectif « plus d'erreur d'adresse au CDI » n'en tient pas
+  compte.
+- **Mesures lues, pas téléchargées** (étape 47) : `mesures.csv` s'affiche
+  dans le navigateur simulé, ce qui montre le format (une mesure par ligne,
+  des points-virgules) ; il ne se télécharge toujours pas vers un tableur
+  (voir l'écart de l'étape 41).
 
 - **Pas de jeu débranché dans « Du collège au musée »** (étape 45) : le
   programme de 3e demande de justifier le routage par une activité
@@ -632,16 +946,16 @@ questions.
   lisant les tables des routeurs à l'écran, puis complète une vraie table.
   Le défi bonus reprend des tables données dans la consigne, sans
   simulateur.
-- **Deux objets communicants en questions** (étape 45) : les objets
-  connectés de RéseauLab servent une page web mais ne dialoguent pas entre
-  eux. L'échange radio entre deux cartes (émetteur, récepteur, canal,
-  format de message) est donc travaillé par des questions ; la manipulation
-  se fait avec de vraies cartes.
+- **Deux objets communicants en questions** (étape 45) : levé en partie à
+  l'étape 47, où l'échange se manipule entre le capteur et un afficheur
+  (voir « Le port à la place du canal radio »). La programmation de deux
+  cartes reste hors de RéseauLab.
 - **Fichier unique sous 1 Mo au lieu de 900 Ko** (étape 45) : avec les
   consignes, questions et explications de « Du collège au musée »
   (≈ 51 Ko, du texte que la minification ne réduit pas), le fichier
-  construit passe de 864 Ko à 916 Ko. La limite du test de bout en bout
-  passe à 1 Mo ; l'alléger demanderait de retirer du contenu.
+  construit passe de 864 Ko à 916 Ko (929 Ko après les étapes 46 à 51, 956 Ko après les étapes 52 à 54, 965 Ko après l'étape 55).
+  La limite du test de bout en bout passe à 1 Mo ; l'alléger demanderait
+  de retirer du contenu.
 - **Le FAI connaît le réseau privé du CDI** (étape 45) : faute de
   traduction d'adresses (voir la box, étape 29), le routeur du FAI a une
   route vers 192.168.10.0. La consigne le signale et une question du bonus

@@ -36,16 +36,30 @@ export function ActivitiesWindow() {
               </p>
               <p className="muted">{activity.summary}</p>
             </div>
-            <button
-              type="button"
-              className="primary"
-              aria-label={`Commencer : ${activity.title}`}
-              onClick={() => {
-                choose(activity);
-              }}
-            >
-              Commencer
-            </button>
+            <div className="activity-buttons">
+              <button
+                type="button"
+                className="primary"
+                aria-label={`Commencer : ${activity.title}`}
+                onClick={() => {
+                  choose(activity);
+                }}
+              >
+                Commencer
+              </button>
+              {session.teacher && (
+                <button
+                  type="button"
+                  aria-label={`Corrigé : ${activity.title}`}
+                  title="Réponses attendues, explications et déroulement, à imprimer (professeur)"
+                  onClick={() => {
+                    session.openWindow({ type: 'answers', builtin: activity.id });
+                  }}
+                >
+                  Corrigé
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>

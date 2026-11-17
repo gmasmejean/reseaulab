@@ -18,6 +18,7 @@ describe('Chemins', () => {
   test('types MIME', () => {
     expect(mimeType('/a/b.HTML')).toBe('text/html');
     expect(mimeType('photo.jpg')).toBe('image/jpeg');
+    expect(mimeType('/webserver/mesures.csv')).toBe('text/csv');
     expect(mimeType('sans-extension')).toBe('application/octet-stream');
   });
 });
@@ -90,6 +91,103 @@ describe('FileSystem', () => {
       fs.remove('/absent');
     }).toThrow(/Introuvable/);
     expect(fs.stat('/f/sous')).toBeNull();
+  });
+
+  test('dossier en lecture seule : on lit, on ne change rien, ni dedans ni au-dessus', () => {
+    let changes = 0;
+    const fs = new FileSystem(() => changes++);
+    fs.mkdir('/Documents/Commun/Archives', true);
+    fs.mkdir('/Documents/3A');
+    fs.writeFile('/Documents/Commun/charte.pdf', 'Charte');
+    expect(() => {
+      fs.setReadOnly('/Documents/Absent');
+    }).toThrow('Dossier introuvable : /Documents/Absent');
+    fs.setReadOnly('/Documents/Commun/');
+    expect(fs.readOnlyPaths()).toEqual(['/Documents/Commun']);
+    expect(fs.isReadOnly('/Documents/Commun')).toBe(true);
+    expect(fs.isReadOnly('/Documents/Commun/Archives/x.txt')).toBe(true);
+    // Un nom qui commence pareil n'est pas « dedans ».
+    expect(fs.isReadOnly('/Documents/Communs')).toBe(false);
+    expect(fs.isReadOnly('/Documents')).toBe(false);
+
+    // Lire reste possible.
+    expect(fs.readFile('/Documents/Commun/charte.pdf')).toBe('Charte');
+    expect(fs.list('/Documents/Commun').map((e) => e.name)).toEqual(['Archives', 'charte.pdf']);
+
+    // Rien ne change dedans : ni création, ni écriture, ni nouveau nom, ni suppression.
+    const before = changes;
+    const refused = 'Dossier en lecture seule : /Documents/Commun';
+    for (const attempt of [
+      () => {
+        fs.mkdir('/Documents/Commun/Nouveau');
+      },
+      () => {
+        fs.mkdir('/Documents/Commun/a/b', true);
+      },
+      () => {
+        fs.writeFile('/Documents/Commun/moi.txt', 'x');
+      },
+      () => {
+        fs.writeFile('/Documents/Commun/charte.pdf', 'modifiée');
+      },
+      () => {
+        fs.rename('/Documents/Commun/charte.pdf', 'autre.pdf');
+      },
+      () => {
+        fs.remove('/Documents/Commun/charte.pdf');
+      },
+      () => {
+        fs.remove('/Documents/Commun/Archives');
+      },
+      () => {
+        fs.rename('/Documents/Commun', 'Partage');
+      },
+      () => {
+        fs.remove('/Documents/Commun', true);
+      },
+    ])
+      expect(attempt).toThrow(refused);
+    // Ni au-dessus : supprimer ou renommer Documents emporterait Commun.
+    for (const attempt of [
+      () => {
+        fs.remove('/Documents', true);
+      },
+      () => {
+        fs.rename('/Documents', 'Docs');
+      },
+    ])
+      expect(attempt).toThrow('Ce dossier contient un dossier en lecture seule : /Documents/Commun');
+    expect(changes).toBe(before);
+    expect(fs.toJSON()).toEqual({
+      Documents: { Commun: { Archives: {}, 'charte.pdf': 'Charte' }, '3A': {} },
+    });
+
+    // À côté, tout reste permis ; un dossier qui existe déjà n'est pas « créé ».
+    fs.writeFile('/Documents/3A/notes.txt', 'x');
+    fs.mkdir('/Documents/Commun', true);
+    fs.rename('/Documents/3A', '3B');
+    expect(fs.exists('/Documents/3B/notes.txt')).toBe(true);
+
+    // Rendu modifiable, le dossier se comporte comme les autres.
+    fs.setReadOnly('/Documents/Commun', false);
+    expect(fs.readOnlyPaths()).toEqual([]);
+    fs.writeFile('/Documents/Commun/moi.txt', 'x');
+    expect(fs.readFile('/Documents/Commun/moi.txt')).toBe('x');
+  });
+
+  test('la lecture seule se recharge avec les fichiers ; un dossier disparu est oublié', () => {
+    const fs = new FileSystem();
+    fs.mkdir('/Documents/Commun', true);
+    fs.setReadOnly('/Documents/Commun');
+    const copy = new FileSystem();
+    copy.load(fs.toJSON(), [...fs.readOnlyPaths(), '/Absent', 'Documents/Commun/']);
+    expect(copy.readOnlyPaths()).toEqual(['/Documents/Commun']);
+    expect(() => {
+      copy.writeFile('/Documents/Commun/x.txt', 'x');
+    }).toThrow(FsError);
+    // Sans liste (ancien fichier), tout est modifiable.
+    copy.load(fs.toJSON());
+    expect(copy.readOnlyPaths()).toEqual([]);
   });
 
   test('sérialisation aller-retour et validation', () => {

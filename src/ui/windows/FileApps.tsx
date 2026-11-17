@@ -179,6 +179,12 @@ export function FileExplorerApp({ host }: { host: Host }) {
           }}
         />
       </div>
+      {fs.isReadOnly(current) && (
+        <p className="explorer-read-only" role="note">
+          🔒 Dossier en lecture seule : tu peux ouvrir et exporter ses fichiers, mais pas en créer, les
+          modifier ni les supprimer.
+        </p>
+      )}
       {message && (
         <p className="field-error" role="alert">
           {message}
@@ -240,6 +246,9 @@ export function FileExplorerApp({ host }: { host: Host }) {
                       }}
                     >
                       📁 {e.name}
+                      {fs.isReadOnly(path) && !fs.isReadOnly(current) && (
+                        <span className="read-only-tag"> 🔒 lecture seule</span>
+                      )}
                     </button>
                   ) : (
                     <span>📄 {e.name}</span>

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LINT_CODES, TRACE_CODES } from '../diagnose/findings';
+import { SAME_NETWORK_MASKS } from '../quiz/types';
 import { CATEGORIES, LEVELS, type PackOverride } from './types';
 
 /* File of a pedagogical pack (« *.pack.reseaulab.json »), written or edited by
@@ -72,10 +73,28 @@ const question = z.discriminatedUnion('type', [
   }),
   z.object({
     ...questionBase,
+    type: z.literal('match'),
+    pairs: z
+      .array(z.tuple([z.string().trim().min(1).max(200), z.string().trim().min(1).max(200)]))
+      .min(2)
+      .max(8)
+      .refine((pairs) => new Set(pairs.map(([left]) => left)).size === pairs.length, {
+        message: 'Deux éléments à associer sont identiques',
+      })
+      .refine((pairs) => new Set(pairs.map(([, right]) => right)).size === pairs.length, {
+        message: 'Deux propositions à associer sont identiques',
+      }),
+  }),
+  z.object({
+    ...questionBase,
     type: z.literal('short'),
     accepted: z.array(z.string().trim().min(1).max(80)).min(1).max(10),
   }),
-  z.object({ ...questionBase, type: z.literal('same-network') }),
+  z.object({
+    ...questionBase,
+    type: z.literal('same-network'),
+    masks: z.array(z.enum(SAME_NETWORK_MASKS)).min(1).max(2).optional(),
+  }),
 ]);
 
 const message = z

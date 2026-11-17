@@ -162,6 +162,34 @@ describe('Vérification des objectifs : état du réseau', () => {
     expect(statuses(net, [unique])).toEqual(['todo']);
   });
 
+  test('plan d’adressage : une adresse de la plage réservée, bornes comprises', () => {
+    const { net, a } = routedNetwork();
+    const check = {
+      type: 'config',
+      device: named('A'),
+      field: 'ip',
+      range: { from: '192.168.1.1', to: '192.168.1.9' },
+    } as const;
+    const outcome = () => evaluateNow(activity(check), net, EMPTY_WORK).get('o0');
+    const outside = { status: 'todo', detail: 'Hors du plan d’adressage : de 192.168.1.1 à 192.168.1.9.' };
+    // A est en .10 : dans le bon réseau, mais hors de la plage des postes.
+    expect(outcome()).toEqual(outside);
+    for (const [address, expected] of [
+      ['192.168.1.1', { status: 'done' }],
+      ['192.168.1.9', { status: 'done' }],
+      ['192.168.1.50', outside],
+      ['192.168.0.9', outside],
+    ] as const) {
+      a.updateConfig({ ip: ip(address) });
+      expect(outcome()).toEqual(expected);
+    }
+    // Sans adresse fixe, rien n'est dans la plage.
+    a.updateConfig({ ip: IP_ANY });
+    expect(outcome()).toEqual({ status: 'todo' });
+    // Une plage mal écrite est refusée à l'ouverture du fichier.
+    expect(() => activity({ ...check, range: { from: '192.168.1', to: '192.168.1.9' } })).toThrow();
+  });
+
   test('interface de routeur, logiciel installé, serveur démarré', () => {
     const { net, b } = routedNetwork();
     b.install('webserver');

@@ -199,6 +199,12 @@ describe('Terminal', () => {
     expect(run(net, t, 'mkdir')).toContain('manquant');
     expect(run(net, t, 'rm /')).toContain('racine');
     expect(run(net, t, 'rm /docs')).toContain('pas vide');
+    // Dans un dossier en lecture seule, les commandes sont refusées, avec la raison.
+    a.fs.setReadOnly('/docs');
+    for (const command of ['mkdir sous-dossier', 'touch autre.txt', 'rm note.txt', 'rm -r /docs'])
+      expect(run(net, t, command)).toBe('Dossier en lecture seule : /docs');
+    expect(run(net, t, 'cat note.txt')).toBe('l1\nl2');
+    a.fs.setReadOnly('/docs', false);
     run(net, t, 'rm -r /docs');
     expect(t.term.cwd).toBe('/');
     run(net, t, 'cd');
@@ -261,12 +267,44 @@ describe('Terminal : commandes autorisées et événements', () => {
     exec('ping absent.ecole.fr');
     expect(events).toEqual([
       { kind: 'command', name: 'ipconfig', line: 'IPCONFIG' },
+      { kind: 'used', name: 'ipconfig' },
       { kind: 'command', name: 'ping', line: 'ping -n 2 192.168.2.10' },
+      { kind: 'used', name: 'ping' },
       { kind: 'ping-done', target: ip('192.168.2.10'), sent: 2, received: 2 },
       { kind: 'command', name: 'ping', line: 'ping -n 1 192.168.1.77' },
+      { kind: 'used', name: 'ping' },
       { kind: 'ping-done', target: ip('192.168.1.77'), sent: 1, received: 0 },
       { kind: 'command', name: 'ping', line: 'ping absent.ecole.fr' },
+      { kind: 'used', name: 'ping' },
       { kind: 'resolve-failed', name: 'absent.ecole.fr', error: 'nxdomain' },
     ]);
+  });
+
+  test('une commande sans ce qu’il lui faut est lancée, mais pas « utilisée »', () => {
+    const { net, a } = setup();
+    net.start();
+    const events: TerminalEvent[] = [];
+    const out: string[] = [];
+    const term = new Terminal(
+      a,
+      { print: (line) => out.push(line), clear: () => undefined },
+      { onEvent: (e) => events.push(e) },
+    );
+    for (const line of ['traceroute', 'nslookup', 'ping', 'ping -n 2']) {
+      term.execute(line);
+      net.scheduler.runUntilIdle();
+    }
+    expect(out.filter((line) => line.startsWith('Utilisation')).length).toBe(4);
+    expect(events.filter((e) => e.kind === 'command').map((e) => e.name)).toEqual([
+      'traceroute',
+      'nslookup',
+      'ping',
+      'ping',
+    ]);
+    expect(events.some((e) => e.kind === 'used')).toBe(false);
+    // Avec une cible, même hors d'atteinte, la commande a servi.
+    term.execute('traceroute 192.168.2.10');
+    net.scheduler.runUntilIdle();
+    expect(events.filter((e) => e.kind === 'used')).toEqual([{ kind: 'used', name: 'traceroute' }]);
   });
 });

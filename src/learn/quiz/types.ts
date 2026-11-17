@@ -28,6 +28,15 @@ export type Question = QuestionBase &
         readonly items: readonly string[];
       }
     | {
+        /**
+         * Pairs to put back together (an equipment and its role, a protocol
+         * and what it does): each first item is shown with a list of the
+         * second ones to choose from.
+         */
+        readonly type: 'match';
+        readonly pairs: readonly (readonly [string, string])[];
+      }
+    | {
         /** A word or a number to type; accents and capitals do not matter. */
         readonly type: 'short';
         readonly accepted: readonly string[];
@@ -35,8 +44,14 @@ export type Question = QuestionBase &
     | {
         /** « Are these two addresses in the same network? », with new addresses each time. */
         readonly type: 'same-network';
+        /** Masks the draw may use; only 255.255.255.0, the one the cards teach, when absent. */
+        readonly masks?: readonly SameNetworkMask[] | undefined;
       }
   );
+
+/** The masks a « same network? » question can be drawn with. */
+export const SAME_NETWORK_MASKS = ['255.255.255.0', '255.255.0.0'] as const;
+export type SameNetworkMask = (typeof SAME_NETWORK_MASKS)[number];
 
 /** A question as put to the pupil: generated values drawn, choices shuffled. */
 export type QuizItem = {
@@ -47,10 +62,17 @@ export type QuizItem = {
 } & (
   | { readonly kind: 'choice'; readonly choices: readonly string[]; readonly correct: readonly number[] }
   | { readonly kind: 'order'; readonly shuffled: readonly string[]; readonly solution: readonly string[] }
+  /** `solution[i]` goes with `lefts[i]`; `shuffled` is what the pupil chooses from. */
+  | {
+      readonly kind: 'match';
+      readonly lefts: readonly string[];
+      readonly shuffled: readonly string[];
+      readonly solution: readonly string[];
+    }
   | { readonly kind: 'short'; readonly accepted: readonly string[] }
 );
 
-/** What the pupil answered: chosen indices, items in their order, or a text. */
+/** What the pupil answered: chosen indices, items in their order (or matched to each first item), or a text. */
 export type Answer = readonly number[] | readonly string[] | string;
 
 export interface QuizResult {

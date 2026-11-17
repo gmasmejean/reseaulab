@@ -1,9 +1,23 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import type { Outcome } from '../../learn/activity/evaluate';
-import { askQuestion, drawSalt, givenParts, type GivenPart } from '../../learn/activity/questions';
+import {
+  OPEN_MIN_WORDS,
+  askQuestion,
+  askRetry,
+  canRetry,
+  drawSalt,
+  givenParts,
+  isOpenAnswer,
+  partsOf,
+  questionsOf,
+  scoreQuestions,
+  type GivenPart,
+} from '../../learn/activity/questions';
 import {
   familyOf,
+  isOptionalStep,
   objectivesOf,
+  optionalObjectives,
   requiredObjectives,
   type ActivityQuestion,
   type Objective,
@@ -78,7 +92,7 @@ function OpenQuestion({
       className="quiz-question"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!locked && text.trim() !== '') onAnswer(text);
+        if (!locked && isOpenAnswer(text)) onAnswer(text);
       }}
     >
       <label>
@@ -93,12 +107,78 @@ function OpenQuestion({
           }}
         />
       </label>
+      {!locked && text.trim() !== '' && !isOpenAnswer(text) && (
+        <p className="muted small">Rédige une phrase : au moins {OPEN_MIN_WORDS} mots.</p>
+      )}
       {!locked && (
-        <button type="submit" className="primary" disabled={text.trim() === ''}>
+        <button type="submit" className="primary" disabled={!isOpenAnswer(text)}>
           Valider
         </button>
       )}
     </form>
+  );
+}
+
+/**
+ * After a wrong answer: a new try on a new draw. The first answer stays the
+ * one that is marked; the new try shows the pupil — and the teacher — that
+ * the correction was understood.
+ */
+function Retry({
+  objective,
+  question,
+  answer,
+}: {
+  objective: Objective;
+  question: ActivityQuestion;
+  answer: QuestionAnswer;
+}) {
+  const session = useSession();
+  const [open, setOpen] = useState(false);
+  const last = answer.retry;
+  if (last?.right === true) {
+    return (
+      <p className="quiz-retry right" role="status">
+        ✔ Corrigé au nouvel essai{last.tries > 1 ? ` (${last.tries} essais)` : ''}. Ta première réponse reste
+        notée dans le compte rendu.
+      </p>
+    );
+  }
+  const retry = askRetry(objective.id, question, session.work);
+  if (!retry) return null;
+  if (open) {
+    return (
+      <div className="quiz-retry" role="group" aria-label="Nouvel essai">
+        <p className="quiz-retry-title">Nouvel essai</p>
+        <QuestionForm
+          key={`${retry.tries}:${retry.item.prompt}`}
+          item={retry.item}
+          locked={false}
+          onAnswer={(given) => {
+            setOpen(false);
+            session.retryQuestion(objective.id, given);
+          }}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="quiz-retry">
+      {last && (
+        <p role="status">✘ Nouvel essai : ce n’est pas encore ça. Relis la correction, puis réessaie.</p>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Réessayer
+      </button>
+      {session.activity?.requireCorrection === true && (
+        <span className="muted small"> Il faut corriger cette réponse pour continuer.</span>
+      )}
+    </div>
   );
 }
 
@@ -169,6 +249,7 @@ function QuestionBlock({
         <Feedback item={answer.item} right={answer.right === true}>
           {readAgain}
         </Feedback>
+        {answer.right === false && <Retry objective={objective} question={question} answer={answer} />}
       </>
     );
   } else {
@@ -194,6 +275,9 @@ function QuestionBlock({
     </section>
   );
 }
+
+/** Where a step is in the page, to bring it into view. */
+const stepAnchor = (stepId: string) => `activity-step-${stepId}`;
 
 /** Objectives in their order: checks grouped in lists, questions in their own blocks. */
 function groupObjectives<T extends { o: Objective }>(objectives: readonly T[]): (T | T[])[] {
@@ -302,6 +386,45 @@ function PanelResizer({
 }
 
 /**
+ * How the questions of a part were answered, as soon as one is marked: the
+ * pupil sees the score while working, not only on the report, and goes back
+ * to the answers still wrong.
+ */
+function PartScore({
+  steps,
+  toReview,
+  onReview,
+}: {
+  steps: readonly Step[];
+  toReview: (steps: readonly Step[]) => Step[];
+  onReview: (steps: readonly Step[]) => void;
+}) {
+  const session = useSession();
+  const score = scoreQuestions(steps, session.work);
+  if (score.marked === 0) return null;
+  const left = questionsOf(toReview(steps)).filter((o) => canRetry(session.work.answers[o.id])).length;
+  return (
+    <p className="part-score" role="status">
+      <span>
+        Questions : {score.right} juste{score.right > 1 ? 's' : ''} sur {score.marked}
+        {score.corrected > 0 && ` · ${score.corrected} corrigée${score.corrected > 1 ? 's' : ''} ensuite`}
+      </span>
+      {left > 0 && (
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            onReview(steps);
+          }}
+        >
+          Revoir mes erreurs ({left})
+        </button>
+      )}
+    </p>
+  );
+}
+
+/**
  * The activity being done, next to the plan: instructions step by step,
  * objectives that tick themselves, hints on request.
  */
@@ -321,7 +444,10 @@ export function ActivityPanel() {
   const all = requiredObjectives(activity);
   const isDone = (o: Objective) => outcomes.get(o.id)?.status === 'done';
   const done = all.filter(isDone).length;
-  const bonus = objectivesOf(activity).filter((o) => !all.includes(o));
+  /** « Approfondissement » steps: in the course of the activity, but not needed to finish. */
+  const extra = optionalObjectives(activity);
+  const extraDone = extra.filter(isDone).length;
+  const bonus = objectivesOf(activity).filter((o) => !all.includes(o) && !extra.includes(o));
   const bonusDone = bonus.filter(isDone).length;
   const current = session.activityStep;
   const finished = all.length > 0 && done === all.length;
@@ -336,6 +462,22 @@ export function ActivityPanel() {
     session.openKnowledge(id);
   };
   const titleOf = (id: string) => session.notion(id)?.title ?? null;
+  /** The parts of the activity, by their first step: each shows how its questions were answered. */
+  const partStarting = new Map(partsOf(activity).map((part) => [part.steps[0]?.id, part]));
+  /** Steps of a part with a wrong answer still to correct. */
+  const toReview = (steps: readonly Step[]) =>
+    steps.filter((step) => questionsOf([step]).some((o) => canRetry(session.work.answers[o.id])));
+  const review = (steps: readonly Step[]) => {
+    const wrong = toReview(steps);
+    setToggled((before) => ({ ...before, ...Object.fromEntries(wrong.map((step) => [step.id, true])) }));
+    const first = wrong[0];
+    if (!first) return;
+    // Once the steps are open.
+    requestAnimationFrame(() => {
+      const element = document.getElementById(stepAnchor(first.id));
+      if (element && 'scrollIntoView' in element) element.scrollIntoView({ block: 'start' });
+    });
+  };
 
   if (folded) {
     return (
@@ -360,11 +502,17 @@ export function ActivityPanel() {
     }));
     const complete = objectives.every((x) => x.outcome.status === 'done');
     const locked = index > current;
+    const optional = isOptionalStep(step);
+    const skipped = optional && !complete && session.work.skipped.includes(step.id);
     const open = toggled[step.id] ?? index === current;
     const shownHints = Math.min(session.work.hints[step.id] ?? 0, step.hints.length);
     const notions = step.notions.map((id) => session.notion(id)).filter((n) => n !== undefined);
     return (
-      <li key={step.id} className={`activity-step ${locked ? 'locked' : complete ? 'complete' : 'current'}`}>
+      <li
+        key={step.id}
+        id={stepAnchor(step.id)}
+        className={`activity-step ${locked ? 'locked' : complete ? 'complete' : skipped ? 'skipped' : 'current'}`}
+      >
         <button
           type="button"
           className="step-title"
@@ -377,9 +525,30 @@ export function ActivityPanel() {
             {complete && !locked && objectives.length > 0 ? '✔' : numberOf(index)}
           </span>
           {step.title}
+          {optional && <span className="step-tag"> — approfondissement{skipped && ', passée'}</span>}
         </button>
         {open && (
           <div className="step-body">
+            {optional && !complete && (
+              <p className="step-optional">
+                {skipped
+                  ? 'Tu as passé cette étape. Tu peux y revenir quand tu veux.'
+                  : 'Étape d’approfondissement : si tu manques de temps, tu peux la passer.'}
+                {!skipped && index === current && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        session.skipStep(step.id);
+                      }}
+                    >
+                      Passer cette étape
+                    </button>
+                  </>
+                )}
+              </p>
+            )}
             {step.body !== '' && <RichText source={step.body} onOpenNotion={openNotion} titleOf={titleOf} />}
             {notions.length > 0 && (
               // Right under the instructions, so that the pupil sees them before answering.
@@ -451,6 +620,17 @@ export function ActivityPanel() {
       <PanelResizer panel={panel} width={width} onDrag={setDragWidth} />
       <header>
         <h2>{activity.title}</h2>
+        {session.teacher && (
+          <button
+            type="button"
+            title="Réponses attendues, explications et déroulement, à imprimer (professeur)"
+            onClick={() => {
+              session.openWindow({ type: 'answers' });
+            }}
+          >
+            Corrigé
+          </button>
+        )}
         <button
           type="button"
           className="icon-button"
@@ -466,6 +646,9 @@ export function ActivityPanel() {
       <p className="activity-progress" role="status">
         <progress value={done} max={Math.max(1, all.length)} aria-label="Avancement" />
         {done} objectif{done > 1 ? 's' : ''} sur {all.length}
+        {extra.length > 0 &&
+          (extraDone > 0 || finished) &&
+          ` · approfondissement ${extraDone}/${extra.length}`}
         {bonus.length > 0 && finished && ` · bonus ${bonusDone}/${bonus.length}`}
       </p>
       {session.embed?.consultation === false && (
@@ -495,6 +678,16 @@ export function ActivityPanel() {
                     <span className="muted"> — pour ceux qui ont fini</span>
                   )}
                 </h3>
+                {step.part !== undefined && (step.partNote ?? '') !== '' && (
+                  <div className="part-note">
+                    <RichText source={step.partNote ?? ''} onOpenNotion={openNotion} titleOf={titleOf} />
+                  </div>
+                )}
+                <PartScore
+                  steps={partStarting.get(step.id)?.steps ?? []}
+                  toReview={toReview}
+                  onReview={review}
+                />
               </li>,
               view,
             ];

@@ -13,6 +13,19 @@ export const SWITCH_QUESTION = {
   notion: 'switch',
 };
 
+/** Pairs to put back together. */
+export const MATCH_QUESTION = {
+  type: 'match' as const,
+  prompt: 'Associe chaque équipement à son rôle.',
+  pairs: [
+    ['Switch', 'Relier les équipements d’un réseau'],
+    ['Routeur', 'Relier des réseaux'],
+    ['Serveur', 'Fournir des fichiers'],
+  ] as [string, string][],
+  explanation: 'Le switch relie des équipements, le routeur des réseaux, le serveur fournit.',
+  notion: 'switch',
+};
+
 /** Two steps of questions, then a bonus step. */
 export const QUESTIONS: ActivityInput = {
   id: 'questions',
@@ -36,6 +49,7 @@ export const QUESTIONS: ActivityInput = {
       id: 'adresses',
       title: 'Adresses',
       part: 'Partie 2 — Adresses',
+      partNote: '**Séance 2** : rouvre ton fichier avec [[ecran:ouvrir]].',
       objectives: [
         {
           id: 'q-reseau',
@@ -81,4 +95,49 @@ export const QUESTIONS_BUILTIN: BuiltinActivity = {
   level: '4e',
   summary: 'Des questions.',
   build: () => ({ network: new Network(), activity: activitySchema.parse(QUESTIONS) }),
+};
+
+/** Three steps of one question each; the second one is an « approfondissement » that may be skipped. */
+export const OPTIONAL: ActivityInput = {
+  id: 'facultatif',
+  title: 'Avec approfondissement',
+  level: '3e',
+  steps: [
+    {
+      id: 'base',
+      title: 'Base',
+      objectives: [
+        { id: 'q-switch', label: 'Rôle du switch', check: { type: 'question', question: SWITCH_QUESTION } },
+      ],
+    },
+    {
+      id: 'plus',
+      title: 'Pour aller plus loin',
+      optional: true,
+      solution: 'Réponse : **4** routeurs.',
+      objectives: [
+        {
+          id: 'q-combien',
+          label: 'Combien de routeurs',
+          check: {
+            type: 'question',
+            question: { type: 'short', prompt: 'Combien de routeurs ?', accepted: ['4'] },
+          },
+        },
+      ],
+    },
+    {
+      id: 'fin',
+      title: 'Fin',
+      objectives: [{ id: 'q-roles', label: 'Rôles', check: { type: 'question', question: MATCH_QUESTION } }],
+    },
+  ],
+};
+
+export const OPTIONAL_BUILTIN: BuiltinActivity = {
+  id: 'facultatif',
+  title: 'Avec approfondissement',
+  level: '3e',
+  summary: 'Une étape peut être passée.',
+  build: () => ({ network: new Network(), activity: activitySchema.parse(OPTIONAL) }),
 };

@@ -128,6 +128,29 @@ describe('Projet', () => {
     expect(ping(loaded, loaded.host(a.id), '192.168.2.10').kind).toBe('reply');
   });
 
+  test('les dossiers en lecture seule sont enregistrés ; les anciens projets n’en ont pas', () => {
+    const { net, a } = routedNetwork();
+    a.fs.mkdir('/Documents/Commun', true);
+    a.fs.setReadOnly('/Documents/Commun');
+    const project = toProject(net);
+    const loaded = parseProject(serializeProject(net));
+    expect(toProject(loaded)).toEqual(project);
+    expect(loaded.host(a.id).fs.readOnlyPaths()).toEqual(['/Documents/Commun']);
+    expect(() => {
+      loaded.host(a.id).fs.writeFile('/Documents/Commun/x.txt', 'x');
+    }).toThrow('Dossier en lecture seule : /Documents/Commun');
+    // La copie sur laquelle le simulateur tourne garde la protection.
+    expect(cloneNetwork(net).host(a.id).fs.isReadOnly('/Documents/Commun')).toBe(true);
+
+    const old = {
+      ...project,
+      devices: project.devices.map((d) =>
+        Object.fromEntries(Object.entries(d).filter(([key]) => key !== 'readOnly')),
+      ),
+    };
+    expect(parseProject(JSON.stringify(old)).host(a.id).fs.readOnlyPaths()).toEqual([]);
+  });
+
   test('les projets enregistrés avant le Wi-Fi se rechargent (filaire, SSID par défaut)', () => {
     const { net, a } = routedNetwork();
     const project = toProject(net);

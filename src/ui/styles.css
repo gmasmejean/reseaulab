@@ -1577,6 +1577,14 @@ input.narrow {
 .device-findings .hint {
   background: var(--accent-soft);
 }
+/* What an activity protects in its starting network. */
+.protected-note {
+  background: var(--surface-2);
+  border-left: 3px solid var(--muted);
+  border-radius: 6px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+}
 .terminal-hint button {
   background: #2b3a52;
   border-color: #4a5d7a;
@@ -2296,6 +2304,377 @@ button.screen-chip:focus-visible {
   font-size: 0.95rem;
   color: var(--accent);
 }
+.explorer-read-only {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--warning-bg);
+  font-size: 0.9rem;
+}
+.read-only-tag {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.answer-key-empty {
+  padding: 16px;
+}
+.answer-key-bar {
+  display: flex;
+  gap: 8px 12px;
+  align-items: center;
+}
+.answer-key-bar p {
+  flex: 1;
+  margin: 0;
+}
+.answer-key-bar button {
+  flex: none;
+}
+/* The colours of the parts, in turn; the bonus has its own. A colour never
+ * carries a meaning alone: the corrigé is often photocopied in black. */
+.key-tone-0 {
+  --tone: #2557d6;
+  --tone-soft: #e3eafc;
+}
+.key-tone-1 {
+  --tone: #b4530a;
+  --tone-soft: #fde8d7;
+}
+.key-tone-2 {
+  --tone: #7a3fc0;
+  --tone-soft: #f3e5fb;
+}
+.key-tone-3 {
+  --tone: #0e7490;
+  --tone-soft: #dff3f7;
+}
+.key-tone-bonus {
+  --tone: #5f6b7a;
+  --tone-soft: #eef1f5;
+}
+.answer-key p {
+  margin: 2px 0;
+}
+.key-cover {
+  padding: 10px 14px;
+  border-left: 6px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: #eef3fd;
+}
+.key-cover h1 {
+  margin: 0;
+}
+.key-kicker {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.key-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.key-chips li {
+  padding: 1px 10px;
+  border: 1px solid #b9c6e6;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.9em;
+}
+.key-legend {
+  margin-top: 6px !important;
+  font-size: 0.9em;
+}
+.key-legend-answer {
+  margin-left: 4px;
+  padding: 0 6px;
+  border-left: 4px solid var(--ok);
+  background: #e9f6ee;
+}
+.key-timeline {
+  display: flex;
+  gap: 3px;
+  margin: 8px 0 10px;
+}
+.key-timeline-part {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 8px 5px;
+  border-top: 6px solid var(--tone);
+  background: var(--tone-soft);
+  font-size: 0.85em;
+}
+.key-timeline-part b,
+.key-timeline-part span {
+  display: block;
+}
+.key-plan-part th {
+  border-left: 6px solid var(--tone);
+  background: var(--tone-soft);
+  text-align: left;
+}
+.key-plan td:first-child {
+  width: 46%;
+}
+.key-plan .key-count {
+  text-align: center;
+  white-space: nowrap;
+}
+.key-intro {
+  margin-bottom: 14px;
+}
+.key-duration {
+  white-space: nowrap;
+}
+.key-bar {
+  display: inline-block;
+  width: 56px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: #eee;
+}
+.key-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--tone);
+}
+.key-plan-figure {
+  margin: 0;
+}
+.key-plan-figure .plan-figure {
+  max-height: 520px;
+}
+/* Larger names than in the report: here the plan has a page of its own. */
+.key-plan-figure .figure-label {
+  font-size: 15px;
+}
+.key-plan-figure .figure-sub {
+  font-size: 13px;
+}
+.key-plan-figure figcaption {
+  color: #555;
+  font-size: 0.9em;
+  text-align: center;
+}
+.key-part {
+  margin-top: 22px;
+}
+.answer-key .key-part-title {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 0;
+  border-left: 6px solid var(--tone);
+  border-radius: 0 6px 6px 0;
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 1.1rem;
+}
+.key-minutes {
+  margin-left: auto;
+  color: #555;
+  font-size: 0.85em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.key-step {
+  margin: 0 0 18px;
+  padding-left: 10px;
+  border-left: 3px solid var(--tone-soft, var(--border));
+}
+.answer-key .key-step h3 {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0 0 6px;
+  padding-bottom: 2px;
+  border-bottom: 2px solid var(--tone-soft, var(--border));
+  font-size: 1.05rem;
+}
+.key-number {
+  color: var(--tone, var(--accent));
+  font-size: 1.15em;
+}
+.key-tag {
+  color: var(--tone, var(--accent));
+  font-weight: 400;
+}
+.key-box {
+  margin: 6px 0;
+  padding: 5px 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.answer-key .key-box > h4 {
+  margin: 0 0 2px;
+  color: #444;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.key-box ul,
+.key-box ol {
+  margin: 2px 0;
+  padding-left: 22px;
+}
+.key-instructions {
+  background: #f6f7f9;
+  color: #333;
+  font-size: 0.93em;
+}
+.key-solution {
+  border-color: #9fcfb2;
+  background: #e9f6ee;
+}
+.answer-key .key-solution > h4 {
+  color: #14592f;
+}
+.key-teacher-note,
+.key-hints-box {
+  border-color: #e0c56a;
+  background: var(--warning-bg);
+}
+.key-teacher-note {
+  border-style: dashed;
+}
+.key-objectives {
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}
+.key-item {
+  margin: 6px 0;
+  padding: 5px 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.key-check {
+  background: #f5f8fe;
+}
+.key-badge {
+  display: inline-block;
+  margin-right: 2px;
+  padding: 0 7px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+.key-badge-check {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.key-badge-question {
+  background: #fff;
+  color: #333;
+}
+.key-prompt {
+  font-weight: 600;
+}
+.key-answer {
+  margin: 4px 0;
+  padding: 3px 8px 4px;
+  border-left: 4px solid var(--ok);
+  border-radius: 0 4px 4px 0;
+  background: #e9f6ee;
+}
+.key-answer-label {
+  color: #14592f;
+}
+.key-expected {
+  margin: 0;
+  padding-left: 22px;
+}
+.key-pairs {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.key-pairs li {
+  display: grid;
+  grid-template-columns: minmax(7em, 30%) 1.6em 1fr;
+  padding: 1px 0;
+}
+.key-pairs li + li {
+  border-top: 1px solid #c3e2ce;
+}
+.key-how,
+.key-note {
+  color: #555;
+  font-size: 0.9em;
+  font-weight: 400;
+}
+.key-notions {
+  color: #333;
+  font-size: 0.9em;
+}
+.activity-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.teacher-badge {
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--warning-bg);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.step-tag {
+  color: var(--muted);
+  font-weight: 400;
+}
+.step-optional {
+  margin: 4px 0 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  font-size: 0.9rem;
+}
+.part-note {
+  margin: 0 0 4px;
+  padding: 4px 8px;
+  border-left: 3px solid var(--accent);
+  font-size: 0.9rem;
+}
+.part-note p {
+  margin: 2px 0;
+}
+.part-score {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  align-items: baseline;
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.quiz-retry {
+  margin: 8px 0 0;
+}
+.quiz-retry.right {
+  color: var(--ok);
+  font-weight: 600;
+}
+.quiz-retry-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
 .activity-part.bonus h3 {
   color: var(--ok);
 }
@@ -2506,6 +2885,13 @@ button.screen-chip:focus-visible {
 .figure-label {
   font-weight: 600;
 }
+/* A white edge: a name stays readable where a cable runs behind it. */
+.figure-label,
+.figure-sub {
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
 .figure-sub {
   font-family: ui-monospace, 'DejaVu Sans Mono', monospace;
   font-size: 11px;
@@ -2583,6 +2969,11 @@ button.screen-chip:focus-visible {
   .print-root {
     display: block;
   }
+  /* The answer key is only printed from its own button, and then alone. */
+  body:not([data-print='answers']) .print-answers,
+  body[data-print='answers'] .print-root:not(.print-answers) {
+    display: none;
+  }
   /* Cards printed from the help: alone, even when the report is open. */
   body[data-print='cards'] .print-root:not(.print-cards) {
     display: none;
@@ -2626,8 +3017,66 @@ button.screen-chip:focus-visible {
   .report-table tr {
     break-inside: avoid;
   }
+  /* The answer key: its colours are part of it; the unfolding has a page of
+   * its own, each part begins a page, and nothing is cut inside a question,
+   * a box or the head of a step. A heading stays with what follows it. */
+  .print-answers {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .key-schedule {
+    break-after: page;
+  }
+  /* What comes before the first part ends its page: the plan, or the unfolding. */
+  .key-part {
+    break-before: page;
+    margin-top: 0;
+  }
+  .key-part-first {
+    break-before: auto;
+  }
+  /* The plan, with the title above it, on a page in landscape: its names can
+   * be read. Where named pages are not known, it stays upright. */
+  .key-front-plan {
+    page: key-plan;
+  }
+  .key-front-plan .plan-figure {
+    max-height: 112mm;
+  }
+  /* Never alone at the top of a page: the hints and the cards of a step, the last line. */
+  .key-hints-box,
+  .key-notions,
+  .answer-key footer {
+    break-before: avoid;
+  }
+  /* The correction for the pupils is copied for a whole class: smaller, fewer sheets. */
+  .key-pupils {
+    font-size: 12px;
+  }
+  .key-pupils .key-item {
+    margin: 4px 0;
+  }
+  .key-cover,
+  .key-step-head,
+  .key-item,
+  .key-box,
+  .key-timeline,
+  .key-plan-figure,
+  .key-notions {
+    break-inside: avoid;
+  }
+  .answer-key h2,
+  .answer-key h3,
+  .answer-key h4,
+  .key-step-head,
+  .key-prompt {
+    break-after: avoid;
+  }
   @page {
     margin: 14mm;
+  }
+  @page key-plan {
+    size: landscape;
   }
 }
 
@@ -2673,6 +3122,36 @@ button.screen-chip:focus-visible {
 .quiz-order button {
   margin-left: 4px;
   padding: 1px 8px;
+}
+.quiz-match-list {
+  margin: 0 0 8px;
+  padding-left: 24px;
+}
+.quiz-match-list li {
+  padding: 1px 0;
+}
+.quiz-match {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.quiz-match li {
+  padding: 3px 0;
+}
+.quiz-match label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: center;
+}
+.quiz-match label span {
+  flex: 1 1 8em;
+  font-weight: 600;
+}
+.quiz-match select {
+  flex: 2 1 14em;
+  min-width: 0;
+  max-width: 100%;
 }
 .quiz-question > input {
   display: block;

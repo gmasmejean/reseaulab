@@ -55,10 +55,56 @@ export function normalizePath(path: string, cwd = '/'): string {
   return joinPath(splitPath(path, cwd));
 }
 
+/** Whether `path` is `dir` or lies inside it (both normalized). */
+function isWithin(path: string, dir: string): boolean {
+  return path === dir || dir === '/' || path.startsWith(`${dir}/`);
+}
+
 export class FileSystem {
   private root: DirNode = { type: 'dir', children: new Map() };
+  /** Folders whose content can be read but not changed, as normalized paths. */
+  private readOnly = new Set<string>();
 
   constructor(private readonly onChange: () => void = () => undefined) {}
+
+  /**
+   * Makes a folder read-only (or writable again): nothing can be created,
+   * changed, renamed or removed in it, and it cannot be renamed or removed
+   * itself. Like the shared folder of a school network.
+   */
+  setReadOnly(path: string, readOnly = true): void {
+    const dir = normalizePath(path);
+    if (!this.isDirectory(dir)) throw new FsError(`Dossier introuvable : ${dir}`);
+    if (readOnly) this.readOnly.add(dir);
+    else this.readOnly.delete(dir);
+    this.onChange();
+  }
+
+  /** Whether a path is a read-only folder, or lies inside one. */
+  isReadOnly(path: string): boolean {
+    const target = normalizePath(path);
+    return [...this.readOnly].some((dir) => isWithin(target, dir));
+  }
+
+  /** The read-only folders, sorted (for the saved file). */
+  readOnlyPaths(): string[] {
+    return [...this.readOnly].sort();
+  }
+
+  /** Refuses a change of what is at `path`: created, written, renamed or removed. */
+  private checkWritable(path: string): void {
+    const target = normalizePath(path);
+    const inside = [...this.readOnly].find((dir) => isWithin(target, dir));
+    if (inside !== undefined) throw new FsError(`Dossier en lecture seule : ${inside}`);
+  }
+
+  /** Refuses to move or remove a folder that holds a read-only one. */
+  private checkMovable(path: string): void {
+    this.checkWritable(path);
+    const target = normalizePath(path);
+    const held = [...this.readOnly].find((dir) => isWithin(dir, target));
+    if (held !== undefined) throw new FsError(`Ce dossier contient un dossier en lecture seule : ${held}`);
+  }
 
   stat(path: string): FsNode | null {
     let node: FsNode = this.root;
@@ -109,6 +155,7 @@ export class FileSystem {
       }
       if (index < segments.length - 1 && !recursive) throw new FsError(`Dossier introuvable : ${segment}`);
       FileSystem.checkName(segment);
+      this.checkWritable(joinPath(segments.slice(0, index + 1)));
       const created: DirNode = { type: 'dir', children: new Map() };
       node.children.set(segment, created);
       node = created;
@@ -125,6 +172,7 @@ export class FileSystem {
     if (parent?.type !== 'dir') throw new FsError(`Dossier introuvable : ${joinPath(segments)}`);
     const existing = parent.children.get(name);
     if (existing?.type === 'dir') throw new FsError(`« ${name} » est un dossier`);
+    this.checkWritable(path);
     parent.children.set(name, { type: 'file', content });
     this.onChange();
   }
@@ -139,6 +187,7 @@ export class FileSystem {
     if (node.type === 'dir' && node.children.size > 0 && !recursive) {
       throw new FsError(`Le dossier « ${name} » n’est pas vide`);
     }
+    this.checkMovable(path);
     parent.children.delete(name);
     this.onChange();
   }
@@ -152,6 +201,7 @@ export class FileSystem {
     const node = parent.children.get(name);
     if (!node) throw new FsError(`Introuvable : ${normalizePath(path)}`);
     if (parent.children.has(newName)) throw new FsError(`« ${newName} » existe déjà`);
+    this.checkMovable(path);
     parent.children.delete(name);
     parent.children.set(newName, node);
     this.onChange();
@@ -161,8 +211,12 @@ export class FileSystem {
     return FileSystem.dirToJson(this.root);
   }
 
-  load(json: FsJson): void {
+  /** Replaces everything; `readOnly` lists the read-only folders (those that do not exist are left out). */
+  load(json: FsJson, readOnly: readonly string[] = []): void {
     this.root = FileSystem.dirFromJson(json);
+    this.readOnly = new Set(
+      readOnly.map((path) => normalizePath(path)).filter((dir) => this.isDirectory(dir)),
+    );
     this.onChange();
   }
 
@@ -195,6 +249,7 @@ const MIME: Record<string, string> = {
   html: 'text/html',
   htm: 'text/html',
   txt: 'text/plain',
+  csv: 'text/csv',
   css: 'text/css',
   png: 'image/png',
   jpg: 'image/jpeg',

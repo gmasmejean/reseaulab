@@ -1,5 +1,5 @@
 import { givenText, partsOf, scoreQuestions } from '../../learn/activity/questions';
-import { requiredObjectives, type Objective, type Work } from '../../learn/activity/schema';
+import { isOptionalStep, requiredObjectives, type Objective, type Work } from '../../learn/activity/schema';
 import { addressingTable } from '../../learn/report/addressing';
 import { DEVICE_LABEL } from '../../i18n/fr';
 import { useSession } from '../context';
@@ -33,6 +33,15 @@ function AnswerLine({ objective, work }: { objective: Objective; work: Work }) {
         <>
           {' '}
           — <i>attendu :</i> {solution(answer.item)}
+        </>
+      )}
+      {answer.retry && (
+        <>
+          <br />
+          <i>Nouvel essai :</i>{' '}
+          {answer.retry.right
+            ? `corrigé${answer.retry.tries > 1 ? ` au ${answer.retry.tries}e essai` : ''}`
+            : `encore faux (${answer.retry.tries} essai${answer.retry.tries > 1 ? 's' : ''})`}
         </>
       )}
     </div>
@@ -135,12 +144,23 @@ export function Report({ printedAt }: { printedAt: number }) {
                     Questions : {score.answered} répondue{score.answered > 1 ? 's' : ''} sur {score.total}
                     {score.marked > 0 &&
                       `, ${score.right} juste${score.right > 1 ? 's' : ''} sur ${score.marked} corrigée${score.marked > 1 ? 's' : ''}`}
+                    {score.corrected > 0 &&
+                      ` ; ${score.corrected} erreur${score.corrected > 1 ? 's' : ''} reprise${score.corrected > 1 ? 's' : ''} avec succès au nouvel essai`}
                     .
                   </p>
                 )}
                 {steps.map((step) => (
                   <div key={step.id} className="report-step">
-                    <h4>{step.title}</h4>
+                    <h4>
+                      {step.title}
+                      {isOptionalStep(step) &&
+                        ` (approfondissement${
+                          work.skipped.includes(step.id) &&
+                          step.objectives.some((o) => outcomes.get(o.id)?.status !== 'done')
+                            ? ', étape passée'
+                            : ''
+                        })`}
+                    </h4>
                     <ul>
                       {step.objectives.map((objective) => {
                         const reached = outcomes.get(objective.id)?.status === 'done';

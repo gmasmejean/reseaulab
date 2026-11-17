@@ -22,13 +22,16 @@ import { CAPABILITIES, type Capability, type ProfileSpec } from '../profile/capa
 import { prepareProbe, runBounded } from '../sim/probe';
 import {
   familyOf,
+  isOptionalStep,
   objectivesOf,
   type Activity,
   type Check,
   type DeviceRef,
   type Objective,
+  type QuestionAnswer,
   type Work,
 } from './schema';
+import { isSettled } from './questions';
 
 /* Evaluation of the objectives of an activity. Three families of checks:
  * - state: read on the design of the network, as often as wanted;
@@ -158,6 +161,12 @@ function evaluateStateCheck(network: Network, check: Check): Outcome {
         if (check.isSet !== undefined && (value !== IP_ANY) !== check.isSet) return todo();
         if (check.equals !== undefined && formatIp(value) !== check.equals.trim()) return todo();
         if (check.inNetwork !== undefined && !inNetwork(value, check.inNetwork)) return todo();
+        if (check.range !== undefined && check.field !== 'mask') {
+          const [from, to] = [parseIp(check.range.from), parseIp(check.range.to)];
+          if (from === null || to === null || value === IP_ANY) return todo();
+          if (value < from || value > to)
+            return todo(`Hors du plan d’adressage : de ${check.range.from} à ${check.range.to}.`);
+        }
         if (check.unique === true && check.field === 'ip') {
           if (value === IP_ANY) return todo();
           const twin = network.devices.find((d) => d !== device && addressesOf(d).includes(value));
@@ -247,6 +256,18 @@ function evaluateJournalCheck(network: Network, check: Check, work: Work): Outco
   return work.commands.includes(journalEntry(device.id, check.command)) ? DONE : todo();
 }
 
+/**
+ * A question is reached once answered — right or wrong, since the correction
+ * is shown at once. When the activity requires corrections, a wrong answer
+ * only counts after a new try answered rightly.
+ */
+function evaluateQuestion(activity: Activity, answer: QuestionAnswer | undefined): Outcome {
+  if (answer === undefined) return todo();
+  if (activity.requireCorrection === true && !isSettled(answer))
+    return todo('Réponse fausse : réessaie pour continuer.');
+  return DONE;
+}
+
 /** How a command typed on a device is kept in the work of the pupil. */
 export function journalEntry(deviceId: string, command: string): string {
   return `${deviceId}:${command}`;
@@ -259,7 +280,7 @@ export function evaluateNow(activity: Activity, network: Network, work: Work): M
     const family = familyOf(objective.check);
     if (family === 'state') outcomes.set(objective.id, evaluateStateCheck(network, objective.check));
     else if (objective.check.type === 'question')
-      outcomes.set(objective.id, work.answers[objective.id] ? DONE : todo());
+      outcomes.set(objective.id, evaluateQuestion(activity, work.answers[objective.id]));
     else if (family === 'journal')
       outcomes.set(objective.id, evaluateJournalCheck(network, objective.check, work));
   }
@@ -286,8 +307,14 @@ export function evaluateAll(activity: Activity, network: Network, work: Work): M
  * Steps are done in order: the objectives of a step only count once every
  * earlier step is complete. Otherwise an objective such as « nothing left to
  * correct » would be reached on the empty plan, before anything was built.
+ * An « approfondissement » step the pupil skipped (`skipped`) lets the next
+ * ones open; its own objectives stay as they are, to be done later.
  */
-export function gateSteps(activity: Activity, outcomes: ReadonlyMap<string, Outcome>): Map<string, Outcome> {
+export function gateSteps(
+  activity: Activity,
+  outcomes: ReadonlyMap<string, Outcome>,
+  skipped: readonly string[] = [],
+): Map<string, Outcome> {
   const gated = new Map<string, Outcome>();
   let open = true;
   for (const step of activity.steps) {
@@ -295,18 +322,32 @@ export function gateSteps(activity: Activity, outcomes: ReadonlyMap<string, Outc
       const outcome = outcomes.get(objective.id);
       if (outcome) gated.set(objective.id, open ? outcome : { status: 'locked' });
     }
-    open &&= step.objectives.every((o) => outcomes.get(o.id)?.status === 'done');
+    open &&= isSkipped(step, skipped) || step.objectives.every((o) => outcomes.get(o.id)?.status === 'done');
   }
   return gated;
 }
 
-/** Index of the first step that still has something to do (the last one when all is done). */
-export function currentStep(activity: Activity, done: ReadonlySet<string>): number {
-  const index = activity.steps.findIndex((step) => step.objectives.some((o) => !done.has(o.id)));
+/** Whether a step was skipped: only an « approfondissement » can be. */
+export function isSkipped(step: Activity['steps'][number], skipped: readonly string[]): boolean {
+  return isOptionalStep(step) && skipped.includes(step.id);
+}
+
+/**
+ * Index of the first step that still has something to do, skipped ones left
+ * out (the last step when all is done).
+ */
+export function currentStep(
+  activity: Activity,
+  done: ReadonlySet<string>,
+  skipped: readonly string[] = [],
+): number {
+  const index = activity.steps.findIndex(
+    (step) => !isSkipped(step, skipped) && step.objectives.some((o) => !done.has(o.id)),
+  );
   return index < 0 ? activity.steps.length - 1 : index;
 }
 
-/** Devices of the starting network an activity relies on: they must not be deleted. */
+/** Devices of the starting network an activity relies on or protects: they must not be deleted. */
 export function protectedDevices(activity: Activity): Set<string> {
   const ids = new Set<string>();
   const visit = (value: unknown) => {
@@ -319,6 +360,7 @@ export function protectedDevices(activity: Activity): Set<string> {
     }
   };
   for (const objective of objectivesOf(activity)) visit(objective.check);
+  for (const device of activity.protect?.devices ?? []) ids.add(device.id);
   return ids;
 }
 

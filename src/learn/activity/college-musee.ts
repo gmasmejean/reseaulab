@@ -1,6 +1,7 @@
 import { Network } from '../../engine/network';
 import type { BuiltinActivity } from './builtin';
 import { MASK_24, define, existing, ip } from './define';
+import { protectionOf } from './protect';
 
 /* « Du collège au musée » : an activity of two lessons of 1 h 30 for a class
  * of 3e. The first part checks what was learnt in 5e and 4e on the network
@@ -8,27 +9,49 @@ import { MASK_24, define, existing, ip } from './define';
  * address and mask, troubleshooting, a connected object and its data). The
  * second one teaches the 3e programme: Internet as a network of networks,
  * the gateway, routing tables read and completed, DNS, HTTP, packets and
- * protocols, bit rate, data representation, two communicating objects, and
- * what is at stake. Two bonus steps are for those who finish early. Like
+ * protocols, data representation, bit rate, two communicating objects, and
+ * what is at stake. Up to its last steps the pupil keeps observing or
+ * handling the simulator: sizes read in the file explorer, the file exported
+ * by the sensor, a message sent from the sensor to a display. Two bonus
+ * steps are for those who finish early. Like
  * the other activities, wording and questions are a proposal for the
  * teacher to adjust. */
+
+/** The measures of the day of the CO2 sensor: hour, CO2 (ppm), temperature (°C). */
+const MEASURES: readonly (readonly [string, string, string])[] = [
+  ['08:00', '450', '18,2'],
+  ['09:00', '780', '19,4'],
+  ['10:00', '1150', '20,6'],
+  ['11:00', '620', '19,8'],
+  ['12:00', '910', '20,9'],
+  ['13:00', '480', '20,1'],
+  ['14:00', '870', '21,3'],
+  ['15:00', '1240', '22,0'],
+  ['16:00', '1320', '22,4'],
+];
 
 /** What the CO2 sensor of the library serves: its measures of the day. */
 const SENSOR_PAGE = `<h1>Capteur de CO2 du CDI</h1>
 <p>État : en marche. Une mesure par heure. Au-delà de 1000 ppm, il faut aérer.</p>
 <table border="1">
 <tr><th>Heure</th><th>CO2 (ppm)</th><th>Température (°C)</th></tr>
-<tr><td>08:00</td><td>450</td><td>18,2</td></tr>
-<tr><td>09:00</td><td>780</td><td>19,4</td></tr>
-<tr><td>10:00</td><td>1150</td><td>20,6</td></tr>
-<tr><td>11:00</td><td>620</td><td>19,8</td></tr>
-<tr><td>12:00</td><td>910</td><td>20,9</td></tr>
-<tr><td>13:00</td><td>480</td><td>20,1</td></tr>
-<tr><td>14:00</td><td>870</td><td>21,3</td></tr>
-<tr><td>15:00</td><td>1240</td><td>22,0</td></tr>
-<tr><td>16:00</td><td>1320</td><td>22,4</td></tr>
+${MEASURES.map((row) => `<tr>${row.map((value) => `<td>${value}</td>`).join('')}</tr>`).join('\n')}
 </table>
 `;
+
+/** The same measures as the sensor exports them for a spreadsheet: one line each, « ; » between the values. */
+const SENSOR_CSV = `heure;co2_ppm;temperature_c
+${MEASURES.map((row) => row.join(';')).join('\n')}
+`;
+
+/** What the display at the door of the library shows of itself. */
+const DISPLAY_PAGE = `<h1>Afficheur du CDI</h1>
+<p>État : en marche.</p>
+<p>Affiche le dernier message reçu du capteur de CO2.</p>
+`;
+
+/** Port agreed by the sensor and the display: their « channel ». */
+const DISPLAY_PORT = 7;
 
 /** The home page of the museum, hosted in a data center. */
 const MUSEUM_PAGE = `<h1>Musée des réseaux</h1>
@@ -49,12 +72,37 @@ const SERVER_FILES: readonly (readonly [string, string])[] = [
   ['/Documents/Commun/calendrier-brevet.pdf', 'Calendrier du brevet.'],
   ['/Documents/3A/Nora/expose-internet.odt', 'Exposé : le chemin d’une information sur Internet.'],
   ['/Documents/3A/Nora/carte-cables.png', 'Carte des câbles sous-marins.'],
+  // Five characters, five bytes: read in the file explorer (step « Représenter des données »).
+  ['/Documents/3A/Nora/titre.txt', 'MUSEE'],
   ['/Documents/3A/Hugo/sources.txt', 'Sources de l’exposé.'],
   ['/Documents/3B/Yanis/notes.txt', 'Notes sur les data centers.'],
 ];
 
-const PART_1 = 'Partie 1 — Ce que je sais depuis la 5e et la 4e';
-const PART_2 = 'Partie 2 — Relier les réseaux : Internet et le routage';
+/**
+ * What the pupil must not break: the switch of the library and everything
+ * between the school and the museum. They only add to it: cables on the
+ * switch, a route on the Routeur Internet, the link of the médiathèque.
+ */
+const INFRASTRUCTURE = [
+  'Switch CDI',
+  'Routeur du collège',
+  'Routeur du FAI',
+  'Switch FAI',
+  'Serveur DNS du FAI',
+  'Routeur Internet',
+  'Routeur du data center',
+  'Switch data center',
+  'Serveur du musée',
+  'Routeur de la médiathèque',
+  'Switch médiathèque',
+  'Portable médiathèque',
+] as const;
+
+/* Three parts, two lessons: the titles say which lesson, and a note under
+ * the third one when to save and how to come back. */
+const PART_1 = 'Séance 1 — Partie 1 : ce que je sais depuis la 5e et la 4e';
+const PART_2 = 'Séance 1 — Partie 2 : Internet, un réseau de réseaux';
+const PART_3 = 'Séance 2 — Partie 3 : trouver la panne, atteindre le musée';
 
 const route = (destination: string, mask: string, gateway: string, iface: number) => ({
   destination: ip(destination),
@@ -114,9 +162,23 @@ function startingNetwork(): Network {
     server.fs.mkdir(path.slice(0, path.lastIndexOf('/')), true);
     server.fs.writeFile(path, content);
   }
+  // As on the network drive of a school: pupils read the shared folder, they do not write in it.
+  server.fs.setReadOnly('/Documents/Commun');
   // The CO2 sensor has just been unpacked: no link, no address.
   const sensor = network.addHost('object', { name: 'Capteur CO2', position: { x: 300, y: 600 } });
   sensor.fs.writeFile('/webserver/index.html', SENSOR_PAGE);
+  sensor.fs.writeFile('/webserver/mesures.csv', SENSOR_CSV);
+  sensor.install('echoclient');
+  // The display is installed already. Its echo server, stopped, waits for the messages of the sensor.
+  const display = network.addHost('object', {
+    name: 'Afficheur',
+    position: { x: 540, y: 600 },
+    config: { ip: ip('192.168.10.51'), mask: MASK_24 },
+  });
+  network.connect(display.id, sw.id);
+  display.fs.writeFile('/webserver/index.html', DISPLAY_PAGE);
+  display.install('echoserver');
+  display.echoServer.setPort(DISPLAY_PORT);
 
   /* --- Le routeur du collège --- */
   const college = network.addRouter({ name: 'Routeur du collège', position: { x: 520, y: 330 } });
@@ -211,24 +273,20 @@ export const collegeMuseum: BuiltinActivity = {
     const poste1 = ref('Poste 1');
     const sw = ref('Switch CDI');
     const sensor = ref('Capteur CO2');
+    const display = ref('Afficheur');
     const museum = ref('Serveur du musée');
     return define(network, {
       id: 'college-musee',
       title: 'Du collège au musée',
       level: '3e',
       duration: 180,
-      intro: `Ta classe prépare un exposé et doit consulter le site du **Musée des réseaux**, \`www.musee-des-reseaux.fr\`, hébergé dans un data center. Mais au **CDI**, des équipements ne fonctionnent pas, un **capteur de CO2** vient d’arriver… et le site ne s’affiche pas.
-
-- **Partie 1** (début de la 1re séance, environ 50 min) : ce que tu sais depuis la 5e et la 4e, au CDI.
-- **Partie 2** (fin de la 1re séance, puis la 2e séance) : relier les réseaux, suivre et réparer le chemin jusqu’au musée.
-- **Bonus** : pour ceux qui ont fini.
+      intro: `Ta classe prépare un exposé et doit consulter le site du **Musée des réseaux**, \`www.musee-des-reseaux.fr\`, hébergé dans un data center. Mais au **CDI**, des équipements ne fonctionnent pas, un **capteur de CO2** vient d’arriver… et le site ne s’affiche pas. À toi de tout remettre en marche, en deux séances.
 
 **Plan d’adressage du CDI** (réseau \`192.168.10.0\`, masque \`255.255.255.0\`) : postes de \`.1\` à \`.9\`, serveur \`.10\`, tablettes de \`.20\` à \`.29\`, objets connectés de \`.50\` à \`.59\`, routeur du collège \`.254\`.
 
-À droite du CDI, le plan montre aussi le chemin jusqu’au musée : le fournisseur d’accès (FAI), le cœur d’Internet et le data center. *Dans la réalité, le routeur du collège remplace l’adresse privée des postes par son adresse publique avant d’envoyer vers Internet ; le simulateur ne le fait pas, c’est pourquoi le routeur du FAI connaît le réseau du CDI.*
-
-Les questions se corrigent tout de suite, **une seule réponse** par question : réfléchis avant de valider ! À la fin de chaque séance, clique sur [[ecran:enregistrer]] ; à la séance suivante, rouvre ton fichier avec [[ecran:ouvrir]].`,
+Les questions se corrigent tout de suite et c’est ta **première réponse** qui est notée : réfléchis avant de valider ! À la fin de chaque séance, clique sur [[ecran:enregistrer]] ; à la séance suivante, rouvre ton fichier avec [[ecran:ouvrir]].`,
       profile: { base: '3e' },
+      protect: protectionOf(network, INFRASTRUCTURE),
       steps: [
         /* ---------- Partie 1 ---------- */
         {
@@ -286,13 +344,12 @@ Les questions se corrigent tout de suite, **une seule réponse** par question : 
               check: {
                 type: 'question',
                 question: {
-                  type: 'order',
-                  prompt:
-                    'Remets les rôles dans l’ordre des équipements : 1. Switch CDI — 2. Serveur — 3. Routeur du collège.',
-                  items: [
-                    'Relier les équipements du CDI entre eux',
-                    'Stocker et fournir les fichiers et les services',
-                    'Relier le réseau du collège aux autres réseaux',
+                  type: 'match',
+                  prompt: 'Associe chaque équipement du CDI à son rôle.',
+                  pairs: [
+                    ['Switch CDI', 'Relier les équipements du CDI entre eux'],
+                    ['Serveur', 'Stocker et fournir les fichiers et les services'],
+                    ['Routeur du collège', 'Relier le réseau du collège aux autres réseaux'],
                   ],
                   explanation:
                     'Le switch relie les équipements d’un même réseau, le serveur fournit des ressources aux clients, le routeur relie des réseaux différents.',
@@ -322,6 +379,7 @@ Les questions se corrigent tout de suite, **une seule réponse** par question : 
         {
           id: 'brancher',
           title: 'Brancher et connecter',
+          solution: `Un câble de **Poste 3** au **Switch CDI** (outil Câble, deux clics). La **Tablette** : sélectionnée, puis « Connexion réseau » → \`CDI-College\` dans le panneau du bas.`,
           body: `**Poste 3** n’est pas branché : avec l’outil [[ecran:cable]], relie-le au **Switch CDI**.
 
 La **Tablette** n’a pas de prise : sélectionne-la et, dans le [[ecran:panneau]], choisis le réseau Wi-Fi **CDI-College**.`,
@@ -367,7 +425,10 @@ La **Tablette** n’a pas de prise : sélectionne-la et, dans le [[ecran:panneau
         {
           id: 'fichiers',
           title: 'Fichiers et bons usages',
-          body: `Passe en mode [[ecran:simulation]], double-clique sur le **Serveur** et ouvre son **Explorateur de fichiers** : les dossiers des classes sont rangés dans \`Documents\`. Le dossier \`Commun\` est en **lecture seule** pour les élèves.`,
+          solution: `Explorateur de fichiers du **Serveur** : \`Documents\` › \`3A\` › \`Nora\` › \`carte-cables.png\`. Dans \`Commun\`, « Créer » un dossier ou « Supprimer » un fichier affiche *Dossier en lecture seule : /Documents/Commun* ; rien n’est modifié. Le simulateur n’a pas de comptes : le dossier est en lecture seule pour tout le monde.`,
+          body: `Passe en mode [[ecran:simulation]], double-clique sur le **Serveur** et ouvre son **Explorateur de fichiers** : les dossiers des classes sont rangés dans \`Documents\`.
+
+Ouvre le dossier \`Commun\` : comme sur le réseau du collège, il est en **lecture seule**. Essaie d’y créer un dossier, puis de supprimer un de ses fichiers, et lis le message.`,
           notions: ['fichiers-arborescence', 'securite-numerique'],
           hints: [
             'Ouvre Documents, puis 3A, puis Nora.',
@@ -401,16 +462,17 @@ La **Tablette** n’a pas de prise : sélectionne-la et, dans le [[ecran:panneau
                 type: 'question',
                 question: {
                   type: 'mcq',
-                  prompt: 'Le dossier Commun est en lecture seule pour les élèves. Que peux-tu y faire ?',
+                  prompt:
+                    'Tu as essayé de créer un dossier dans Commun, qui est en lecture seule. Que peut-on y faire ?',
                   choices: [
-                    'Ouvrir et copier ses fichiers, mais ni les modifier ni en ajouter',
+                    'Consulter ses fichiers, mais ni les modifier, ni en ajouter, ni en supprimer',
                     'Modifier et supprimer ses fichiers',
                     'Y enregistrer mes propres fichiers',
                     'Rien, pas même ouvrir ses fichiers',
                   ],
                   correct: [0],
                   explanation:
-                    'Lecture seule : on consulte, on copie chez soi, mais on ne modifie rien. Modifier, ajouter ou supprimer demande le droit d’écriture.',
+                    'Lecture seule : on consulte, on peut copier chez soi, mais le serveur refuse tout changement (« Dossier en lecture seule »). Modifier, ajouter ou supprimer demande le droit d’écriture ; au collège, ce droit dépend du compte : les professeurs l’ont sur Commun, pas les élèves.',
                   notion: 'fichiers-arborescence',
                 },
               },
@@ -442,6 +504,7 @@ La **Tablette** n’a pas de prise : sélectionne-la et, dans le [[ecran:panneau
         {
           id: 'adresse-masque',
           title: 'Adresse IP et masque',
+          solution: `\`ipconfig\` sur **Poste 1** affiche l’adresse \`192.168.10.1\` et le masque \`255.255.255.0\` ; la passerelle n’est pas encore réglée, c’est normal.`,
           body: 'Toujours en simulation, ouvre la **Ligne de commande** de **Poste 1** et tape `ipconfig` : la commande affiche les réglages réseau du poste.',
           notions: ['adresse-ip', 'masque', 'ip-privee-publique'],
           hints: [
@@ -525,12 +588,15 @@ La **Tablette** n’a pas de prise : sélectionne-la et, dans le [[ecran:panneau
         {
           id: 'depanner',
           title: 'Dépanner le CDI',
+          solution: `**Poste 2** a l’adresse \`192.168.1.2\` : une faute de frappe, elle n’est pas dans le réseau \`192.168.10.0\`. Adresse attendue : une adresse **libre** réservée aux postes, de \`192.168.10.1\` à \`192.168.10.9\` — par exemple \`192.168.10.2\` (\`.1\` est à Poste 1, \`.3\` à Poste 3). Une adresse hors de cette plage est refusée (« Hors du plan d’adressage »). Ensuite \`ping 192.168.10.2\` depuis Poste 1, puis **Vérifier mon travail**.
+
+Le bouton Vérifier de la barre garde des alertes (passerelles manquantes, capteur non installé) : elles ne comptent pas à cette étape.`,
           body: `**Poste 2** ne communique avec personne. Trouve la panne et répare-la en respectant le plan d’adressage (dans la consigne, en haut).
 
-Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran:conception]], clique sur l’équipement et change son réglage. Le bouton [[ecran:verifier]] t’aide à repérer ce qui ne va pas.`,
+Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran:conception]], clique sur l’équipement et change son réglage. Le bouton [[ecran:verifier]] t’aide à repérer ce qui ne va pas. Il signale aussi des **passerelles** manquantes et le capteur pas encore installé : c’est normal, on s’en occupe plus tard.`,
           notions: ['depannage', 'adresse-ip', 'ping'],
           hints: [
-            'Compare l’adresse de Poste 2 au plan d’adressage : réseau 192.168.10.0.',
+            'Compare l’adresse de Poste 2 au plan d’adressage : réseau 192.168.10.0, postes de .1 à .9.',
             'Une adresse en 192.168.1. n’est pas dans le réseau 192.168.10.0 : il manque un chiffre.',
           ],
           objectives: [
@@ -556,12 +622,14 @@ Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran
             },
             {
               id: 'poste2-repare',
-              label: 'Poste 2 a une adresse libre du réseau 192.168.10.0',
+              label: 'Poste 2 a une adresse libre réservée aux postes : de 192.168.10.1 à 192.168.10.9',
               check: {
                 type: 'config',
                 device: ref('Poste 2'),
                 field: 'ip',
                 inNetwork: '192.168.10.0/24',
+                // The addressing plan: without it, .50 would be accepted here and clash with the sensor later.
+                range: { from: '192.168.10.1', to: '192.168.10.9' },
                 unique: true,
               },
             },
@@ -572,10 +640,18 @@ Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran
             },
             {
               id: 'cdi-sain',
-              label: 'Le bouton Vérifier ne signale plus d’erreur d’adresse au CDI',
+              label: 'Plus aucune erreur d’adresse au CDI : ni doublon, ni mauvais réseau',
               check: {
                 type: 'lintClean',
-                ignore: ['gateway-missing', 'dns-missing', 'not-cabled', 'ip-missing', 'mask-missing'],
+                // L'Afficheur attend l'étape « Deux objets qui communiquent » pour démarrer son service.
+                ignore: [
+                  'gateway-missing',
+                  'dns-missing',
+                  'not-cabled',
+                  'ip-missing',
+                  'mask-missing',
+                  'server-not-started',
+                ],
               },
             },
           ],
@@ -583,6 +659,7 @@ Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran
         {
           id: 'capteur',
           title: 'Le capteur de CO2',
+          solution: `Câble du **Capteur CO2** au **Switch CDI** ; adresse \`192.168.10.50\`, masque \`255.255.255.0\` ; \`ping 192.168.10.50\` depuis Poste 1 ; navigateur de Poste 1 à \`http://192.168.10.50\`, puis **Vérifier mon travail**. Dans le tableau, le seuil de 1000 ppm est dépassé à 10:00 (1150 ppm), puis à 15:00 et 16:00.`,
           body: `Le **Capteur CO2** est un [[objet-connecte|objet connecté]] : il mesure le dioxyde de carbone de l’air, signe qu’il faut aérer. Ajoute-le au réseau :
 
 - relie-le au **Switch CDI** ;
@@ -629,7 +706,7 @@ Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran
                   type: 'short',
                   prompt:
                     'À quelle heure le seuil de 1000 ppm est-il dépassé pour la première fois ? (écris-la comme dans le tableau)',
-                  accepted: ['10:00', '10h00', '10h', '10 h', '10'],
+                  accepted: ['10:00', '10h00', '10h', '10'],
                   explanation:
                     'À 10:00, le capteur mesure 1150 ppm : il faut aérer. À 11:00, après la récréation, on retombe à 620 ppm.',
                   notion: 'donnees-objet',
@@ -677,7 +754,7 @@ Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran
           ],
         },
 
-        /* ---------- Partie 2 ---------- */
+        /* ---------- Partie 2 : la fin de la 1re séance ---------- */
         {
           id: 'reseau-de-reseaux',
           title: 'Internet, un réseau de réseaux',
@@ -750,6 +827,8 @@ Chaque réseau a son adresse (192.168.10.0, 80.10.0.0, 203.0.113.0…). Des [[ro
         {
           id: 'passerelle',
           title: 'La passerelle',
+          solution: `Passerelle \`192.168.10.254\` sur **Poste 1, Poste 2 et Poste 3**. En simulation, \`ping 82.64.12.1\` depuis Poste 1 répond ; puis **Vérifier mon travail**.`,
+          teacherNote: 'La passerelle des **trois** postes est vérifiée, pas seulement celle de Poste 1.',
           body: `Pour envoyer un message hors de son réseau, un poste le confie à sa [[passerelle]] : le routeur de son réseau. Les postes du CDI n’en ont pas encore.
 
 En [[ecran:conception]], règle la passerelle \`192.168.10.254\` (le Routeur du collège) sur **Poste 1, Poste 2 et Poste 3**. Puis, en simulation, teste depuis Poste 1 : \`ping 82.64.12.1\` (le routeur du FAI) et **Vérifier mon travail**.`,
@@ -800,14 +879,15 @@ En [[ecran:conception]], règle la passerelle \`192.168.10.254\` (le Routeur du 
         {
           id: 'lire-table',
           title: 'Lire une table de routage',
+          solution: `Rien à modifier, les tables se lisent en Conception. **Routeur du collège** : une seule route, \`0.0.0.0 / 0.0.0.0\` → \`82.64.12.1\`. **Routeur du FAI** : \`192.168.10.0\` → \`82.64.12.34\` ; \`192.0.2.0\` → \`198.51.100.2\` ; \`203.0.113.0\` → \`198.51.100.2\`.`,
           body: `Chaque routeur a une [[table-de-routage|table de routage]] : pour chaque **réseau de destination**, elle indique le **prochain routeur** (la passerelle) à qui envoyer le paquet.
 
 Poste 1 veut envoyer un paquet au Serveur du musée, \`203.0.113.80\`. Suis-le pas à pas : en [[ecran:conception]], clique sur le **Routeur du collège**, puis sur le **Routeur du FAI**, et ouvre l’onglet **Routage** de chacun.
 
 *Une route « 0.0.0.0 / 0.0.0.0 » est la route par défaut : elle sert pour toutes les destinations qui ne sont pas dans la table.*
 
-À la fin de la 1re séance, pense à cliquer sur [[ecran:enregistrer]].`,
-          notions: ['table-de-routage', 'passerelle', 'chemin-internet'],
+*Tu vas voir que la table du FAI a une ligne pour le réseau privé du CDI, \`192.168.10.0\`. Dans la réalité, elle n’existerait pas : le routeur du collège remplace l’adresse privée des postes par son [[ip-privee-publique|adresse publique]] avant d’envoyer vers Internet, et le FAI ne connaît que celle-ci. Le simulateur ne fait pas ce remplacement.*`,
+          notions: ['table-de-routage', 'passerelle', 'chemin-internet', 'ip-privee-publique'],
           hints: [
             'Le réseau du Serveur du musée est 203.0.113.0 : cherche cette ligne dans la table.',
             'La colonne « Passerelle » donne l’adresse du prochain routeur.',
@@ -906,14 +986,102 @@ Poste 1 veut envoyer un paquet au Serveur du musée, \`203.0.113.80\`. Suis-le p
             },
           ],
         },
+        /* ---------- Partie 3 : la 2e séance ---------- */
+        {
+          id: 'trouver-panne',
+          title: 'Trouver où le chemin s’arrête',
+          solution: `\`ping 203.0.113.80\` échoue. \`traceroute 203.0.113.80\` affiche \`192.168.10.254\`, \`82.64.12.1\`, puis \`198.51.100.2\` qui répond *destination inaccessible*. Cette adresse est celle de l’interface eth1 du **Routeur Internet**. Sa table connaît \`192.168.10.0\`, \`82.64.12.0\` et \`80.10.0.0\` (toutes vers \`198.51.100.1\`) : aucune ligne pour \`203.0.113.0\`, et pas de route par défaut.`,
+          teacherNote:
+            'La consigne ne nomme pas le routeur : c’est à l’élève de le trouver. Le bouton « Pourquoi ça ne marche pas ? » n’est donné qu’au deuxième indice.',
+          part: PART_3,
+          partNote:
+            '**La 1re séance s’arrête ici** : clique sur [[ecran:enregistrer]] et garde ton fichier. **À la 2e séance**, rouvre-le avec [[ecran:ouvrir]] : tu reprends à cette étape.',
+          body: `En simulation, depuis Poste 1, lance \`ping 203.0.113.80\` : pas de réponse ! La passerelle est pourtant réglée. Quelque part entre le collège et le musée, un routeur ne sait pas continuer. À toi de trouver lequel.
+
+- Lance \`traceroute 203.0.113.80\` : la commande affiche une ligne par routeur traversé, avec l’adresse de celui qui répond. Regarde où la liste s’arrête.
+- En [[ecran:conception]], retrouve sur le plan le routeur qui porte cette adresse : clique sur les routeurs, le panneau du bas donne les adresses de leurs interfaces.
+- Ouvre l’onglet **Routage** de ce routeur et lis sa table, comme à l’étape précédente.`,
+          notions: ['ttl', 'table-de-routage', 'depannage'],
+          hints: [
+            'Dans traceroute, la dernière adresse affichée est celle du dernier routeur qui a reçu le paquet.',
+            'Après un ping raté, le bouton « Pourquoi ça ne marche pas ? » montre sur le plan où le paquet s’arrête.',
+            'Le routeur cherché est au milieu du plan, entre le FAI et le data center. Dans sa table, cherche une ligne pour le réseau du musée, 203.0.113.0.',
+          ],
+          objectives: [
+            {
+              id: 'traceroute',
+              label: 'La commande traceroute a été utilisée sur Poste 1',
+              check: { type: 'commandRan', command: 'traceroute', device: poste1 },
+            },
+            {
+              id: 'q-dernier-routeur',
+              label: 'Là où le paquet s’arrête',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'short',
+                  prompt:
+                    'Avant toute réparation, quelle est l’adresse du dernier routeur qui répond dans traceroute ?',
+                  accepted: ['198.51.100.2'],
+                  explanation:
+                    'traceroute affiche 192.168.10.254, 82.64.12.1, puis 198.51.100.2, qui répond « destination inaccessible » : le paquet arrive jusqu’à ce routeur, qui ne sait pas où l’envoyer ensuite.',
+                  notion: 'ttl',
+                },
+              },
+            },
+            {
+              id: 'q-routeur-en-cause',
+              label: 'Le routeur en cause',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'mcq',
+                  prompt: 'Quel routeur du plan porte cette adresse ?',
+                  choices: [
+                    'Le Routeur Internet',
+                    'Le Routeur du collège',
+                    'Le Routeur du FAI',
+                    'Le Routeur du data center',
+                  ],
+                  correct: [0],
+                  explanation:
+                    '198.51.100.2 est l’adresse de l’interface eth1 du Routeur Internet, du côté du FAI. Les routeurs du collège et du FAI ont fait leur travail ; c’est lui qui s’arrête.',
+                  notion: 'chemin-internet',
+                },
+              },
+            },
+            {
+              id: 'q-table-incomplete',
+              label: 'Ce que dit sa table',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'mcq',
+                  prompt: 'Que montre la table de routage de ce routeur ?',
+                  choices: [
+                    'Aucune ligne pour le réseau du musée, et pas de route par défaut',
+                    'Une ligne envoie le réseau du musée vers le Routeur du FAI',
+                    'Une route par défaut vers le Routeur du data center',
+                    'Sa table est vide',
+                  ],
+                  correct: [0],
+                  explanation:
+                    'Sa table connaît 192.168.10.0, 82.64.12.0 et 80.10.0.0, mais pas 203.0.113.0, et il n’a pas de route par défaut : il ne sait pas où envoyer le paquet, le détruit et prévient Poste 1 (« destination inaccessible »).',
+                  notion: 'table-de-routage',
+                },
+              },
+            },
+          ],
+        },
         {
           id: 'reparer-chemin',
           title: 'Réparer le chemin',
-          body: `En simulation, depuis Poste 1, lance \`ping 203.0.113.80\` : pas de réponse ! Clique sur **Pourquoi ça ne marche pas ?** pour voir où le paquet s’arrête.
+          solution: `Sur le **Routeur Internet**, onglet Routage, ajouter : réseau \`203.0.113.0\`, masque \`255.255.255.0\`, passerelle \`192.0.2.2\` (le Routeur du data center), interface eth0. \`traceroute 203.0.113.80\` affiche alors \`192.168.10.254\`, \`82.64.12.1\`, \`198.51.100.2\`, \`192.0.2.2\`, puis \`203.0.113.80\`.`,
+          teacherNote:
+            'Seul le résultat est vérifié : toute route qui fait aboutir le ping est acceptée, même écrite autrement.',
+          body: `Le **Routeur Internet** ne sait pas où se trouve le réseau du data center : il lui manque une route. En [[ecran:conception]], ouvre son onglet **Routage** et ajoute-la : réseau \`203.0.113.0\`, masque \`255.255.255.0\`, passerelle = l’adresse du **Routeur du data center** qui est en face de lui. Choisis l’interface reliée à ce routeur.
 
-Le **Routeur Internet** ne sait pas où se trouve le réseau du data center. En [[ecran:conception]], ouvre son onglet **Routage** et ajoute la route qui manque : réseau \`203.0.113.0\`, masque \`255.255.255.0\`, passerelle = l’adresse du **Routeur du data center** qui est en face de lui. Choisis l’interface reliée à ce routeur.
-
-Teste de nouveau avec \`ping\`, puis lance \`traceroute 203.0.113.80\` pour voir les routeurs traversés.`,
+En simulation, teste de nouveau avec \`ping 203.0.113.80\`, puis relance \`traceroute 203.0.113.80\` : la liste va maintenant jusqu’au musée.`,
           notions: ['table-de-routage', 'ttl', 'ping'],
           hints: [
             'Clique sur le câble entre le Routeur Internet et le Routeur du data center : quelles adresses ont leurs interfaces ?',
@@ -927,11 +1095,6 @@ Teste de nouveau avec \`ping\`, puis lance \`traceroute 203.0.113.80\` pour voir
               check: { type: 'ping', from: poste1, to: museum },
             },
             {
-              id: 'traceroute',
-              label: 'La commande traceroute a été utilisée sur Poste 1',
-              check: { type: 'commandRan', command: 'traceroute', device: poste1 },
-            },
-            {
               id: 'q-traceroute',
               label: 'Lire un traceroute',
               check: {
@@ -939,7 +1102,7 @@ Teste de nouveau avec \`ping\`, puis lance \`traceroute 203.0.113.80\` pour voir
                 question: {
                   type: 'short',
                   prompt:
-                    'D’après traceroute, quelle est l’adresse du dernier routeur traversé avant le Serveur du musée ?',
+                    'Le chemin est réparé. D’après traceroute, quelle est maintenant l’adresse du dernier routeur traversé avant le Serveur du musée ?',
                   accepted: ['192.0.2.2'],
                   explanation:
                     'traceroute affiche 192.168.10.254, 82.64.12.1, 198.51.100.2, 192.0.2.2, puis 203.0.113.80 : le dernier routeur est celui du data center.',
@@ -995,6 +1158,9 @@ Teste de nouveau avec \`ping\`, puis lance \`traceroute 203.0.113.80\` pour voir
         {
           id: 'dns',
           title: 'Du nom à l’adresse : le DNS',
+          solution: `Serveur DNS \`80.10.0.53\` sur **Poste 1**. En simulation, \`nslookup www.musee-des-reseaux.fr\` répond \`203.0.113.80\` ; puis **Vérifier mon travail**.`,
+          teacherNote:
+            'Seul Poste 1 est vérifié. La commande `nslookup` tapée sans nom de site ne valide pas l’objectif.',
           body: `Personne ne retient \`203.0.113.80\` : on tape \`www.musee-des-reseaux.fr\`. Le [[dns|serveur DNS]] traduit ce nom en adresse IP.
 
 En [[ecran:conception]], indique à **Poste 1** le serveur DNS de son FAI : \`80.10.0.53\`. Puis, en simulation, tape dans sa ligne de commande \`nslookup www.musee-des-reseaux.fr\` et **Vérifier mon travail**.`,
@@ -1059,6 +1225,7 @@ En [[ecran:conception]], indique à **Poste 1** le serveur DNS de son FAI : \`80
         {
           id: 'site-musee',
           title: 'Afficher le site du musée',
+          solution: `Navigateur web de **Poste 1** : \`www.musee-des-reseaux.fr\` affiche la page « Musée des réseaux », puis **Vérifier mon travail**. Si la page ne vient pas : passerelle de Poste 1, serveur DNS, route ajoutée au Routeur Internet.`,
           body: 'En simulation, ouvre le **Navigateur web** de Poste 1 et tape `www.musee-des-reseaux.fr`. Lis la page, puis **Vérifier mon travail**.',
           notions: ['web-http', 'client-serveur', 'chemin-internet'],
           hints: ['Si la page ne s’affiche pas, vérifie la passerelle, le DNS et la route ajoutée.'],
@@ -1120,6 +1287,7 @@ En [[ecran:conception]], indique à **Poste 1** le serveur DNS de son FAI : \`80
         {
           id: 'paquets-protocoles',
           title: 'Paquets et protocoles',
+          solution: `Bureau de **Poste 1** › **Échanges de données**, puis recharger la page du musée. Dans le détail d’une ligne de la requête, la couche Réseau (IP) donne la source \`192.168.10.1\` et la destination \`203.0.113.80\`.`,
           body: `En simulation, sur le bureau de **Poste 1**, ouvre **Échanges de données**, puis recharge la page du musée. Clique sur une ligne : le détail montre, couche par couche, ce que contient chaque [[trame-paquet|paquet]].
 
 Pour communiquer, les équipements suivent des règles communes : des [[protocole|protocoles]].`,
@@ -1187,34 +1355,108 @@ Pour communiquer, les équipements suivent des règles communes : des [[protocol
               },
             },
             {
-              id: 'q-protocole-ip',
-              label: 'Le protocole IP',
+              id: 'q-protocoles-roles',
+              label: 'À chaque protocole son rôle',
               check: {
                 type: 'question',
                 question: {
-                  type: 'mcq',
-                  prompt: 'Quel protocole se charge de l’adresse et de l’acheminement de chaque paquet ?',
-                  choices: ['IP', 'HTTP', 'DNS', 'Wi-Fi'],
-                  correct: [0],
+                  type: 'match',
+                  prompt: 'Associe chaque protocole à son rôle.',
+                  pairs: [
+                    ['IP', 'Donner une adresse à chaque équipement et acheminer les paquets'],
+                    ['HTTP', 'Demander une page web et la recevoir'],
+                    ['DNS', 'Traduire le nom d’un site en adresse IP'],
+                    ['TCP', 'Vérifier que tous les paquets sont bien arrivés'],
+                  ],
                   explanation:
-                    'IP (Internet Protocol) donne une adresse à chaque équipement et achemine les paquets de routeur en routeur.',
+                    'IP adresse et achemine les paquets de routeur en routeur ; HTTP règle le dialogue entre le navigateur et le serveur web ; DNS traduit les noms ; TCP vérifie que rien ne s’est perdu. Ils travaillent ensemble, chacun dans sa couche.',
                   notion: 'protocole',
                 },
               },
             },
+          ],
+        },
+        {
+          id: 'donnees',
+          title: 'Représenter des données',
+          solution: `Explorateur du **Serveur**, \`Documents/3A/Nora\` : \`titre.txt\` fait 5 octets (le mot MUSEE). Navigateur de Poste 1, \`http://192.168.10.50/mesures.csv\` : une ligne de titres, puis une mesure par ligne, les valeurs séparées par des points-virgules.`,
+          body: `Texte, image, nombre : pour être stockée ou transmise, toute information est transformée en **bits**, regroupés en **octets**. Vérifie-le sur de vrais fichiers, en simulation :
+
+- sur le bureau du **Serveur**, ouvre l’**Explorateur de fichiers**, puis le dossier \`Documents/3A/Nora\` : la colonne « Taille » donne la taille de chaque fichier ;
+- dans le **Navigateur web** de Poste 1, ouvre \`http://192.168.10.50/mesures.csv\` : c’est le fichier que le capteur de CO2 exporte pour un tableur.
+
+Lis la fiche [[donnees-numeriques]] si besoin.`,
+          notions: ['donnees-numeriques', 'donnees-objet'],
+          hints: [
+            'Dans l’explorateur du Serveur, ouvre Documents, puis 3A, puis Nora.',
+            'Un caractère courant = 1 octet. Un pixel en couleurs = 3 octets (rouge, vert, bleu).',
+            'En binaire, chaque chiffre vaut le double du suivant : …, 8, 4, 2, 1.',
+          ],
+          objectives: [
             {
-              id: 'q-protocole-http',
-              label: 'Le protocole HTTP',
+              id: 'q-texte',
+              label: 'La taille d’un texte',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'short',
+                  prompt:
+                    'Le fichier titre.txt de Nora contient seulement le mot MUSEE. Quelle taille l’explorateur affiche-t-il, en octets ? (un nombre)',
+                  accepted: ['5', 'cinq'],
+                  explanation:
+                    '5 octets : un octet par caractère (M, U, S, E, E). Un texte de 1 000 caractères pèse environ 1 000 octets, soit 1 Ko.',
+                  notion: 'donnees-numeriques',
+                },
+              },
+            },
+            {
+              id: 'q-format',
+              label: 'Le format d’un fichier',
               check: {
                 type: 'question',
                 question: {
                   type: 'mcq',
-                  prompt: 'Quel protocole le navigateur utilise-t-il pour demander une page web ?',
-                  choices: ['HTTP', 'IP', 'DNS', 'TCP'],
+                  prompt: 'Dans mesures.csv, quel caractère sépare les valeurs d’une même ligne ?',
+                  choices: [
+                    'Le point-virgule ( ; )',
+                    'La virgule ( , )',
+                    'L’espace',
+                    'Les deux-points ( : )',
+                  ],
                   correct: [0],
                   explanation:
-                    'HTTP règle le dialogue entre le navigateur et le serveur web. TCP, lui, vérifie que tous les paquets arrivent, et DNS traduit les noms.',
-                  notion: 'web-http',
+                    'Une ligne par mesure, un point-virgule entre les colonnes (heure ; CO2 ; température). La virgule, ici, est celle des nombres décimaux. L’extension .csv indique ce tableau écrit en texte, qu’un tableur ouvre pour tracer un graphique.',
+                  notion: 'donnees-numeriques',
+                },
+              },
+            },
+            {
+              id: 'q-image',
+              label: 'La taille d’une image',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'short',
+                  prompt:
+                    'Combien d’octets pour une image en couleurs de 100 × 100 pixels, à 3 octets par pixel, sans compression ? (un nombre)',
+                  accepted: ['30000', '30 Ko', '30 kilooctets'],
+                  explanation: '100 × 100 = 10 000 pixels ; 10 000 × 3 = 30 000 octets (30 Ko).',
+                  notion: 'donnees-numeriques',
+                },
+              },
+            },
+            {
+              id: 'q-binaire',
+              label: 'Un nombre en binaire',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'mcq',
+                  prompt: 'Quel nombre s’écrit 1010 en binaire ?',
+                  choices: ['10', '1010', '5', '12'],
+                  correct: [0],
+                  explanation: '1010 = 1 × 8 + 0 × 4 + 1 × 2 + 0 × 1 = 10.',
+                  notion: 'donnees-numeriques',
                 },
               },
             },
@@ -1257,7 +1499,7 @@ Rappel : **1 octet = 8 bits**, et **temps = taille (en bits) ÷ débit (en bit/s
                   type: 'short',
                   prompt:
                     'Combien de secondes faut-il pour envoyer une photo de 4 Mo avec un débit de 8 Mbit/s ? (un nombre)',
-                  accepted: ['4', '4 s', '4s', '4 secondes'],
+                  accepted: ['4'],
                   explanation: '4 Mo = 4 × 8 = 32 Mbit ; 32 ÷ 8 = 4 secondes.',
                   notion: 'debit',
                 },
@@ -1272,7 +1514,7 @@ Rappel : **1 octet = 8 bits**, et **temps = taille (en bits) ÷ débit (en bit/s
                   type: 'short',
                   prompt:
                     'Combien de secondes faut-il pour télécharger une vidéo de 1,5 Go avec un débit de 100 Mbit/s ? (un nombre)',
-                  accepted: ['120', '120 s', '120s', '120 secondes'],
+                  accepted: ['120', '2 min', '2 minutes'],
                   explanation:
                     '1,5 Go = 1 500 Mo = 12 000 Mbit ; 12 000 ÷ 100 = 120 secondes, soit 2 minutes.',
                   notion: 'debit',
@@ -1298,110 +1540,63 @@ Rappel : **1 octet = 8 bits**, et **temps = taille (en bits) ÷ débit (en bit/s
           ],
         },
         {
-          id: 'donnees',
-          title: 'Représenter des données',
-          body: 'Texte, image, nombre : pour être stockée ou transmise, toute information est transformée en **bits**, regroupés en **octets**. Lis la fiche [[donnees-numeriques]] si besoin.',
-          notions: ['donnees-numeriques'],
-          hints: [
-            'Un caractère courant = 1 octet. Un pixel en couleurs = 3 octets (rouge, vert, bleu).',
-            'En binaire, chaque chiffre vaut le double du suivant : …, 8, 4, 2, 1.',
-          ],
-          objectives: [
-            {
-              id: 'q-texte',
-              label: 'La taille d’un texte',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'short',
-                  prompt:
-                    'Combien d’octets faut-il pour le message « MUSEE », à un octet par caractère ? (un nombre)',
-                  accepted: ['5', 'cinq', '5 octets'],
-                  explanation: 'M, U, S, E, E : 5 caractères, donc 5 octets.',
-                  notion: 'donnees-numeriques',
-                },
-              },
-            },
-            {
-              id: 'q-image',
-              label: 'La taille d’une image',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'short',
-                  prompt:
-                    'Combien d’octets pour une image en couleurs de 100 × 100 pixels, à 3 octets par pixel, sans compression ? (un nombre)',
-                  accepted: ['30000', '30 000', '30 000 octets', '30000 octets'],
-                  explanation: '100 × 100 = 10 000 pixels ; 10 000 × 3 = 30 000 octets (30 Ko).',
-                  notion: 'donnees-numeriques',
-                },
-              },
-            },
-            {
-              id: 'q-binaire',
-              label: 'Un nombre en binaire',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'mcq',
-                  prompt: 'Quel nombre s’écrit 1010 en binaire ?',
-                  choices: ['10', '1010', '5', '12'],
-                  correct: [0],
-                  explanation: '1010 = 1 × 8 + 0 × 4 + 1 × 2 + 0 × 1 = 10.',
-                  notion: 'donnees-numeriques',
-                },
-              },
-            },
-            {
-              id: 'q-format',
-              label: 'Le format d’un fichier',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'mcq',
-                  prompt:
-                    'Les mesures du capteur de CO2 sont exportées dans le fichier mesures.csv. Que contient ce fichier ?',
-                  choices: [
-                    'Un tableau de données écrit en texte, valeurs séparées par des virgules ou des points-virgules',
-                    'Une image',
-                    'Une vidéo',
-                    'Un programme',
-                  ],
-                  correct: [0],
-                  explanation:
-                    'L’extension .csv indique un tableau de données en texte, que l’on ouvre dans un tableur pour tracer un graphique.',
-                  notion: 'donnees-numeriques',
-                },
-              },
-            },
-          ],
-        },
-        {
           id: 'objets-communicants',
           title: 'Deux objets qui communiquent',
-          body: `Dans la serre du collège, une carte programmable mesure la température et l’envoie **par radio**, toutes les minutes, à une seconde carte placée en salle de techno. Celle-ci affiche la valeur et sonne au-dessus de 30 °C.
+          solution: `Bureau de l’**Afficheur** › **Serveur écho** › Démarrer (port \`7\`). Bureau du **Capteur CO2** › **Client écho** vers \`192.168.10.51\` : le port \`8\` est refusé, le port \`7\` connecte. Le message \`CO2:1150\` revient en écho, et le journal de l’Afficheur note \`192.168.10.50 : CO2:1150\`.`,
+          body: `Quand il faut aérer le CDI, le **Capteur CO2** prévient l’**Afficheur** placé à l’entrée (en bas du plan, adresse \`192.168.10.51\`). Les deux objets ont été programmés pour s’entendre : le même **port**, \`7\` — leur « canal », comme le canal radio de deux cartes programmables — et des messages de la forme \`CO2:1150\`.
 
-Les deux élèves qui programment les cartes se sont mis d’accord : **canal radio 7**, et des messages de la forme \`T:28\` (pour 28 °C). Lis la fiche [[objets-communicants]] si besoin.`,
+En simulation :
+
+- sur le bureau de l’**Afficheur**, ouvre le **Serveur écho** et clique sur **Démarrer** : il écoute sur le port 7 et renvoie chaque message reçu, en accusé de réception ;
+- sur le bureau du **Capteur CO2**, ouvre le **Client écho**. Essaie d’abord de te connecter à \`192.168.10.51\` avec le port \`8\`, puis avec le port \`7\` ;
+- une fois connecté, envoie \`CO2:1150\`, puis regarde le **journal** de l’Afficheur.
+
+Lis la fiche [[objets-communicants]] si besoin.`,
           notions: ['objets-communicants', 'protocole'],
-          hints: ['Celui qui envoie est l’émetteur ; celui qui reçoit est le récepteur.'],
+          hints: [
+            'Dans le Client écho : l’adresse 192.168.10.51, le port, puis « Connecter ». Le message s’écrit en bas de la fenêtre.',
+            'Celui qui envoie est l’émetteur ; celui qui reçoit est le récepteur.',
+            'Le journal du Serveur écho écrit, pour chaque message reçu, l’adresse de celui qui l’a envoyé.',
+          ],
           objectives: [
             {
-              id: 'q-emetteur',
-              label: 'L’émetteur',
+              id: 'afficheur-ecoute',
+              label: 'Le Serveur écho de l’Afficheur est démarré',
+              check: { type: 'serviceRunning', device: display, app: 'echoserver' },
+            },
+            {
+              id: 'q-mauvais-canal',
+              label: 'Le mauvais port',
               check: {
                 type: 'question',
                 question: {
                   type: 'mcq',
-                  prompt: 'Dans cet échange, quelle carte est l’émetteur ?',
+                  prompt: 'Avec le port 8, qu’affiche le Client écho du capteur ?',
                   choices: [
-                    'La carte de la serre',
-                    'La carte de la salle de techno',
-                    'Les deux en même temps',
-                    'Aucune',
+                    'Connexion refusée',
+                    'Connexion fermée',
+                    'Le serveur ne répond pas',
+                    'Connecté à 192.168.10.51:8',
                   ],
                   correct: [0],
                   explanation:
-                    'La carte de la serre envoie les mesures : c’est l’émetteur. La carte de la salle de techno est le récepteur.',
+                    'L’Afficheur n’écoute que sur le port 7 : sur le port 8, la connexion est refusée. Émetteur et récepteur doivent utiliser le même port, comme deux cartes radio le même canal.',
+                  notion: 'objets-communicants',
+                },
+              },
+            },
+            {
+              id: 'q-expediteur',
+              label: 'L’émetteur du message',
+              check: {
+                type: 'question',
+                question: {
+                  type: 'short',
+                  prompt:
+                    'Dans le journal de l’Afficheur, quelle adresse IP est écrite devant le message CO2:1150 ?',
+                  accepted: ['192.168.10.50'],
+                  explanation:
+                    '192.168.10.50 : l’adresse du capteur, qui a envoyé le message. Le capteur est l’émetteur, l’Afficheur le récepteur ; en renvoyant le message, l’Afficheur accuse réception.',
                   notion: 'objets-communicants',
                 },
               },
@@ -1414,11 +1609,11 @@ Les deux élèves qui programment les cartes se sont mis d’accord : **canal ra
                 question: {
                   type: 'mcq',
                   prompt:
-                    'Un élève modifie le programme de la serre, qui envoie maintenant « 28 » au lieu de « T:28 ». Que se passe-t-il ?',
+                    'Un élève modifie le programme du capteur, qui envoie maintenant « 1150 » au lieu de « CO2:1150 ». Que se passe-t-il ?',
                   choices: [
-                    'Le message arrive, mais le récepteur ne le comprend pas',
+                    'Le message arrive, mais l’Afficheur ne le comprend pas',
                     'Le message n’est plus envoyé',
-                    'Le récepteur corrige le message tout seul',
+                    'L’Afficheur corrige le message tout seul',
                     'Tout fonctionne comme avant',
                   ],
                   correct: [0],
@@ -1436,35 +1631,16 @@ Les deux élèves qui programment les cartes se sont mis d’accord : **canal ra
                 question: {
                   type: 'mcq',
                   prompt:
-                    'Que faut-il décider ensemble avant de programmer les deux cartes ? (plusieurs réponses)',
+                    'Que faut-il décider ensemble avant de programmer deux objets qui communiquent ? (plusieurs réponses)',
                   choices: [
-                    'Le canal radio utilisé',
+                    'Le port, ou le canal radio, utilisé',
                     'Le format des messages',
                     'Ce que fait le récepteur pour chaque message',
-                    'La couleur des cartes',
+                    'La couleur des boîtiers',
                   ],
                   correct: [0, 1, 2],
                   explanation:
-                    'Canal, format des messages et réaction du récepteur : c’est le petit protocole des deux cartes.',
-                  notion: 'objets-communicants',
-                },
-              },
-            },
-            {
-              id: 'q-echange',
-              label: 'Le déroulement de l’échange',
-              check: {
-                type: 'question',
-                question: {
-                  type: 'order',
-                  prompt: 'Remets dans l’ordre l’échange entre les deux cartes.',
-                  items: [
-                    'Le capteur de la serre mesure 31 °C',
-                    'La carte de la serre envoie « T:31 » sur le canal 7',
-                    'La carte de la salle de techno reçoit le message',
-                    'Elle affiche 31 et sonne, car c’est plus de 30 °C',
-                  ],
-                  explanation: 'Mesure, émission, réception, traitement : chaque carte joue son rôle.',
+                    'Canal, format des messages et réaction du récepteur : c’est le petit protocole des deux objets.',
                   notion: 'objets-communicants',
                 },
               },
@@ -1474,6 +1650,7 @@ Les deux élèves qui programment les cartes se sont mis d’accord : **canal ra
         {
           id: 'enjeux',
           title: 'Les enjeux du numérique',
+          solution: `Les réponses sont dans la page du musée, affichée à l’étape « Afficher le site du musée ».`,
           body: 'Relis la page du **Musée des réseaux** dans le navigateur de Poste 1 : elle présente ce qui se cache derrière Internet. Aide-toi aussi de la fiche [[enjeux-numerique]].',
           notions: ['enjeux-numerique'],
           hints: ['Toutes les réponses sont dans la page du musée.'],
@@ -1603,6 +1780,7 @@ Les deux élèves qui programment les cartes se sont mis d’accord : **canal ra
         {
           id: 'bonus-mediatheque',
           title: 'Relier la médiathèque',
+          solution: `**Routeur du FAI** : « Ajouter une interface » (elle s’appelle eth3), puis un câble vers le **Routeur de la médiathèque**. Adresse de eth3 : \`82.64.13.1\`, masque \`255.255.255.0\`. Onglet Routage du Routeur du FAI : réseau \`192.168.20.0\`, masque \`255.255.255.0\`, passerelle \`82.64.13.34\`, interface eth3. \`ping 192.168.20.5\` depuis Poste 1, puis **Vérifier mon travail**. Le Routeur Internet n’a pas besoin de cette route.`,
           bonus: true,
           body: `La **médiathèque** de la ville (réseau \`192.168.20.0\`, en bas du plan) s’abonne chez le même FAI. Son routeur est réglé, mais il n’est pas relié.
 

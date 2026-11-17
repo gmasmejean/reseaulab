@@ -1,12 +1,20 @@
+import { formatIp } from '../../engine/core/ipv4';
+import type { Host } from '../../engine/devices/host';
 import type { Network } from '../../engine/network';
+import { LineClient } from '../../engine/services/echo';
+import { httpGet, type HttpResult } from '../../engine/services/http';
+import { Terminal } from '../../engine/terminal/terminal';
 import { MASK_24, ip } from '../../engine/testing';
 import { DEFAULT_PACK } from '../content/default-pack';
 import { lintNetwork } from '../diagnose/lint';
 import { tracePath } from '../diagnose/trace';
 import { linkedNotions } from '../richtext';
+import { rightAnswer } from '../quiz/quiz';
+import { prepareProbe, runBounded } from '../sim/probe';
 import { BUILTIN_ACTIVITIES } from './builtin';
-import { currentStep, evaluateAll, gateSteps, journalEntry } from './evaluate';
-import { askQuestion, drawSalt, markAnswer } from './questions';
+import { currentStep, evaluateAll, gateSteps, journalEntry, protectedDevices } from './evaluate';
+import { guardOf } from './protect';
+import { askQuestion, drawSalt, markAnswer, partsOf } from './questions';
 import { EMPTY_WORK, objectivesOf, type Activity, type Work } from './schema';
 
 const find = (network: Network, name: string) => {
@@ -21,17 +29,28 @@ function answerAll(activity: Activity, work: Work): Work {
   for (const objective of objectivesOf(activity)) {
     if (objective.check.type !== 'question') continue;
     const item = askQuestion(objective.id, objective.check.question, drawSalt(work));
-    const given =
-      item === null
-        ? 'Une réponse rédigée.'
-        : item.kind === 'choice'
-          ? item.correct
-          : item.kind === 'order'
-            ? item.solution
-            : (item.accepted[0] ?? '');
+    const given = item === null ? 'Une réponse rédigée.' : rightAnswer(item);
     answers[objective.id] = markAnswer(item, given, 0);
   }
   return { ...work, answers };
+}
+
+/** What `traceroute 203.0.113.80` prints on a host: the last word of each hop line, or whole texts. */
+function traceroute(sim: Network, host: Host, whole = false): string[] {
+  const out: string[] = [];
+  const terminal = new Terminal(host, { print: (line) => out.push(line), clear: () => undefined });
+  let finished = false;
+  terminal.execute('traceroute 203.0.113.80', () => {
+    finished = true;
+  });
+  runBounded(sim, () => finished, 120_000);
+  return out
+    .filter((line) => /^\s*\d+\s/.test(line))
+    .map((line) => {
+      const words = line.trim().split(/\s+/);
+      const text = words.slice(1).join(' ');
+      return whole && !text.includes(' ms ') ? text : (words.at(-1) ?? '');
+    });
 }
 
 /** Du collège au musée : la partie 1 réparée, et la passerelle sur chaque ordinateur du CDI. */
@@ -135,6 +154,8 @@ const SOLUTIONS: Record<string, (network: Network) => Work> = {
     repairLibrary(network);
     routeToDataCenter(network);
     network.host(poste1).updateConfig({ dns: ip('80.10.0.53') });
+    // Deux objets qui communiquent : l'afficheur écoute le capteur.
+    network.host(find(network, 'Afficheur').id).echoServer.setActive(true);
     // Bonus : relier la médiathèque au FAI.
     const fai = network.router(find(network, 'Routeur du FAI').id);
     network.addRouterInterface(fai.id);
@@ -301,6 +322,232 @@ describe('Activités fournies', () => {
     expect(status('site-affiche')).toBe('done');
     // La médiathèque reste à relier (bonus).
     expect(status('ping-mediatheque')).toBe('todo');
+  });
+
+  test('Du collège au musée : l’infrastructure est protégée, et la solution ne fait qu’y ajouter', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    if (!builtin) throw new Error('college-musee');
+    const { network, activity } = builtin.build();
+    const guard = guardOf(activity);
+    const protect = activity.protect;
+    if (!protect) throw new Error('protect');
+    // Tout ce qui est protégé existe dans le réseau de départ.
+    for (const device of protect.devices) expect(network.device(device.id), device.id).toBeDefined();
+    for (const id of protect.cables) expect(network.cable(id), id).toBeDefined();
+    // Du collège au musée, plus aucun routeur ne peut perdre une route ou une interface de départ.
+    for (const name of [
+      'Routeur du collège',
+      'Routeur du FAI',
+      'Routeur Internet',
+      'Routeur du data center',
+    ]) {
+      const router = network.router(find(network, name).id);
+      expect(
+        router.staticRoutes.every((_, i) => guard.route(router.id, i)),
+        name,
+      ).toBe(true);
+      expect(
+        router.interfaces.every((_, i) => guard.iface(router.id, i)),
+        name,
+      ).toBe(true);
+      expect(protectedDevices(activity).has(router.id), name).toBe(true);
+    }
+    // Les postes que l'élève règle restent libres ; leurs câbles de départ, eux, sont gardés.
+    for (const name of ['Poste 1', 'Poste 2', 'Poste 3', 'Tablette', 'Capteur CO2', 'Serveur'])
+      expect(guard.device(find(network, name).id), name).toBe(false);
+    const poste1Cable = network.cables.find((c) => c.a === find(network, 'Poste 1').id);
+    expect(poste1Cable && guard.cable(poste1Cable.id)).toBe(true);
+
+    // La solution complète (bonus compris) laisse intact tout ce qui est protégé.
+    const before = protect.devices.map(({ id, routes, interfaces }) => {
+      const device = network.device(id);
+      const router = device?.kind === 'router' ? network.router(id) : null;
+      return JSON.stringify({
+        name: device?.name,
+        routes: router?.staticRoutes.slice(0, routes),
+        interfaces: router?.interfaces.slice(0, interfaces).map((i) => [i.ip, i.mask]),
+      });
+    });
+    SOLUTIONS['college-musee']?.(network);
+    const after = protect.devices.map(({ id, routes, interfaces }) => {
+      const device = network.device(id);
+      const router = device?.kind === 'router' ? network.router(id) : null;
+      return JSON.stringify({
+        name: device?.name,
+        routes: router?.staticRoutes.slice(0, routes),
+        interfaces: router?.interfaces.slice(0, interfaces).map((i) => [i.ip, i.mask]),
+      });
+    });
+    expect(after).toEqual(before);
+    for (const id of protect.cables) expect(network.cable(id), id).toBeDefined();
+  });
+
+  test('Du collège au musée : ce que l’élève doit observer est bien ce que montre le simulateur', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    if (!builtin) throw new Error('college-musee');
+    const { network, activity } = builtin.build();
+    SOLUTIONS['college-musee']?.(network);
+    /** Première réponse acceptée, ou texte du bon choix, d'une question de l'activité. */
+    const expected = (id: string): string => {
+      const check = objectivesOf(activity).find((o) => o.id === id)?.check;
+      if (check?.type !== 'question') throw new Error(id);
+      const q = check.question;
+      if (q.type === 'short') return q.accepted[0] ?? '';
+      if (q.type === 'mcq') return q.choices[q.correct[0] ?? -1] ?? '';
+      throw new Error(id);
+    };
+
+    // « Représenter des données » : la taille lue dans l'explorateur du Serveur.
+    const server = network.host(find(network, 'Serveur').id);
+    const title = server.fs.list('/Documents/3A/Nora').find((e) => e.name === 'titre.txt');
+    expect(String(title?.size)).toBe(expected('q-texte'));
+
+    // « Fichiers et bons usages » : le dossier Commun refuse ce que la consigne fait essayer.
+    expect(server.fs.isReadOnly('/Documents/Commun')).toBe(true);
+    expect(() => {
+      server.fs.mkdir('/Documents/Commun/essai');
+    }).toThrow('Dossier en lecture seule : /Documents/Commun');
+    expect(() => {
+      server.fs.remove('/Documents/Commun/charte-informatique.pdf');
+    }).toThrow('Dossier en lecture seule : /Documents/Commun');
+    server.fs.writeFile('/Documents/3A/Nora/brouillon.txt', 'x');
+    server.fs.remove('/Documents/3A/Nora/brouillon.txt');
+
+    const { sim } = prepareProbe(network);
+    // En simulation aussi : c'est là que l'élève ouvre l'explorateur.
+    expect(sim.host(server.id).fs.isReadOnly('/Documents/Commun')).toBe(true);
+    const poste1 = sim.host(find(network, 'Poste 1').id);
+    const sensor = sim.host(find(network, 'Capteur CO2').id);
+    const display = sim.host(find(network, 'Afficheur').id);
+
+    // Le fichier exporté par le capteur : du texte, une mesure par ligne, des points-virgules.
+    let page: HttpResult | null = null;
+    httpGet(poste1, 'http://192.168.10.50/mesures.csv', (result) => {
+      page = result;
+    });
+    runBounded(sim, () => page !== null, 30_000);
+    const csv = page as HttpResult | null;
+    if (csv?.kind !== 'ok') throw new Error('mesures.csv');
+    expect(csv.response.status).toBe(200);
+    expect(csv.response.headers['content-type']).toBe('text/csv');
+    const lines = csv.response.body.trim().split('\n');
+    expect(lines[0]).toBe('heure;co2_ppm;temperature_c');
+    expect(lines).toHaveLength(10);
+    expect(lines.every((line) => line.split(';').length === 3)).toBe(true);
+    expect(expected('q-format')).toContain(';');
+    // Les mêmes mesures que la page du capteur : premier dépassement de 1000 ppm à 10:00.
+    const over = lines.slice(1).find((line) => Number(line.split(';')[1]) > 1000);
+    expect(over?.split(';')[0]).toBe(expected('q-aerer'));
+
+    // « Deux objets qui communiquent » : port 8 refusé, port 7 accepté, émetteur écrit au journal.
+    const say = (port: number, message?: string): string[] => {
+      const seen: string[] = [];
+      let over = false;
+      const client = new LineClient(sensor, {
+        connected: (remote) => {
+          seen.push(`Connecté à ${remote}`);
+          if (message !== undefined) client.send(message);
+        },
+        line: (line) => {
+          seen.push(`← ${line}`);
+          client.disconnect();
+        },
+        closed: (text) => {
+          seen.push(text);
+          over = true;
+        },
+      });
+      client.connect('192.168.10.51', port);
+      runBounded(sim, () => over, 30_000);
+      return seen;
+    };
+    expect(say(8)).toEqual([expected('q-mauvais-canal')]);
+    expect(say(7, 'CO2:1150')).toEqual(['Connecté à 192.168.10.51:7', '← CO2:1150', 'Connexion fermée']);
+    expect(display.echoServer.log.map((entry) => entry.text)).toContain(
+      `${expected('q-expediteur')} : CO2:1150`,
+    );
+
+    // traceroute, une fois le chemin réparé : le dernier routeur avant le musée.
+    expect(traceroute(sim, poste1)).toEqual([
+      '192.168.10.254',
+      '82.64.12.1',
+      '198.51.100.2',
+      '192.0.2.2',
+      '203.0.113.80',
+    ]);
+    expect(traceroute(sim, poste1).at(-2)).toBe(expected('q-traceroute'));
+
+    // Avant réparation (seule la passerelle est réglée) : l'élève trouve la panne lui-même.
+    const broken = builtin.build().network;
+    repairLibrary(broken);
+    const probe = prepareProbe(broken).sim;
+    const hops = traceroute(probe, probe.host(find(broken, 'Poste 1').id), true);
+    expect(hops.at(-1)).toBe('198.51.100.2 : destination inaccessible');
+    const last = expected('q-dernier-routeur');
+    expect(hops.slice(0, -1)).toEqual(['192.168.10.254', '82.64.12.1', last]);
+    // Le routeur qui porte cette adresse est celui que la question désigne…
+    const owner = broken.devices.find(
+      (d) => d.kind === 'router' && broken.router(d.id).interfaces.some((i) => i.ip === ip(last)),
+    );
+    expect(owner?.name).toBe('Routeur Internet');
+    expect(expected('q-routeur-en-cause')).toBe(`Le ${owner?.name ?? ''}`);
+    // … et sa table n'a ni ligne pour le réseau du musée, ni route par défaut.
+    const routes = broken.router(owner?.id ?? '').staticRoutes;
+    expect(routes.map((r) => formatIp(r.destination))).toEqual(['192.168.10.0', '82.64.12.0', '80.10.0.0']);
+    expect(routes.some((r) => (ip('203.0.113.80') & r.mask) >>> 0 === r.destination)).toBe(false);
+  });
+
+  test('le plan d’adressage est vérifié : un poste réparé hors de sa plage n’est pas accepté', () => {
+    for (const [id, poste, objective, object] of [
+      ['college-musee', 'Poste 2', 'poste2-repare', 'Capteur CO2'],
+      ['salle-techno', 'Poste 3', 'poste3-repare', 'Station météo'],
+    ] as const) {
+      const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === id);
+      if (!builtin) throw new Error(id);
+      const { network, activity } = builtin.build();
+      const host = network.host(find(network, poste).id);
+      const outcome = (address: string) => {
+        host.updateConfig({ ip: ip(address) });
+        return evaluateAll(activity, network, EMPTY_WORK).get(objective);
+      };
+      // .77 est dans le bon réseau mais hors du plan ; .50 est l'adresse réservée à l'objet connecté.
+      for (const address of ['192.168.10.77', '192.168.10.50'])
+        expect(outcome(address)).toEqual({
+          status: 'todo',
+          detail: 'Hors du plan d’adressage : de 192.168.10.1 à 192.168.10.9.',
+        });
+      expect(outcome('192.168.10.8')).toEqual({ status: 'done' });
+      // L'objet connecté prendra .50 : l'adresse est restée libre pour lui.
+      expect(formatIp(network.host(find(network, object).id).config.ip)).not.toBe('192.168.10.50');
+    }
+  });
+
+  test('Du collège au musée : consigne courte, trois parties qui disent la séance et quand enregistrer', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    if (!builtin) throw new Error('college-musee');
+    const { activity } = builtin.build();
+    // La consigne : la mission, le plan d'adressage, la règle des questions. Rien de plus.
+    expect(activity.intro.split('\n\n')).toHaveLength(3);
+    expect(activity.intro.length).toBeLessThan(900);
+    expect(activity.intro).toContain('Plan d’adressage du CDI');
+    expect(activity.intro).not.toContain('adresse publique');
+    // L'explication « adresse privée remplacée par l'adresse publique » est là où la table du FAI la rend utile.
+    const table = activity.steps.find((s) => s.id === 'lire-table');
+    expect(table?.body).toContain('Le simulateur ne fait pas ce remplacement');
+    expect(table?.notions).toContain('ip-privee-publique');
+    expect(table?.body).not.toContain('1re séance');
+
+    const parts = partsOf(activity);
+    expect(parts.map((p) => [p.title, p.steps[0]?.id, p.steps.length])).toEqual([
+      ['Séance 1 — Partie 1 : ce que je sais depuis la 5e et la 4e', 'reseau-cdi', 6],
+      ['Séance 1 — Partie 2 : Internet, un réseau de réseaux', 'reseau-de-reseaux', 3],
+      ['Séance 2 — Partie 3 : trouver la panne, atteindre le musée', 'trouver-panne', 10],
+      ['Bonus', 'bonus-mediatheque', 2],
+    ]);
+    // Le repère de fin de séance est sous le titre de la partie suivante, pas au fond d'une consigne.
+    expect(parts[2]?.note).toContain('La 1re séance s’arrête ici');
+    expect(parts[2]?.note).toContain('[[ecran:enregistrer]]');
+    expect(parts[2]?.note).toContain('[[ecran:ouvrir]]');
   });
 
   test('chaque appel construit un nouveau réseau de départ', () => {

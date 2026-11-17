@@ -32,18 +32,36 @@ export function shuffle<T>(items: readonly T[], next: () => number): T[] {
 
 const pick = (next: () => number, min: number, max: number) => min + Math.floor(next() * (max - min + 1));
 
-/** Two addresses and a mask: are they in the same network? */
-function sameNetworkItem(question: Question, next: () => number): QuizItem {
-  const prefix = next() < 0.75 ? 24 : 16;
-  const mask = prefixToMask(prefix);
-  const first = ((192 << 24) | (168 << 16) | (pick(next, 0, 9) << 8) | pick(next, 1, 254)) >>> 0;
+const address = (a: number, b: number, c: number, d: number) => ((a << 24) | (b << 16) | (c << 8) | d) >>> 0;
+
+/** Another value of the same range, never the one given. */
+function other(next: () => number, value: number, min: number, max: number): number {
+  const span = max - min + 1;
+  return min + ((value - min + pick(next, 1, span - 1)) % span);
+}
+
+/**
+ * Two addresses and a mask: are they in the same network? Whatever the mask,
+ * both answers come out, and the addresses differ where it matters: under
+ * 255.255.0.0 a « yes » has two different third numbers, which is the trap.
+ */
+function sameNetworkItem(question: Question & { type: 'same-network' }, next: () => number): QuizItem {
+  const masks = question.masks?.length ? question.masks : (['255.255.255.0'] as const);
+  const wide = masks[Math.floor(next() * masks.length)] === '255.255.0.0';
+  const mask = prefixToMask(wide ? 16 : 24);
   const same = next() < 0.5;
-  // Differs either in the network part or only in the host part.
-  let second = (first & 0xffffff00) | pick(next, 1, 254);
-  if (!same) second = (second & 0xffff00ff) | (((((first >>> 8) & 0xff) + pick(next, 1, 5)) % 256) << 8);
-  second >>>= 0;
+  const [b, c, d] = [wide ? pick(next, 16, 31) : 168, pick(next, 0, 9), pick(next, 1, 254)];
+  const first = address(wide ? 172 : 192, b, c, d);
+  const second = wide
+    ? address(172, same ? b : other(next, b, 16, 31), other(next, c, 0, 9), pick(next, 1, 254))
+    : address(192, 168, same ? c : other(next, c, 0, 9), other(next, d, 1, 254));
   const answer = networkOf(first, mask) === networkOf(second, mask);
-  const network = (ip: number) => formatIp(networkOf(ip, mask));
+  const part = (ip: number) =>
+    formatIp(ip)
+      .split('.')
+      .slice(0, wide ? 2 : 3)
+      .join('.');
+  const rule = `avec le masque ${formatIp(mask)}, les ${wide ? 'deux' : 'trois'} premiers nombres désignent le réseau`;
   return {
     id: question.id,
     notion: question.notion,
@@ -52,8 +70,8 @@ function sameNetworkItem(question: Question, next: () => number): QuizItem {
     choices: ['Oui, dans le même réseau', 'Non, dans deux réseaux différents'],
     correct: [answer ? 0 : 1],
     explanation: answer
-      ? `Oui : avec ce masque, les deux adresses ont la même partie réseau (${network(first)}).`
-      : `Non : avec ce masque, la première est dans le réseau ${network(first)} et la seconde dans ${network(second)}.`,
+      ? `Oui : ${rule}, et ils sont les mêmes pour les deux adresses (${part(first)}).`
+      : `Non : ${rule} : ${part(first)} pour la première, ${part(second)} pour la seconde.`,
   };
 }
 
@@ -84,6 +102,14 @@ export function instantiate(question: Question, next: () => number): QuizItem {
       if (shuffled.every((item, i) => item === question.items[i]))
         shuffled = [...shuffled.slice(1), ...shuffled.slice(0, 1)];
       return { ...base, kind: 'order', shuffled, solution: question.items };
+    }
+    case 'match': {
+      const solution = question.pairs.map(([, right]) => right);
+      let shuffled = shuffle(solution, next);
+      // The list offered must not already be in the order of the answers.
+      if (shuffled.every((item, i) => item === solution[i]))
+        shuffled = [...shuffled.slice(1), ...shuffled.slice(0, 1)];
+      return { ...base, kind: 'match', lefts: question.pairs.map(([left]) => left), shuffled, solution };
     }
     case 'short':
       return { ...base, kind: 'short', accepted: question.accepted };
@@ -142,10 +168,53 @@ export function grade(item: QuizItem, answer: Answer): boolean {
       );
     }
     case 'order':
+    case 'match':
       return Array.isArray(answer) && sameItems(answer, item.solution);
     case 'short':
-      return typeof answer === 'string' && item.accepted.some((accepted) => fold(accepted) === fold(answer));
+      return typeof answer === 'string' && matchesShort(item.accepted, answer);
   }
+}
+
+/** An answer that is marked right: for a short one, the first text accepted. */
+export function rightAnswer(item: QuizItem): Answer {
+  switch (item.kind) {
+    case 'choice':
+      return item.correct;
+    case 'order':
+    case 'match':
+      return item.solution;
+    case 'short':
+      return item.accepted[0] ?? '';
+  }
+}
+
+/**
+ * A short answer as it is compared: no accents, capitals or spaces (« 30 000 »,
+ * « 10 h 00 »), no final punctuation, and a decimal comma read as a point.
+ */
+function canonical(text: string): string {
+  return fold(text)
+    .replace(/(\d),(?=\d)/g, '$1.')
+    .replace(/\s+/g, '')
+    .replace(/[.!?;:]+$/, '');
+}
+
+/** A number followed by words without any digit: « 4 routeurs », « 120 s ». */
+const NUMBER_THEN_WORDS = /^(\d+(?:\.\d+)?)\D+$/;
+
+/**
+ * Whether a typed answer is one of the accepted ones. The way it is written
+ * does not count (see `canonical`), and a number may be followed by its unit
+ * when the bare number is expected: « 4 routeurs » for « 4 ». The number
+ * itself must be the expected one: « 10h30 » is not « 10 », nor « 30 Ko »
+ * « 30000 » — an equivalent in another unit has to be listed.
+ */
+export function matchesShort(accepted: readonly string[], given: string): boolean {
+  const answer = canonical(given);
+  const wanted = accepted.map(canonical);
+  if (wanted.includes(answer)) return true;
+  const bare = NUMBER_THEN_WORDS.exec(answer)?.[1];
+  return bare !== undefined && wanted.includes(bare);
 }
 
 function mastery(asked: number, right: number): Mastery {

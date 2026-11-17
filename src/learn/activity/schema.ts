@@ -5,6 +5,7 @@ import { TERMINAL_COMMANDS } from '../../engine/terminal/terminal';
 import { LEVELS } from '../content/types';
 import { LINT_CODES } from '../diagnose/findings';
 import { CAPABILITIES, PROFILE_LEVELS } from '../profile/capabilities';
+import { SAME_NETWORK_MASKS } from '../quiz/types';
 
 /* An activity: instructions written by a teacher and objectives that the
  * simulator checks by itself. Checks are data taken from a closed list —
@@ -38,6 +39,10 @@ const network = z
   .string()
   .regex(/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/, { message: 'Réseau attendu sous la forme 192.168.1.0/24' });
 
+const address = z
+  .string()
+  .regex(/^\d{1,3}(\.\d{1,3}){3}$/, { message: 'Adresse attendue sous la forme 192.168.1.1' });
+
 /** Fields shared by every question of an activity. */
 const questionText = {
   prompt: z.string().trim().min(1).max(500),
@@ -69,10 +74,29 @@ const question = z.discriminatedUnion('type', [
   }),
   z.object({
     ...questionText,
+    type: z.literal('match'),
+    /** Pairs to put back together: « Switch » with « relier les équipements d’un même réseau ». */
+    pairs: z
+      .array(z.tuple([z.string().trim().min(1).max(200), z.string().trim().min(1).max(200)]))
+      .min(2)
+      .max(8)
+      .refine((pairs) => new Set(pairs.map(([left]) => left)).size === pairs.length, {
+        message: 'Deux éléments à associer sont identiques',
+      })
+      .refine((pairs) => new Set(pairs.map(([, right]) => right)).size === pairs.length, {
+        message: 'Deux propositions à associer sont identiques',
+      }),
+  }),
+  z.object({
+    ...questionText,
     type: z.literal('short'),
     accepted: z.array(z.string().trim().min(1).max(80)).min(1).max(10),
   }),
-  z.object({ ...questionText, type: z.literal('same-network') }),
+  z.object({
+    ...questionText,
+    type: z.literal('same-network'),
+    masks: z.array(z.enum(SAME_NETWORK_MASKS)).min(1).max(2).optional(),
+  }),
   z.object({ ...questionText, type: z.literal('open') }),
 ]);
 
@@ -96,6 +120,11 @@ const check = z.discriminatedUnion('type', [
     equals: text(40).optional(),
     /** An address of this network. */
     inNetwork: network.optional(),
+    /**
+     * An address of this range, both ends included: what an addressing plan
+     * reserves (« postes de .1 à .9 »). For `ip`, `gateway` and `dns`.
+     */
+    range: z.object({ from: address, to: address }).optional(),
     /** Filled in (or left empty when false). */
     isSet: z.boolean().optional(),
     /** For `ip`: an address that no other device of the plan has. */
@@ -152,8 +181,30 @@ const step = z.object({
   notions: z.array(id).max(10).default([]),
   /** Title of the part that begins with this step: « Partie 1 — Ce que je sais depuis la 5e ». */
   part: z.string().trim().min(1).max(120).optional(),
+  /**
+   * A few words shown under the title of that part, as formatted text: how
+   * long it lasts, « La 1re séance s’arrête ici : enregistre ton travail ».
+   * Only read on a step that begins a part.
+   */
+  partNote: text(600).optional(),
   /** For those who finish early: not needed to finish the activity. Bonus steps come last. */
   bonus: z.boolean().optional(),
+  /**
+   * « Approfondissement » : a step in the course of the activity that a pupil
+   * short of time may skip. Its objectives are not needed to finish.
+   */
+  optional: z.boolean().optional(),
+  /**
+   * What there is to do or to find in this step, as formatted text. Only
+   * shown in the answer key (« Corrigé »), which the teacher may print for
+   * the pupils: write it so that a pupil can read it.
+   */
+  solution: text(3000).optional(),
+  /**
+   * A remark for the teacher alone, as formatted text: what is checked, what
+   * the pupils often get wrong. Left out of the correction for the pupils.
+   */
+  teacherNote: text(1500).optional(),
 });
 
 const profile = z.object({
@@ -168,6 +219,27 @@ const profile = z.object({
     .optional(),
 });
 
+/**
+ * The infrastructure an activity relies on. What these devices of the
+ * starting network hold cannot be changed nor removed; the pupil may still
+ * add to them (a route, an interface, a cable) and take back what they added.
+ */
+const protection = z.object({
+  devices: z
+    .array(
+      z.object({
+        id: text(32),
+        /** For a router: the interfaces and static routes it had at first, counted from the first one. */
+        interfaces: z.number().int().min(0).max(8).default(0),
+        routes: z.number().int().min(0).max(200).default(0),
+      }),
+    )
+    .max(200)
+    .default([]),
+  /** Cables of the starting network that cannot be removed. */
+  cables: z.array(text(32)).max(500).default([]),
+});
+
 export const activitySchema = z.object({
   id,
   title: z.string().trim().min(1).max(120),
@@ -178,11 +250,21 @@ export const activitySchema = z.object({
   intro: text(6000).default(''),
   /** What the interface offers during the activity (the level of the class otherwise). */
   profile: profile.optional(),
+  /** What the pupil cannot break (nothing when absent). */
+  protect: protection.optional(),
+  /**
+   * When true, a question answered wrongly only counts once it has been tried
+   * again and answered rightly: the pupil cannot go on without correcting.
+   */
+  requireCorrection: z.boolean().optional(),
   steps: z
     .array(step)
     .min(1)
     .max(30)
     .refine((steps) => steps[0]?.bonus !== true, { message: 'La première étape ne peut pas être un bonus' })
+    .refine((steps) => steps[0]?.optional !== true, {
+      message: 'La première étape ne peut pas être un approfondissement',
+    })
     .refine((steps) => steps.every((s, i) => s.bonus === true || steps[i - 1]?.bonus !== true), {
       message: 'Les étapes bonus viennent après toutes les autres',
     }),
@@ -208,19 +290,45 @@ const askedItem = z
         shuffled: z.array(text(200)).max(8),
         solution: z.array(text(200)).max(8),
       }),
+      z.object({
+        kind: z.literal('match'),
+        lefts: z.array(text(200)).max(8),
+        shuffled: z.array(text(200)).max(8),
+        solution: z.array(text(200)).max(8),
+      }),
       z.object({ kind: z.literal('short'), accepted: z.array(text(80)).max(10) }),
     ]),
   );
+
+/** Chosen indices, items in their order (or matched to each first item), or a text. */
+const given = z.union([
+  z.array(z.number().int().min(0).max(7)).max(8),
+  z.array(text(200)).max(8),
+  text(2000),
+]);
 
 /** The answer of the pupil to a question of the activity. */
 const answer = z.object({
   /** The question as put (absent for an open question). */
   item: askedItem.optional(),
-  /** Chosen indices, items in their order, or a text. */
-  given: z.union([z.array(z.number().int().min(0).max(7)).max(8), z.array(text(200)).max(8), text(2000)]),
+  given,
   /** Null for an open question, which is not marked. */
   right: z.boolean().nullable(),
   at: z.number().min(0),
+  /**
+   * After a wrong answer, the last new try: the question as put again (a new
+   * draw) and what was answered. The first answer stays the one that is marked.
+   */
+  retry: z
+    .object({
+      item: askedItem,
+      given,
+      right: z.boolean(),
+      at: z.number().min(0),
+      /** How many new tries were made, this one included. */
+      tries: z.number().int().min(1).max(99),
+    })
+    .optional(),
 });
 
 /**
@@ -250,6 +358,8 @@ export const workSchema = z.object({
   simulated: z.boolean().default(false),
   /** Answers to the questions of the activity, by objective. */
   answers: z.record(id, answer).default({}),
+  /** « Approfondissement » steps the pupil chose to skip, by identifier. */
+  skipped: z.array(id).max(30).default([]),
 });
 
 export type Activity = z.infer<typeof activitySchema>;
@@ -259,6 +369,8 @@ export type Objective = Step['objectives'][number];
 export type Check = Objective['check'];
 export type DeviceRef = z.infer<typeof deviceRef>;
 export type Work = z.infer<typeof workSchema>;
+export type Protection = z.infer<typeof protection>;
+export type ProtectionInput = z.input<typeof protection>;
 export type ActivityQuestion = z.infer<typeof question>;
 export type QuestionAnswer = z.infer<typeof answer>;
 
@@ -272,6 +384,7 @@ export const EMPTY_WORK: Work = {
   commands: [],
   simulated: false,
   answers: {},
+  skipped: [],
 };
 
 /** How a check is evaluated. */
@@ -297,7 +410,17 @@ export function objectivesOf(activity: Activity): Objective[] {
   return activity.steps.flatMap((s) => s.objectives);
 }
 
-/** The objectives needed to finish the activity (bonus steps left out). */
+/** Whether a step may be skipped: an « approfondissement » in the course of the activity (not a bonus). */
+export function isOptionalStep(step: Step): boolean {
+  return step.optional === true && step.bonus !== true;
+}
+
+/** The objectives needed to finish the activity (bonus and « approfondissement » steps left out). */
 export function requiredObjectives(activity: Activity): Objective[] {
-  return activity.steps.filter((s) => s.bonus !== true).flatMap((s) => s.objectives);
+  return activity.steps.filter((s) => s.bonus !== true && !isOptionalStep(s)).flatMap((s) => s.objectives);
+}
+
+/** The objectives of the « approfondissement » steps. */
+export function optionalObjectives(activity: Activity): Objective[] {
+  return activity.steps.filter(isOptionalStep).flatMap((s) => s.objectives);
 }

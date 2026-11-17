@@ -2,9 +2,10 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { Network } from '../engine/network';
 import { MASK_24, ip } from '../engine/testing';
-import { BUILTIN_ACTIVITIES } from '../learn/activity/builtin';
+import { BUILTIN_ACTIVITIES, type BuiltinActivity } from '../learn/activity/builtin';
+import { activitySchema } from '../learn/activity/schema';
 import { serializeProject } from '../project/serialize';
-import { QUESTIONS_BUILTIN } from '../test/activities';
+import { MATCH_QUESTION, OPTIONAL_BUILTIN, QUESTIONS, QUESTIONS_BUILTIN } from '../test/activities';
 import { ManualFrames, MemoryStorage } from '../test/doubles';
 import { App, INFO_NOTICE_MS } from './App';
 import { serializePack } from '../learn/content/schema';
@@ -2070,6 +2071,14 @@ describe('Activités guidées', () => {
       session.openWindow({ type: 'app', deviceId: poste, app: 'terminal' });
     });
     const input = screen.getByRole('textbox', { name: 'Commande' });
+    // Une commande tapée sans ce qu'il lui faut ne compte pas (bilan B3).
+    for (const line of ['ping', 'traceroute']) {
+      fireEvent.change(input, { target: { value: line } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      elapse(frames, 200);
+    }
+    expect(screen.getByRole('log')).toHaveTextContent('Utilisation : traceroute <hôte>');
+    expect(session.work.commands).toEqual([]);
     fireEvent.change(input, { target: { value: 'ping -n 1 192.168.1.2' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     elapse(frames, 200);
@@ -2087,6 +2096,10 @@ describe('Questions d’une activité', () => {
     const panel = screen.getByRole('complementary', { name: 'Activité' });
     expect(panel).toHaveTextContent('0 objectif sur 4');
     expect(within(panel).getByRole('heading', { name: 'Partie 1 — Révisions' })).toBeInTheDocument();
+    // Sous le titre d'une partie, sa note : le repère de séance, avec le bouton à utiliser.
+    const second = within(panel).getByRole('heading', { name: 'Partie 2 — Adresses' }).closest('li');
+    expect(second).toHaveTextContent('Séance 2 : rouvre ton fichier avec');
+    expect(within(second as HTMLElement).getByRole('button', { name: /Ouvrir/ })).toBeInTheDocument();
     expect(within(panel).getByRole('heading', { name: /^Bonus/ })).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Défi' })).toHaveTextContent('B1Défi');
 
@@ -2137,6 +2150,389 @@ describe('Questions d’une activité', () => {
     expect(preview).toHaveTextContent('Réponse juste : Partie réseau');
     expect(within(preview).getByRole('heading', { name: 'Bonus' })).toBeInTheDocument();
   });
+
+  test('score par partie, « Revoir mes erreurs », nouvel essai ; une réponse libre est une phrase', () => {
+    const { session } = setup();
+    act(() => {
+      session.startActivity(QUESTIONS_BUILTIN);
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    // Pas de score tant qu'aucune question n'est corrigée.
+    expect(panel).not.toHaveTextContent('Questions :');
+
+    // Une réponse libre d'un mot ne se valide pas.
+    const open = within(panel).getByRole('region', { name: 'Question : Pourquoi une adresse' });
+    const text = within(open).getByRole('textbox', { name: 'Pourquoi une adresse ?' });
+    expect(within(open).getByRole('button', { name: 'Valider' })).toBeDisabled();
+    fireEvent.change(text, { target: { value: 'ok' } });
+    expect(open).toHaveTextContent('Rédige une phrase : au moins 3 mots.');
+    expect(within(open).getByRole('button', { name: 'Valider' })).toBeDisabled();
+    fireEvent.change(text, { target: { value: 'Pour que le message arrive.' } });
+    expect(open).not.toHaveTextContent('Rédige une phrase');
+    fireEvent.click(within(open).getByRole('button', { name: 'Valider' }));
+    expect(open).toHaveTextContent('Réponse enregistrée');
+
+    const question = within(panel).getByRole('region', { name: 'Question : Rôle du switch' });
+    fireEvent.click(within(question).getByRole('radio', { name: 'Le serveur' }));
+    fireEvent.click(within(question).getByRole('button', { name: 'Valider' }));
+    // Le score de la partie apparaît, avec le chemin vers les erreurs.
+    expect(panel).toHaveTextContent('Questions : 0 juste sur 1');
+    const part = within(panel).getByRole('heading', { name: 'Partie 1 — Révisions' }).closest('li');
+    if (!part) throw new Error('partie attendue');
+    // L'étape repliée se rouvre par « Revoir mes erreurs ».
+    fireEvent.click(within(panel).getByRole('button', { name: 'Révisions' }));
+    expect(within(panel).getByRole('button', { name: 'Révisions' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    fireEvent.click(within(part).getByRole('button', { name: 'Revoir mes erreurs (1)' }));
+    expect(within(panel).getByRole('button', { name: 'Révisions' })).toHaveAttribute('aria-expanded', 'true');
+
+    // Nouvel essai : d'abord encore faux, puis juste. La première réponse reste affichée.
+    const again = () => within(panel).getByRole('region', { name: 'Question : Rôle du switch' });
+    fireEvent.click(within(again()).getByRole('button', { name: 'Réessayer' }));
+    const retry = within(again()).getByRole('group', { name: 'Nouvel essai' });
+    fireEvent.click(within(retry).getByRole('radio', { name: 'L’imprimante' }));
+    fireEvent.click(within(retry).getByRole('button', { name: 'Valider' }));
+    expect(again()).toHaveTextContent('✘ Nouvel essai : ce n’est pas encore ça.');
+    expect(within(part).getByRole('button', { name: 'Revoir mes erreurs (1)' })).toBeInTheDocument();
+    fireEvent.click(within(again()).getByRole('button', { name: 'Réessayer' }));
+    const second = within(again()).getByRole('group', { name: 'Nouvel essai' });
+    fireEvent.click(within(second).getByRole('radio', { name: 'Le switch' }));
+    fireEvent.click(within(second).getByRole('button', { name: 'Valider' }));
+    expect(again()).toHaveTextContent('✔ Corrigé au nouvel essai (2 essais).');
+    expect(again()).toHaveTextContent('Ta réponse : ✘(faux) Le serveur');
+    expect(within(again()).queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument();
+    expect(part).toHaveTextContent('Questions : 0 juste sur 1 · 1 corrigée ensuite');
+    expect(within(part).queryByRole('button', { name: /Revoir mes erreurs/ })).not.toBeInTheDocument();
+    expect(session.work.answers['q-switch']).toMatchObject({
+      right: false,
+      retry: { right: true, tries: 2 },
+    });
+
+    // Le compte rendu garde la première réponse et dit qu'elle a été reprise.
+    act(() => {
+      session.openWindow({ type: 'report' });
+    });
+    const preview = within(screen.getByRole('dialog', { name: 'Compte rendu' })).getByLabelText(
+      'Aperçu du compte rendu',
+    );
+    expect(preview).toHaveTextContent(
+      'Questions : 2 répondues sur 2, 0 juste sur 1 corrigée ; 1 erreur reprise avec succès au nouvel essai.',
+    );
+    expect(preview).toHaveTextContent('Réponse : Le serveur — attendu : Le switch');
+    expect(preview).toHaveTextContent('Nouvel essai : corrigé au 2e essai');
+  });
+
+  test('correction obligatoire : l’étape suivante reste fermée tant que l’erreur n’est pas reprise', () => {
+    const { session } = setup();
+    act(() => {
+      session.startActivity({
+        ...QUESTIONS_BUILTIN,
+        build: () => {
+          const { network, activity } = QUESTIONS_BUILTIN.build();
+          return { network, activity: { ...activity, requireCorrection: true } };
+        },
+      });
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const question = () => within(panel).getByRole('region', { name: 'Question : Rôle du switch' });
+    fireEvent.click(within(question()).getByRole('radio', { name: 'Le serveur' }));
+    fireEvent.click(within(question()).getByRole('button', { name: 'Valider' }));
+    expect(question()).toHaveTextContent('Il faut corriger cette réponse pour continuer.');
+    expect(panel).toHaveTextContent('0 objectif sur 4');
+    fireEvent.click(within(question()).getByRole('button', { name: 'Réessayer' }));
+    const retry = within(question()).getByRole('group', { name: 'Nouvel essai' });
+    fireEvent.click(within(retry).getByRole('radio', { name: 'Le switch' }));
+    fireEvent.click(within(retry).getByRole('button', { name: 'Valider' }));
+    expect(panel).toHaveTextContent('1 objectif sur 4');
+  });
+});
+
+describe('Question « associer »', () => {
+  const MATCH_BUILTIN: BuiltinActivity = {
+    ...QUESTIONS_BUILTIN,
+    build: () => ({
+      network: new Network(),
+      activity: activitySchema.parse({
+        ...QUESTIONS,
+        steps: [
+          {
+            id: 'roles',
+            title: 'Rôles',
+            objectives: [
+              { id: 'q-roles', label: 'Rôles', check: { type: 'question', question: MATCH_QUESTION } },
+            ],
+          },
+        ],
+      }),
+    }),
+  };
+
+  test('une liste par élément ; Valider attend que tout soit choisi ; correction paire par paire', () => {
+    const { session } = setup();
+    act(() => {
+      session.startActivity(MATCH_BUILTIN);
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const question = () => within(panel).getByRole('region', { name: 'Question : Rôles' });
+    const choose = (scope: HTMLElement, left: string, right: string) => {
+      fireEvent.change(within(scope).getByRole('combobox', { name: left }), { target: { value: right } });
+    };
+    // Chaque équipement a sa liste, avec toutes les propositions.
+    const lists = within(question()).getAllByRole('combobox');
+    expect(lists).toHaveLength(3);
+    const first = within(question()).getByRole('combobox', { name: 'Switch' });
+    expect(within(first).getAllByRole('option')).toHaveLength(4);
+    // Les propositions sont écrites en entier, avec une lettre que la liste reprend.
+    const propositions = within(within(question()).getByRole('list', { name: 'Propositions' })).getAllByRole(
+      'listitem',
+    );
+    expect(propositions).toHaveLength(3);
+    expect(within(first).getAllByRole('option')[1]).toHaveTextContent(
+      `A — ${propositions[0]?.textContent ?? ''}`,
+    );
+    const validate = within(question()).getByRole('button', { name: 'Valider' });
+    expect(validate).toBeDisabled();
+    choose(question(), 'Switch', 'Relier des réseaux');
+    choose(question(), 'Routeur', 'Relier les équipements d’un réseau');
+    expect(validate).toBeDisabled();
+    choose(question(), 'Serveur', 'Fournir des fichiers');
+    expect(validate).toBeEnabled();
+    fireEvent.click(validate);
+
+    // Deux paires échangées : chacune est marquée, la bonne association est donnée.
+    expect(question()).toHaveTextContent('✘(faux) Switch : Relier des réseaux');
+    expect(question()).toHaveTextContent('✔(juste) Serveur : Fournir des fichiers');
+    expect(question()).toHaveTextContent(
+      'Réponse attendue : Switch : Relier les équipements d’un réseau ; Routeur : Relier des réseaux ; Serveur : Fournir des fichiers',
+    );
+    expect(session.work.answers['q-roles']?.right).toBe(false);
+
+    // Le nouvel essai repose la question ; bien associée, l'erreur est corrigée.
+    fireEvent.click(within(question()).getByRole('button', { name: 'Réessayer' }));
+    const retry = within(question()).getByRole('group', { name: 'Nouvel essai' });
+    choose(retry, 'Switch', 'Relier les équipements d’un réseau');
+    choose(retry, 'Routeur', 'Relier des réseaux');
+    choose(retry, 'Serveur', 'Fournir des fichiers');
+    fireEvent.click(within(retry).getByRole('button', { name: 'Valider' }));
+    expect(question()).toHaveTextContent('✔ Corrigé au nouvel essai');
+    expect(session.work.answers['q-roles']?.retry?.right).toBe(true);
+  });
+});
+
+describe('Étape d’approfondissement', () => {
+  test('signalée, elle se passe d’un clic quand on y arrive ; elle ne compte pas dans l’avancement', () => {
+    const { session } = setup();
+    act(() => {
+      session.startActivity(OPTIONAL_BUILTIN);
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    // Deux objectifs à atteindre : celui de l'approfondissement est en plus.
+    expect(panel).toHaveTextContent('0 objectif sur 2');
+    expect(within(panel).getByRole('button', { name: /Pour aller plus loin/ })).toHaveTextContent(
+      'approfondissement',
+    );
+    // Avant d'y arriver, on ne peut pas la passer.
+    expect(within(panel).queryByRole('button', { name: 'Passer cette étape' })).toBeNull();
+    const first = within(panel).getByRole('region', { name: 'Question : Rôle du switch' });
+    fireEvent.click(within(first).getByRole('radio', { name: 'Le switch' }));
+    fireEvent.click(within(first).getByRole('button', { name: 'Valider' }));
+    expect(panel).toHaveTextContent('Étape d’approfondissement : si tu manques de temps, tu peux la passer.');
+    expect(within(panel).getByRole('button', { name: 'Fin' })).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Passer cette étape' }));
+    expect(session.work.skipped).toEqual(['plus']);
+    // La suite s'ouvre ; l'étape passée le dit, et reste faisable.
+    expect(within(panel).getByRole('button', { name: 'Fin' })).toHaveAttribute('aria-expanded', 'true');
+    const skipped = within(panel).getByRole('button', { name: /Pour aller plus loin/ });
+    expect(skipped).toHaveTextContent('approfondissement, passée');
+    expect(within(panel).queryByRole('button', { name: 'Passer cette étape' })).toBeNull();
+    fireEvent.click(skipped);
+    expect(panel).toHaveTextContent('Tu as passé cette étape. Tu peux y revenir quand tu veux.');
+
+    // Le compte rendu le dit au professeur.
+    act(() => {
+      session.openWindow({ type: 'report' });
+    });
+    const report = within(screen.getByRole('dialog', { name: 'Compte rendu' })).getByLabelText(
+      'Aperçu du compte rendu',
+    );
+    expect(report).toHaveTextContent('Objectifs de l’activité : 1 sur 2');
+    expect(report).toHaveTextContent('Pour aller plus loin (approfondissement, étape passée)');
+
+    // Faite après coup, elle compte à part.
+    const question = within(panel).getByRole('region', { name: 'Question : Combien de routeurs' });
+    fireEvent.change(within(question).getByRole('textbox'), { target: { value: '4' } });
+    fireEvent.click(within(question).getByRole('button', { name: 'Valider' }));
+    expect(panel).toHaveTextContent('1 objectif sur 2 · approfondissement 1/1');
+    expect(report).toHaveTextContent('Pour aller plus loin (approfondissement)');
+    expect(report).not.toHaveTextContent('étape passée');
+  });
+});
+
+describe('Corrigé pour le professeur', () => {
+  test('sans « ?prof », rien ne mène au corrigé', () => {
+    const { session } = setup();
+    expect(screen.queryByText('Mode professeur')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+    const list = screen.getByRole('dialog', { name: 'Activités' });
+    expect(within(list).queryByRole('button', { name: /^Corrigé/ })).toBeNull();
+    act(() => {
+      session.startActivity(OPTIONAL_BUILTIN);
+      session.openWindow({ type: 'answers' });
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    expect(within(panel).queryByRole('button', { name: 'Corrigé' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Corrigé (professeur)' })).toBeNull();
+  });
+
+  test('avec « ?prof » : le corrigé d’une activité fournie, ses réponses, son déroulement, et l’impression', () => {
+    const print = vi.fn();
+    vi.stubGlobal('print', print);
+    try {
+      const session = new Session(null, new ManualFrames());
+      render(<App session={session} teacher />);
+      expect(session.teacher).toBe(true);
+      expect(screen.getByText('Mode professeur')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+      const list = screen.getByRole('dialog', { name: 'Activités' });
+      fireEvent.click(within(list).getByRole('button', { name: 'Corrigé : Du collège au musée' }));
+      // Demander un corrigé ne commence pas l'activité.
+      expect(session.activity).toBeNull();
+      const key = within(screen.getByRole('dialog', { name: 'Corrigé (professeur)' })).getByLabelText(
+        'Aperçu du corrigé',
+      );
+      expect(within(key).getByRole('heading', { name: 'Corrigé — Du collège au musée' })).toBeInTheDocument();
+      expect(
+        within(within(key).getByRole('list', { name: 'En bref' }))
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual([
+        'Niveau 3e',
+        'durée indicative : 180 min',
+        '21 étapes',
+        '23 manipulations vérifiées',
+        '62 questions',
+      ]);
+      // Le plan du réseau de départ, sous le titre.
+      expect(within(key).getByRole('img', { name: 'Plan du réseau' })).toHaveTextContent('Routeur du FAI');
+      expect(key).toHaveTextContent('Le réseau de départ, tel que les élèves le reçoivent');
+      // Le déroulement : les parties et leur durée estimée, les étapes, le temps écoulé, le bonus sans durée.
+      const plan = within(key).getByRole('table');
+      expect(plan).toHaveTextContent('Séance 2 — Partie 3 : trouver la panne, atteindre le musée (≈');
+      expect(within(plan).getByRole('row', { name: /^11\. Réparer le chemin/ })).toHaveTextContent('≈');
+      expect(within(plan).getByRole('row', { name: /^19\. Bilan/ })).toHaveTextContent('180 min');
+      expect(within(plan).getByRole('row', { name: /^B1\. Relier la médiathèque/ })).not.toHaveTextContent(
+        'min',
+      );
+      expect(within(key).getByRole('img', { name: 'Durée estimée de chaque partie' })).toHaveTextContent(
+        'Séance 2 — Partie 3≈ 87 min',
+      );
+      // Les réponses : choix, association, réponse courte, réponse rédigée, et ce qu'il faut faire.
+      expect(key).toHaveTextContent('Réponse attendue : un réseau local (LAN)');
+      expect(key).toHaveTextContent('Switch CDI → Relier les équipements du CDI entre eux');
+      expect(key).toHaveTextContent('Réponse attendue : 198.51.100.2');
+      expect(key).toHaveTextContent('Éléments de réponse : Le DNS traduit le nom en 203.0.113.80');
+      expect(key).toHaveTextContent('passerelle 192.0.2.2 (le Routeur du data center), interface eth0');
+      expect(key).toHaveTextContent('Indices, donnés un par un à la demande');
+      expect(key).toHaveTextContent('Fiches : Table de routage');
+      expect(key).toHaveTextContent('Note pour le professeur');
+      expect(key).toHaveTextContent('Autres choix proposés : Internet');
+      expect(key).toHaveTextContent('Consigne générale donnée aux élèves');
+
+      // L'impression part du corrigé seul ; le fichier PDF proposé porte son nom.
+      const dialog = screen.getByRole('dialog', { name: 'Corrigé (professeur)' });
+      const before = document.title;
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Imprimer ou enregistrer en PDF' }));
+      expect(print).toHaveBeenCalledTimes(1);
+      expect(document.body.dataset.print).toBe('answers');
+      expect(document.title).toBe('Corrigé — Du collège au musée');
+      expect(document.querySelector('.print-root.print-answers')).toHaveTextContent(
+        'Corrigé — Du collège au musée',
+      );
+      act(() => {
+        window.dispatchEvent(new Event('afterprint'));
+      });
+      expect(document.body.dataset.print).toBeUndefined();
+      expect(document.title).toBe(before);
+
+      // La version pour les élèves : la correction seule, sans ce qui ne regarde que le professeur.
+      const versions = within(dialog).getByRole('group', { name: 'Version du corrigé' });
+      expect(within(versions).getByRole('button', { name: 'Professeur' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      fireEvent.click(within(versions).getByRole('button', { name: 'Élèves' }));
+      expect(
+        within(key).getByRole('heading', { name: 'Correction — Du collège au musée' }),
+      ).toBeInTheDocument();
+      expect(within(key).queryByRole('heading', { name: 'Déroulement' })).toBeNull();
+      expect(within(key).queryByRole('table')).toBeNull();
+      for (const hidden of [
+        'Document pour le professeur',
+        'durée indicative',
+        '≈',
+        'Consigne donnée aux élèves',
+        'Consigne générale',
+        'Note pour le professeur',
+        'c’est à l’élève de le trouver',
+        'Indices, donnés un par un',
+        'Autres choix proposés',
+        'se valide',
+        'Majuscules, accents',
+      ])
+        expect(key).not.toHaveTextContent(hidden);
+      // Ce qu'il fallait faire, les réponses, les explications et le plan y sont.
+      expect(within(key).getByRole('img', { name: 'Plan du réseau' })).toBeInTheDocument();
+      expect(key).toHaveTextContent('Ce qu’il fallait faire ou trouver');
+      expect(key).toHaveTextContent('passerelle 192.0.2.2 (le Routeur du data center), interface eth0');
+      expect(key).toHaveTextContent('Réponse attendue : un réseau local (LAN)');
+      expect(key).toHaveTextContent('Explication : Il relie les équipements d’un même lieu');
+      expect(key).toHaveTextContent('Éléments de réponse : Le DNS traduit le nom en 203.0.113.80');
+      expect(key).toHaveTextContent('Fiches à relire : Table de routage');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Imprimer ou enregistrer en PDF' }));
+      expect(document.title).toBe('Correction — Du collège au musée');
+      expect(document.querySelector('.print-root.print-answers')).toHaveTextContent(
+        'Correction — Du collège au musée',
+      );
+      expect(document.querySelector('.print-root.print-answers')).not.toHaveTextContent('Déroulement');
+      act(() => {
+        window.dispatchEvent(new Event('afterprint'));
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test('avec « ?prof » : le corrigé de l’activité en cours, depuis son panneau', () => {
+    const session = new Session(null, new ManualFrames());
+    render(<App session={session} teacher />);
+    act(() => {
+      session.openWindow({ type: 'answers' });
+    });
+    expect(screen.getByRole('dialog', { name: 'Corrigé (professeur)' })).toHaveTextContent(
+      'Aucune activité en cours',
+    );
+    act(() => {
+      session.startActivity(OPTIONAL_BUILTIN);
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Corrigé' }));
+    const key = within(screen.getByRole('dialog', { name: 'Corrigé (professeur)' })).getByLabelText(
+      'Aperçu du corrigé',
+    );
+    expect(
+      within(key).getByRole('heading', { name: 'Corrigé — Avec approfondissement' }),
+    ).toBeInTheDocument();
+    expect(key).toHaveTextContent('1 étape d’approfondissement peut être passée');
+    expect(key).toHaveTextContent('2. Pour aller plus loin — approfondissement, peut être passée');
+    expect(key).toHaveTextContent('Ce qu’il fallait faire ou trouverRéponse : 4 routeurs.');
+    // Sans durée indicative, ni colonne de durée ni frise ; sans équipement, pas de plan.
+    expect(within(key).queryByRole('columnheader', { name: 'Durée estimée' })).toBeNull();
+    expect(within(key).queryByRole('columnheader', { name: 'Temps écoulé' })).toBeNull();
+    expect(within(key).queryByRole('img')).toBeNull();
+  });
 });
 
 describe('Activité « La salle de techno »', () => {
@@ -2182,14 +2578,25 @@ describe('Activité « Du collège au musée »', () => {
     expect(session.profile.base).toBe('3e');
     const panel = screen.getByRole('complementary', { name: 'Activité' });
     expect(
-      within(panel).getByRole('heading', { name: 'Partie 1 — Ce que je sais depuis la 5e et la 4e' }),
+      within(panel).getByRole('heading', {
+        name: 'Séance 1 — Partie 1 : ce que je sais depuis la 5e et la 4e',
+      }),
     ).toBeInTheDocument();
     const core = session.network.devices.find((d) => d.name === 'Routeur Internet');
     act(() => {
       if (core) session.select({ kind: 'device', id: core.id });
     });
+    // Routeur du réseau de départ : ses adresses se lisent, sans se modifier ni se supprimer.
+    expect(screen.getByText('Équipement du réseau de départ.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Nom' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'IP eth0' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retirer eth1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ajouter une interface' })).toBeEnabled();
     fireEvent.click(screen.getByRole('tab', { name: 'Routage' }));
-    expect(screen.getAllByRole('button', { name: 'Supprimer la route' })).toHaveLength(3);
+    // Ses trois routes de départ n'ont pas de bouton pour les supprimer.
+    expect(screen.getAllByText('de départ')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Supprimer la route' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Réseau de destination' }), {
       target: { value: '203.0.113.0' },
     });
@@ -2201,8 +2608,48 @@ describe('Activité « Du collège au musée »', () => {
     });
     expect(screen.getByRole('combobox', { name: 'Interface de sortie' })).toHaveValue('0');
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter la route' }));
-    expect(screen.getAllByRole('button', { name: 'Supprimer la route' })).toHaveLength(4);
+    // La route de l'élève, elle, se retire.
+    expect(screen.getAllByRole('button', { name: 'Supprimer la route' })).toHaveLength(1);
     expect(screen.getByRole('cell', { name: '203.0.113.0' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la route' }));
+    expect(screen.queryByRole('cell', { name: '203.0.113.0' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('de départ')).toHaveLength(3);
+  });
+
+  test('ce que l’élève règle reste libre ; un câble de départ ne se supprime pas', () => {
+    const { session } = setup();
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    act(() => {
+      if (builtin) session.startActivity(builtin);
+    });
+    const poste2 = session.network.devices.find((d) => d.name === 'Poste 2');
+    act(() => {
+      if (poste2) session.select({ kind: 'device', id: poste2.id });
+    });
+    expect(screen.queryByText('Équipement du réseau de départ.')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Adresse IP' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument();
+    // Son câble vers le switch du CDI fait partie du réseau de départ : la carte réseau ne change pas.
+    expect(screen.getByRole('radio', { name: 'Sans fil (Wi-Fi)' })).toBeDisabled();
+    const cable = session.network.cables.find((c) => c.a === poste2?.id || c.b === poste2?.id);
+    act(() => {
+      if (cable) session.select({ kind: 'cable', id: cable.id });
+    });
+    expect(screen.getByText(/Ce câble fait partie du réseau de départ/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Supprimer le câble' })).not.toBeInTheDocument();
+    // Le serveur du musée : tout se lit, rien ne se règle.
+    const museum = session.network.devices.find((d) => d.name === 'Serveur du musée');
+    act(() => {
+      if (museum) session.select({ kind: 'device', id: museum.id });
+    });
+    expect(screen.getByRole('textbox', { name: 'Adresse IP' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Passerelle' })).toBeDisabled();
+    act(() => {
+      session.setMode('simulation');
+    });
+    expect(screen.getByText(/son bureau ne s’ouvre pas/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Afficher le bureau' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Afficher les échanges de données' })).toBeInTheDocument();
   });
 });
 

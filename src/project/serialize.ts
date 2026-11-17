@@ -72,6 +72,7 @@ function hostToJson(host: Host): HostJson {
     },
     installed: [...host.installed],
     fs: host.fs.toJSON(),
+    readOnly: host.fs.readOnlyPaths(),
     firewall: firewallToJson(host.firewall),
     dhcpServer: {
       active: host.dhcpServer.active,
@@ -231,7 +232,7 @@ function loadHost(network: Network, json: HostJson): void {
   host.showIpAsName = json.showIpAsName;
   host.wifi = json.wifi;
   host.setInstalled(json.installed);
-  host.fs.load(json.fs);
+  host.fs.load(json.fs, json.readOnly);
   loadFirewall(host.firewall, json.firewall);
   const d = json.dhcpServer;
   host.dhcpServer.updateConfig({
