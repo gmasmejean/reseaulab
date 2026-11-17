@@ -17,6 +17,7 @@ import type { CableEnds, Network, Note } from '../../engine/network';
 import { DEVICE_LABEL } from '../../i18n/fr';
 import { bySeverity } from '../../learn/diagnose/findings';
 import { useSession } from '../context';
+import type { Selection, Session } from '../session';
 import { findingText, useLint } from '../learn/hooks';
 import { TermHelp } from '../learn/Term';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -1018,14 +1019,42 @@ function SimulationBar({ device }: { device: Device | null }) {
   );
 }
 
+/** What is selected, in a few words: all that is left of the panel once it is reduced. */
+function selectionSummary(session: Session): { name: string; detail: string } | null {
+  const { network: net, selection } = session;
+  if (!selection) return null;
+  if (selection.kind === 'note') {
+    const note = net.note(selection.id);
+    return note ? { name: note.kind === 'zone' ? 'Zone' : 'Texte', detail: note.text.trim() } : null;
+  }
+  if (selection.kind === 'cable') {
+    const cable = net.cables.find((c) => c.id === selection.id);
+    if (!cable) return null;
+    return {
+      name: cable.wireless ? 'Connexion Wi-Fi' : 'Câble',
+      detail: `${net.device(cable.a)?.name ?? '?'} — ${net.device(cable.b)?.name ?? '?'}`,
+    };
+  }
+  const device = net.device(selection.id);
+  if (!device) return null;
+  const address = device instanceof Host && device.config.ip !== IP_ANY ? formatIp(device.config.ip) : '';
+  return { name: device.name, detail: [DEVICE_LABEL[device.kind], address].filter(Boolean).join(' · ') };
+}
+
+/**
+ * The panel under the plan. It can be reduced to one line: on a 768 px screen
+ * the settings of a device take more than a third of the height of the plan.
+ */
 export function PropertiesPanel() {
   const session = useSession();
+  const [folded, setFolded] = useState(false);
   const { network: net, selection } = session;
   if (session.mode === 'simulation') {
     const device = selection?.kind === 'device' ? net.device(selection.id) : undefined;
     return <SimulationBar device={device ?? null} />;
   }
-  if (!selection) {
+  const summary = selectionSummary(session);
+  if (!selection || !summary) {
     return (
       <div className="properties empty">
         <p className="muted">
@@ -1035,6 +1064,46 @@ export function PropertiesPanel() {
       </div>
     );
   }
+  if (folded) {
+    return (
+      <div className="properties folded">
+        <strong>{summary.name}</strong>
+        {summary.detail !== '' && <span className="muted panel-summary">{summary.detail}</span>}
+        <button
+          type="button"
+          aria-expanded={false}
+          title="Afficher les réglages de ce qui est sélectionné"
+          onClick={() => {
+            setFolded(false);
+          }}
+        >
+          ▴ Afficher les réglages
+        </button>
+      </div>
+    );
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="icon-button panel-fold"
+        aria-label="Réduire les réglages"
+        aria-expanded
+        title="Réduire les réglages pour agrandir le plan"
+        onClick={() => {
+          setFolded(true);
+        }}
+      >
+        ▾
+      </button>
+      <SelectionProperties selection={selection} />
+    </>
+  );
+}
+
+function SelectionProperties({ selection }: { selection: NonNullable<Selection> }) {
+  const session = useSession();
+  const net = session.network;
   if (selection.kind === 'note') {
     const note = net.note(selection.id);
     return note ? <NoteProperties note={note} /> : null;

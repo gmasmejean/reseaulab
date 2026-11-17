@@ -432,6 +432,8 @@ export function ActivityPanel() {
   const session = useSession();
   const activity = session.activity;
   const [folded, setFolded] = useState(false);
+  /** The general instructions, once opened or closed by hand; before that they follow the progress. */
+  const [intro, setIntro] = useState<{ activity: string; open: boolean } | null>(null);
   /** Steps opened or closed by hand; the others follow the progress. */
   const [toggled, setToggled] = useState<Readonly<Record<string, boolean>>>({});
   const panel = useRef<HTMLElement>(null);
@@ -451,6 +453,8 @@ export function ActivityPanel() {
   const bonusDone = bonus.filter(isDone).length;
   const current = session.activityStep;
   const finished = all.length > 0 && done === all.length;
+  // Read first, then folded: on a 768 px screen the instructions fill the panel.
+  const introOpen = intro?.activity === activity.id ? intro.open : done === 0;
   const hasProbes = objectivesOf(activity).some((o) => familyOf(o.check) === 'probe');
   /** « 3 », or « B1 » for the first bonus step. */
   const numberOf = (index: number) => {
@@ -658,9 +662,31 @@ export function ActivityPanel() {
       )}
       <div className="activity-scroll">
         {activity.intro !== '' && (
-          <details className="activity-intro" open={done === 0}>
+          <details
+            className="activity-intro"
+            open={introOpen}
+            onToggle={(e) => {
+              // Only what the pupil did: the event also follows the changes made here.
+              const open = e.currentTarget.open;
+              if (open !== introOpen) setIntro({ activity: activity.id, open });
+            }}
+          >
             <summary>Consigne</summary>
             <RichText source={activity.intro} onOpenNotion={openNotion} titleOf={titleOf} />
+            {done === 0 && (
+              <div className="step-actions">
+                <button
+                  type="button"
+                  className="primary"
+                  title="Replier la consigne et passer à la première étape"
+                  onClick={() => {
+                    setIntro({ activity: activity.id, open: false });
+                  }}
+                >
+                  Commencer
+                </button>
+              </div>
+            )}
           </details>
         )}
         <ol className="activity-steps">

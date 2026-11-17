@@ -5,6 +5,8 @@ import type { Note } from '../../engine/network';
 interface Props {
   readonly note: Note;
   readonly selected: boolean;
+  /** Enlargement of the text when the plan is reduced (1 at 100 %). */
+  readonly textScale?: number;
   /** False in simulation mode: notes are then only decoration. */
   readonly interactive: boolean;
   readonly onPointerDown: (event: PointerEvent, mode: 'move' | 'resize') => void;
@@ -22,11 +24,19 @@ export function noteLabel(note: Note): string {
 }
 
 /** A documentation element of the plan: coloured zone or text label. */
-export function NoteShape({ note, selected, interactive, onPointerDown, onActivate, onMenu }: Props) {
+export function NoteShape({
+  note,
+  selected,
+  textScale = 1,
+  interactive,
+  onPointerDown,
+  onActivate,
+  onMenu,
+}: Props) {
   const { x, y, width, height } = note;
   const textStyle = {
     color: note.kind === 'zone' ? undefined : note.color,
-    fontSize: note.fontSize,
+    fontSize: note.fontSize * textScale,
     fontWeight: note.bold ? 700 : 400,
     fontStyle: note.italic ? 'italic' : 'normal',
   };
@@ -64,7 +74,15 @@ export function NoteShape({ note, selected, interactive, onPointerDown, onActiva
         <rect x={x} y={y} width={width} height={height} rx={6} fill={note.color} className="note-zone" />
       )}
       {note.text && (
-        <foreignObject x={x} y={y} width={width} height={height} className="note-text-box">
+        <foreignObject
+          x={x}
+          y={y}
+          // A text grows with its box, so that its lines break where the author saw them;
+          // the title of a zone stays inside the zone.
+          width={note.kind === 'zone' ? width : width * textScale}
+          height={note.kind === 'zone' ? height : height * textScale}
+          className="note-text-box"
+        >
           <div className="note-text" style={textStyle}>
             {note.text}
           </div>

@@ -794,6 +794,70 @@ describe('Saisie et finitions', () => {
 });
 
 describe('Plan lisible', () => {
+  test('plan réduit : noms, adresses et textes gardent une taille lisible', () => {
+    const { session } = setup();
+    let note = '';
+    act(() => {
+      session.addDevice('computer');
+      note = session.addNote('text');
+      session.network.updateNote(note, { text: 'Salle 12', fontSize: 12, width: 100, height: 40 });
+      session.setZoom(1);
+    });
+    const plan = screen.getByRole('application', { name: 'Plan du réseau' });
+    const name = () => within(plan).getByText('Ordinateur 1');
+    const text = () => within(plan).getByText('Salle 12');
+    expect(plan.style.getPropertyValue('--label-scale')).toBe('1');
+    const before = Number(name().getAttribute('y'));
+    expect(text().style.fontSize).toBe('12px');
+
+    act(() => {
+      session.setZoom(0.5);
+    });
+    // À 50 %, tout ce qui s'écrit est agrandi de 1,7 : 13 px × 0,5 × 1,7 ≈ 11 px à l'écran.
+    expect(plan.style.getPropertyValue('--label-scale')).toBe('1.7');
+    // Le nom, plus grand, est écrit plus bas sous l'icône.
+    expect(Number(name().getAttribute('y'))).toBeGreaterThan(before + 8);
+    // Un texte grandit avec son cadre : ses lignes se coupent aux mêmes endroits.
+    expect(text().style.fontSize).toBe('20.4px');
+    expect(text().parentElement).toHaveAttribute('width', '170');
+  });
+
+  test('les réglages se réduisent à une ligne, pour laisser la hauteur au plan', () => {
+    const { session } = setup();
+    let pc = '';
+    let sw = '';
+    act(() => {
+      pc = session.addDevice('computer');
+      session.network.host(pc).updateConfig({ ip: ip('192.168.1.5'), mask: MASK_24 });
+      sw = session.addDevice('switch');
+      session.select({ kind: 'device', id: pc });
+    });
+    const settings = () => screen.getByRole('contentinfo');
+    expect(within(settings()).getByRole('textbox', { name: 'Nom' })).toHaveValue('Ordinateur 1');
+
+    fireEvent.click(within(settings()).getByRole('button', { name: 'Réduire les réglages' }));
+    // Il reste de quoi savoir ce qui est sélectionné : nom, type, adresse.
+    expect(within(settings()).queryByRole('textbox', { name: 'Nom' })).not.toBeInTheDocument();
+    expect(settings()).toHaveTextContent('Ordinateur 1Ordinateur · 192.168.1.5');
+    // Le choix de l'élève tient quand il sélectionne autre chose.
+    act(() => {
+      session.select({ kind: 'device', id: sw });
+    });
+    expect(settings()).toHaveTextContent('Switch 1Switch');
+    expect(within(settings()).queryByRole('textbox', { name: 'Nom' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(settings()).getByRole('button', { name: /Afficher les réglages/ }));
+    expect(within(settings()).getByRole('textbox', { name: 'Nom' })).toHaveValue('Switch 1');
+    // Sans sélection, le panneau n'est qu'une ligne d'aide : rien à réduire.
+    act(() => {
+      session.select(null);
+    });
+    expect(
+      within(settings()).queryByRole('button', { name: 'Réduire les réglages' }),
+    ).not.toBeInTheDocument();
+    expect(settings()).toHaveTextContent('Sélectionnez un équipement ou un câble');
+  });
+
   test('annule et rétablit une modification, au bouton et au clavier', () => {
     const { session } = setup();
     const undo = screen.getByRole('button', { name: 'Annuler' });
@@ -1921,6 +1985,41 @@ describe('Activités guidées', () => {
     // L'activité est de niveau 4e : le routeur n'est pas proposé.
     const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
     expect(within(palette).queryByRole('button', { name: 'Routeur' })).not.toBeInTheDocument();
+  });
+
+  test('la consigne se replie avec « Commencer », et suit ensuite ce que fait l’élève', () => {
+    startFirst();
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const intro = within(panel).getByText('Consigne').closest('details');
+    if (!intro) throw new Error('consigne introuvable');
+    const toggleByHand = (open: boolean) => {
+      intro.open = open;
+      fireEvent(intro, new Event('toggle'));
+    };
+    // Au départ, la consigne est ouverte : elle se lit avant la première étape.
+    expect(intro).toHaveAttribute('open');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Commencer' }));
+    expect(intro).not.toHaveAttribute('open');
+    // Elle reste à portée : rouverte à la main, elle le reste même quand l'activité avance.
+    toggleByHand(true);
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: 'Ordinateur' }));
+    fireEvent.click(within(palette).getByRole('button', { name: 'Ordinateur' }));
+    expect(panel).toHaveTextContent('1 objectif sur 9');
+    expect(intro).toHaveAttribute('open');
+    // L'activité est commencée : plus de bouton « Commencer ».
+    expect(within(panel).queryByRole('button', { name: 'Commencer' })).not.toBeInTheDocument();
+  });
+
+  test('sans « Commencer », la consigne se replie au premier objectif atteint', () => {
+    startFirst();
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const intro = within(panel).getByText('Consigne').closest('details');
+    expect(intro).toHaveAttribute('open');
+    const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
+    fireEvent.click(within(palette).getByRole('button', { name: 'Ordinateur' }));
+    fireEvent.click(within(palette).getByRole('button', { name: 'Ordinateur' }));
+    expect(intro).not.toHaveAttribute('open');
   });
 
   test('les objectifs se cochent seuls et l’étape suivante s’ouvre', () => {

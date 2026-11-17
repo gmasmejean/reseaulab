@@ -147,11 +147,13 @@ function Layout() {
           <ResumeBanner />
           <Notice />
         </main>
-        <ActivityPanel />
       </div>
       <footer className="panel" data-ui="panneau">
         <PropertiesPanel />
       </footer>
+      {/* Beside the plan and the settings panel, on the whole height: selecting a
+          device does not take away the room where the pupil reads a question. */}
+      <ActivityPanel />
       <ImportReportDialog />
       <Shortcuts />
     </div>

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { makeZip } from '../../src/test/zip';
@@ -1304,4 +1304,71 @@ test('corrigé du professeur : absent pour les élèves, ouvert avec « ?prof »
   // Seule la première page est en paysage.
   expect(pages.indexOf(true)).toBe(0);
   expect(pages.filter(Boolean)).toHaveLength(1);
+});
+
+test('écran de 1366 × 768 : plan lisible, activité sur toute la hauteur, réglages réductibles', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : Du collège au musée' }).click();
+  await page.getByRole('button', { name: 'Fermer le message' }).click();
+  const activity = page.getByRole('complementary', { name: 'Activité' });
+  const settings = page.getByRole('contentinfo');
+  const plan = page.getByRole('application', { name: 'Plan du réseau' });
+  const boxOf = async (locator: Locator) => {
+    const box = await locator.boundingBox();
+    if (!box) throw new Error('élément introuvable');
+    return box;
+  };
+  const bottomOf = async (locator: Locator) => {
+    const box = await boxOf(locator);
+    return Math.round(box.y + box.height);
+  };
+
+  // Tout le plan tient dans la zone visible, donc fortement réduit…
+  const zoom = page.getByRole('group', { name: 'Zoom du plan' });
+  const percent = Number((/(\d+) %/.exec(await zoom.innerText()) ?? [])[1]);
+  expect(percent).toBeLessThan(65);
+  // …mais les noms et les adresses restent lisibles : 11 px à l'écran au lieu de 7,5.
+  // La boîte mesurée compte le liseré clair autour des lettres : 19 px de haut pour
+  // un nom, contre 14 quand le texte suivait le zoom.
+  for (const text of ['Poste 1', '192.168.10.1', 'eth0']) {
+    const line = await boxOf(plan.getByText(text, { exact: true }).first());
+    expect(line.height, text).toBeGreaterThanOrEqual(text === 'eth0' ? 15 : 17);
+  }
+  await shot(page, '69-ecran-1366-depart');
+
+  // La consigne se lit d'abord ; « Commencer » la replie et la première étape est à l'écran.
+  await activity.getByRole('button', { name: 'Commencer', exact: true }).click();
+  await expect(activity.getByText('Les questions se corrigent tout de suite')).toBeHidden();
+  await expect(activity.getByRole('button', { name: /Le réseau du CDI/ })).toBeInViewport();
+  await expect(activity.getByText('Le réseau du CDI est…')).toBeInViewport();
+
+  // Un poste sélectionné : ses réglages s'ouvrent sous le plan, sans rien prendre à l'activité.
+  const full = await boxOf(activity);
+  expect(await bottomOf(activity)).toBe(768);
+  await page.locator('[aria-label^="Poste 2"]').click();
+  await expect(settings.getByRole('textbox', { name: 'Nom' })).toHaveValue('Poste 2');
+  expect((await boxOf(activity)).height).toBe(full.height);
+  expect(Math.round((await boxOf(settings)).x + (await boxOf(settings)).width)).toBe(Math.round(full.x));
+  // Les trois rubriques tiennent côte à côte : la passerelle se règle sans faire défiler.
+  await expect(settings.getByRole('textbox', { name: 'Passerelle' })).toBeInViewport({ ratio: 1 });
+  await expect(activity.getByText('Le réseau du CDI est…')).toBeInViewport();
+  await shot(page, '69a-ecran-1366-poste');
+
+  // Réduits à une ligne, les réglages rendent sa hauteur au plan.
+  const before = (await boxOf(page.getByRole('main'))).height;
+  await settings.getByRole('button', { name: 'Réduire les réglages' }).click();
+  await expect(settings).toContainText('Poste 2');
+  await expect(settings).toContainText('Ordinateur · 192.168.1.2');
+  expect((await boxOf(settings)).height).toBeLessThan(60);
+  expect((await boxOf(page.getByRole('main'))).height).toBeGreaterThan(before + 200);
+  await shot(page, '69b-ecran-1366-reglages-reduits');
+  await settings.getByRole('button', { name: 'Afficher les réglages' }).click();
+  await expect(settings.getByRole('textbox', { name: 'Nom' })).toHaveValue('Poste 2');
+
+  // Un routeur : son tableau d'interfaces tient à côté de son nom.
+  await page.locator('[aria-label^="Routeur du FAI"]').click();
+  await expect(settings.getByRole('textbox', { name: 'IP eth1' })).toBeInViewport({ ratio: 1 });
 });

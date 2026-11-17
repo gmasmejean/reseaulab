@@ -893,9 +893,48 @@ constats d'interface A1 à A11.
       garde du routeur et liberté des terminaux, niveau pris en compte par
       la vérification. Contrôle : le fichier du groupe, rouvert tel quel,
       valide l'étape.
+- [x] **Étape 58 — Un écran de 1366 × 768 partagé sans conflit** (bilan
+      A1). Avec « Du collège au musée », le plan s'ajuste à 58 % sur les
+      PC de la salle : noms et adresses tombaient à 7 px ; un équipement
+      sélectionné ouvrait des réglages qui prenaient 42 % de la hauteur,
+      activité comprise, et il restait 285 px pour lire une question.
+      (1) **Activité sur toute la hauteur** : le panneau d'activité est
+      une colonne à part, à droite du plan _et_ des réglages
+      (`App.tsx`, grille de `.app`) ; sélectionner un équipement ne lui
+      prend plus rien. (2) **Textes du plan lisibles** : sous 85 % de
+      zoom, noms, adresses, noms d'interface et textes posés sur le plan
+      cessent de rétrécir (`labelScale`, borné à ×2) : 11 px à l'écran à
+      58 % au lieu de 7,5 ; un texte libre grandit avec son cadre, ses
+      lignes se coupent aux mêmes endroits. (3) **Réglages réductibles** :
+      un bouton les replie en une ligne (nom, type, adresse) ; le choix
+      tient d'un équipement à l'autre. Dans la colonne plus étroite, les
+      trois rubriques d'un poste et le tableau d'interfaces d'un routeur
+      tiennent encore côte à côte (champs d'adresse de 170 et 150 px). La
+      ligne d'aide sans sélection passe de 76 à 40 px. (4) **Consigne** :
+      un bouton « Commencer » la replie ; rouverte à la main, elle le
+      reste. Dans « Du collège au musée », Poste 3, le portable et la
+      légende de la médiathèque sont déplacés pour que les noms agrandis
+      ne se recouvrent pas. Tests : échelle des textes, repli des
+      réglages et de la consigne ; de bout en bout à 1366 × 768 (hauteur
+      de l'activité inchangée, hauteur des textes, passerelle et
+      interfaces visibles sans défiler), test vérifié en remettant
+      l'ancienne disposition puis l'ancienne taille.
 
 ## Écarts au plan
 
+- **Pas de cadrage par étape** (étape 58) : le bilan proposait que
+  l'activité indique la zone du plan à montrer (le CDI seul en
+  partie 1). Non fait : les textes étant lisibles plan entier, le gain
+  restant ne justifie pas encore un champ de plus dans les activités ni
+  un zoom qui bouge sans que l'élève l'ait demandé.
+- **Noms qui peuvent se toucher sur un plan très réduit** (étape 58) :
+  agrandis, deux noms longs d'équipements voisins (moins de 180 unités
+  d'écart) peuvent se chevaucher sous 60 % de zoom. Le réseau de
+  « Du collège au musée » a été espacé ; les travaux déjà commencés
+  gardent l'ancien placement (le réseau voyage dans le fichier), où
+  « Switch médiathèque » et « Portable médiathèque » se touchent.
+- **Réglages réduits non mémorisés** (étape 58) : le repli vaut jusqu'à
+  la fermeture de la page, comme celui du panneau d'activité.
 - **Fichiers déjà distribués sans protection** (étape 57) : l'activité
   voyage dans le fichier de l'élève, la protection du routeur ne vaut
   donc que pour les activités commencées avec cette version. Un groupe

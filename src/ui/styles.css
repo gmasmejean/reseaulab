@@ -141,9 +141,27 @@ code {
 
 .app {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* plan and settings panel on the left, activity (when there is one) on the right */
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
   overflow: hidden;
+}
+.app > .toolbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.app > .workspace {
+  grid-column: 1;
+  grid-row: 2;
+}
+.app > .panel {
+  grid-column: 1;
+  grid-row: 3;
+}
+.app > .activity {
+  grid-column: 2;
+  grid-row: 2 / 4;
 }
 
 .toolbar {
@@ -221,13 +239,13 @@ code {
 
 .workspace {
   display: grid;
-  /* palette, plan, activity (when there is one) */
-  grid-template-columns: 156px 1fr auto;
+  /* palette, plan */
+  grid-template-columns: 156px minmax(0, 1fr);
   min-height: 0;
 }
 /* The palette is hidden during a simulation. */
 .app.mode-simulation .workspace {
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .palette {
@@ -284,6 +302,7 @@ code {
 }
 
 .panel {
+  position: relative;
   background: var(--surface);
   border-top: 1px solid var(--border);
   max-height: 42vh;
@@ -361,7 +380,7 @@ code {
   stroke-dasharray: 1 7;
 }
 .port-label {
-  font-size: 11px;
+  font-size: calc(11px * var(--label-scale, 1));
   fill: var(--muted);
   text-anchor: middle;
   paint-order: stroke;
@@ -410,11 +429,11 @@ code {
 }
 .device-label {
   font-weight: 600;
-  font-size: 13px;
+  font-size: calc(13px * var(--label-scale, 1));
   fill: var(--text);
 }
 .device-sub {
-  font-size: 12px;
+  font-size: calc(12px * var(--label-scale, 1));
   fill: var(--muted);
   font-family: ui-monospace, 'DejaVu Sans Mono', monospace;
 }
@@ -600,17 +619,55 @@ code {
   position: relative;
 }
 .properties.empty {
-  padding: 14px;
+  padding: 10px 14px;
+}
+.properties.empty p {
+  margin: 0;
+}
+/* Reduced to one line, to leave the height to the plan. */
+.properties.folded {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 8px;
+}
+.properties.folded .panel-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panel-fold {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  z-index: 1;
 }
 .properties-actions {
   position: absolute;
-  right: 14px;
+  /* left of the button that reduces the panel */
+  right: 58px;
   top: 10px;
 }
 .properties-grid {
   display: flex;
-  gap: 24px;
+  gap: 8px 24px;
   flex-wrap: wrap;
+}
+/* A device's three sections side by side beside an activity, on a 1366 px screen. */
+.properties-grid .section p {
+  max-width: 300px;
+}
+.properties-grid .field-row input {
+  width: 170px;
+}
+.properties-grid .table input {
+  width: 150px;
+}
+/* The button that reduces the panel sits in the corner. */
+.properties > .protected-note:first-child {
+  margin-right: 44px;
 }
 .section {
   margin-bottom: 10px;

@@ -27,6 +27,7 @@ import {
   ZOOM_STEPS,
   contentSize,
   isTeacherAddress,
+  labelScale,
   projectBaseName,
 } from './session';
 
@@ -450,6 +451,19 @@ describe('Session : zoom du plan et fenêtres', () => {
     expect(session.zoom).toBeGreaterThanOrEqual(ZOOM_STEPS[0]);
     session.setViewport(10, 10);
     expect(session.zoom).toBe(ZOOM_STEPS[0]);
+  });
+
+  test('les textes du plan restent lisibles quand le plan est réduit', () => {
+    // À 100 % et au-delà, rien ne change.
+    expect(labelScale(1)).toBe(1);
+    expect(labelScale(1.5)).toBe(1);
+    expect(labelScale(0.85)).toBe(1);
+    // « Du collège au musée » sur un écran de 1366 px s'ajuste à 58 % : un nom
+    // écrit en 13 px y ferait 7,5 px ; il en garde 11.
+    expect(13 * 0.58).toBeLessThan(8);
+    expect(13 * 0.58 * labelScale(0.58)).toBeCloseTo(11, 0);
+    // Plan très réduit : l'agrandissement est borné, les noms ne se recouvrent pas tous.
+    expect(labelScale(0.3)).toBe(2);
   });
 
   test('change de zoom par paliers, dans les limites', () => {

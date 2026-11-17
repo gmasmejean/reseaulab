@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -19,7 +20,7 @@ import { worstFor, type Finding } from '../../learn/diagnose/findings';
 import { DROP_LABEL } from '../../learn/diagnose/messages.fr';
 import { useFrame, useSession } from '../context';
 import { findingText, useLint } from '../learn/hooks';
-import type { Session } from '../session';
+import { labelScale, type Session } from '../session';
 import { DeviceIcon } from './DeviceIcon';
 import { NoteShape } from './NoteShape';
 import { ContextMenu, anchorOf, isMenuKey, type MenuEntry } from './ContextMenu';
@@ -131,6 +132,8 @@ export function Canvas() {
   const notes = net.notes;
   // The plan is drawn in its own units and scaled by the zoom.
   const zoom = session.zoom;
+  // Names, addresses and notes do not shrink as much as the drawing: they stay readable.
+  const textScale = labelScale(zoom);
   const { width, height } = session.planSize;
   const simulation = session.mode === 'simulation';
   const now = net.scheduler.now;
@@ -351,6 +354,7 @@ export function Canvas() {
       <svg
         ref={svgRef}
         className={`canvas ${simulation ? 'simulating' : ''}`}
+        style={{ '--label-scale': textScale } as CSSProperties}
         width={Math.floor(width * zoom)}
         height={Math.floor(height * zoom)}
         viewBox={`0 0 ${width} ${height}`}
@@ -393,6 +397,7 @@ export function Canvas() {
             <NoteShape
               key={n.id}
               note={n}
+              textScale={textScale}
               selected={selected?.kind === 'note' && selected.id === n.id}
               interactive={!simulation}
               onPointerDown={(e, mode) => {
@@ -488,11 +493,11 @@ export function Canvas() {
               <g transform={`translate(${-ICON / 2}, ${-ICON / 2})`}>
                 <DeviceIcon kind={d.kind} size={ICON} />
               </g>
-              <text y={ICON / 2 + 18} className="device-label">
+              <text y={ICON / 2 + 5 + 13 * textScale} className="device-label">
                 {label}
               </text>
               {sub && label !== sub && (
-                <text y={ICON / 2 + 34} className="device-sub">
+                <text y={ICON / 2 + 5 + 29 * textScale} className="device-sub">
                   {sub}
                 </text>
               )}

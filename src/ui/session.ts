@@ -148,6 +148,19 @@ export const SPEEDS = [0.1, 0.25, 0.5, 1, 2, 4] as const;
 export const ZOOM_STEPS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.25, 1.5, 2] as const;
 const ZOOM_MIN = ZOOM_STEPS[0];
 const ZOOM_MAX = 2;
+/** Names and addresses are never drawn smaller than this share of their size at 100 %… */
+const LABEL_READABLE = 0.85;
+/** …unless the plan is so small that larger names would cover one another. */
+const LABEL_SCALE_MAX = 2;
+
+/**
+ * How much the texts of the plan are enlarged to stay readable when the plan is
+ * reduced: a large network fitted to a 1366 px screen is drawn at about 58 %,
+ * where a name written at 13 px would be 7 px high.
+ */
+export function labelScale(zoom: number): number {
+  return Math.min(LABEL_SCALE_MAX, Math.max(1, Math.round((LABEL_READABLE / zoom) * 100) / 100));
+}
 /** Number of changes that can be undone. */
 export const HISTORY_LIMIT = 50;
 /** Changes closer than this (dragging a device, typing a note) are undone together. */

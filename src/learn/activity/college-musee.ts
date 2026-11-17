@@ -135,7 +135,7 @@ function startingNetwork(): Network {
   const postes = [
     ['Poste 1', '192.168.10.1', 100, 120, true],
     ['Poste 2', '192.168.1.2', 100, 240, true],
-    ['Poste 3', '192.168.10.3', 60, 400, false],
+    ['Poste 3', '192.168.10.3', 100, 400, false],
   ] as const;
   for (const [name, address, x, y, plugged] of postes) {
     const host = network.addHost('computer', {
@@ -245,7 +245,7 @@ function startingNetwork(): Network {
   museum.webServer.setActive(true);
 
   /* --- Bonus : la médiathèque, prête mais pas encore reliée au FAI --- */
-  note(620, 620, 260, 'Médiathèque — réseau 192.168.20.0');
+  note(620, 650, 260, 'Médiathèque — réseau 192.168.20.0');
   const library = network.addRouter({ name: 'Routeur de la médiathèque', position: { x: 760, y: 560 } });
   library.setInterface(0, { ip: ip('82.64.13.34'), mask: MASK_24 });
   library.setInterface(1, { ip: ip('192.168.20.254'), mask: MASK_24 });
@@ -254,7 +254,7 @@ function startingNetwork(): Network {
   network.connect(library.id, librarySwitch.id, { portA: 1 });
   const laptop = network.addHost('laptop', {
     name: 'Portable médiathèque',
-    position: { x: 1160, y: 600 },
+    position: { x: 1220, y: 600 },
     config: { ip: ip('192.168.20.5'), mask: MASK_24, gateway: ip('192.168.20.254') },
   });
   network.connect(laptop.id, librarySwitch.id);
