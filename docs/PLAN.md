@@ -629,9 +629,8 @@ questions.
 Bilan de l'interface et de l'activité « Du collège au musée » du
 2026-11-13 ([`BILAN.md`](BILAN.md)). Demandes de l'enseignant, dans
 l'ordre : B6 et B1, puis B2, B4, B5 et B3, puis B7, B8 et B9, puis la
-mise en page du corrigé (étape 55). Restent à
-planifier : les constats d'interface A1 à A11, et B10 pour l'activité
-(entamé : voir les étapes 47, 48 et 54).
+mise en page du corrigé (étape 55), puis B10 (étape 56). Restent à
+planifier : les constats d'interface A1 à A11.
 
 - [x] **Étape 46 — Réseau de départ protégé** (bilan B6). Une activité peut
       déclarer `protect` : des équipements (avec, pour un routeur, le
@@ -850,8 +849,38 @@ planifier : les constats d'interface A1 à A11, et B10 pour l'activité
       bout : règles de saut de page, et PDF produit dont seule la
       première page est en paysage.
 
+- [x] **Étape 56 — Réponses attendues confrontées au simulateur** (bilan
+      B10). Des tests seulement, pour « Du collège au musée » et « La salle
+      de techno » : la réponse attendue est lue dans l'activité, puis
+      comparée à ce que le simulateur montre à l'élève. Ajoutés à ce que
+      les étapes 47, 48 et 54 vérifiaient déjà : les équipements nommés
+      (terminaux, rôles, topologie en étoile), le chemin du fichier sur le
+      serveur, ce qu'affiche `ipconfig` (adresse, masque, partie réseau),
+      les deux adresses du routeur du collège, le nombre de routeurs
+      traversés, ce que décident les tables de routage (premier saut,
+      route par défaut, saut du FAI à l'aller et au retour), la réponse de
+      `nslookup`, les adresses des paquets de la requête dans « Échanges
+      de données », le texte de la page du musée pour les questions sur
+      les enjeux, le type des mesures de CO2, et les résultats des calculs
+      (taille d'image, temps de transfert, débit, binaire). Pour la 4e :
+      fichiers et extension, `ipconfig`, adresses valides, table de la
+      station (maximum, type, unité, tendance), adresse publique, masque
+      /16. **Garde-fou** : chaque question de ces deux activités est soit
+      confrontée, soit inscrite dans une liste de questions de cours
+      (`KNOWLEDGE` dans `builtin.test.ts`) ; une question ajoutée sans
+      l'un ni l'autre fait échouer les tests. Contrôle : treize réponses
+      ou données faussées une à une, toutes détectées.
+
 ## Écarts au plan
 
+- **Questions de cours non confrontées** (étape 56) : 29 questions de
+  « Du collège au musée » sur 62 et 30 de « La salle de techno » n'ont
+  rien à lire dans le simulateur (notion, bon usage, raisonnement,
+  exercice sur papier du défi, réponse rédigée) ou sont tirées et
+  corrigées par le moteur (« même réseau ? »). Leur justesse reste à la
+  relecture de l'enseignant. Les questions sur les enjeux sont comparées
+  au texte de la page du musée, pas à une source extérieure. Les autres
+  activités fournies n'ont pas de questions.
 - **Mise en page du corrigé vérifiée dans Chrome seulement** (étape 55) :
   les PDF des deux versions de « Du collège au musée » ont été relus page
   par page (27 pages pour le professeur, 15 pour les élèves). Dans un

@@ -1,8 +1,9 @@
-import { formatIp } from '../../engine/core/ipv4';
-import type { Host } from '../../engine/devices/host';
+import { IP_ANY, formatIp, parseIp, sameNetwork } from '../../engine/core/ipv4';
+import { Host } from '../../engine/devices/host';
 import type { Network } from '../../engine/network';
 import { LineClient } from '../../engine/services/echo';
-import { httpGet, type HttpResult } from '../../engine/services/http';
+import { httpGet, type HttpResponse, type HttpResult } from '../../engine/services/http';
+import { lookupRoute, nextHop } from '../../engine/stack/routing';
 import { Terminal } from '../../engine/terminal/terminal';
 import { MASK_24, ip } from '../../engine/testing';
 import { DEFAULT_PACK } from '../content/default-pack';
@@ -15,7 +16,7 @@ import { BUILTIN_ACTIVITIES } from './builtin';
 import { currentStep, evaluateAll, gateSteps, journalEntry, protectedDevices } from './evaluate';
 import { guardOf } from './protect';
 import { askQuestion, drawSalt, markAnswer, partsOf } from './questions';
-import { EMPTY_WORK, objectivesOf, type Activity, type Work } from './schema';
+import { EMPTY_WORK, objectivesOf, type Activity, type ActivityQuestion, type Work } from './schema';
 
 const find = (network: Network, name: string) => {
   const device = network.devices.find((d) => d.name === name);
@@ -35,16 +36,120 @@ function answerAll(activity: Activity, work: Work): Work {
   return { ...work, answers };
 }
 
-/** What `traceroute 203.0.113.80` prints on a host: the last word of each hop line, or whole texts. */
-function traceroute(sim: Network, host: Host, whole = false): string[] {
+/**
+ * The expected answers of the questions of an activity, as these tests read
+ * them — and which questions they have read. An answer that the pupil reads
+ * in the simulator must be confronted with what the simulator shows: a test
+ * reads it here and compares. What is never read is listed by `unread`, to be
+ * declared as a question of knowledge (bilan B10).
+ */
+function expectedAnswers(activity: Activity) {
+  const questions = new Map<string, ActivityQuestion>();
+  for (const objective of objectivesOf(activity))
+    if (objective.check.type === 'question') questions.set(objective.id, objective.check.question);
+  const read = new Set<string>();
+  const question = (id: string): ActivityQuestion => {
+    const found = questions.get(id);
+    if (!found) throw new Error(`« ${id} » n’est pas une question de l’activité`);
+    read.add(id);
+    return found;
+  };
+  /** Choices of a multiple-choice question, right ones then wrong ones. */
+  const choices = (id: string): { right: string[]; wrong: string[] } => {
+    const q = question(id);
+    if (q.type !== 'mcq') throw new Error(`« ${id} » n’est pas une question à choix`);
+    return {
+      right: q.correct.map((index) => q.choices[index] ?? ''),
+      wrong: q.choices.filter((_, index) => !q.correct.includes(index)),
+    };
+  };
+  return {
+    choices,
+    /** First accepted text of a short answer, or text of the first right choice. */
+    text: (id: string): string => {
+      const q = question(id);
+      if (q.type === 'short') return q.accepted[0] ?? '';
+      return choices(id).right[0] ?? '';
+    },
+    /** Every text accepted for a short answer. */
+    accepted: (id: string): readonly string[] => {
+      const q = question(id);
+      if (q.type !== 'short') throw new Error(`« ${id} » n’est pas une réponse courte`);
+      return q.accepted;
+    },
+    /** The pairs of an association. */
+    pairs: (id: string): readonly (readonly [string, string])[] => {
+      const q = question(id);
+      if (q.type !== 'match') throw new Error(`« ${id} » n’est pas une association`);
+      return q.pairs;
+    },
+    prompt: (id: string): string => question(id).prompt,
+    explanation: (id: string): string => question(id).explanation,
+    /** Questions that no test has read, in the order of the activity. */
+    unread: (): string[] => [...questions.keys()].filter((id) => !read.has(id)),
+  };
+}
+
+/** What a command prints in the terminal of a host, once it has finished. */
+function run(sim: Network, host: Host, command: string): string[] {
   const out: string[] = [];
   const terminal = new Terminal(host, { print: (line) => out.push(line), clear: () => undefined });
   let finished = false;
-  terminal.execute('traceroute 203.0.113.80', () => {
+  terminal.execute(command, () => {
     finished = true;
   });
   runBounded(sim, () => finished, 120_000);
-  return out
+  return out;
+}
+
+/** What `ipconfig` shows on a host for a line: « Adresse IPv4 » → « 192.168.10.1 ». */
+function shownByIpconfig(sim: Network, host: Host): (label: string) => string {
+  const lines = run(sim, host, 'ipconfig');
+  return (label) => lines.find((line) => line.includes(label))?.split(' : ')[1] ?? '';
+}
+
+/** The page a host receives from a web server, through the simulated network. */
+function fetchPage(sim: Network, host: Host, url: string): HttpResponse {
+  let page: HttpResult | null = null;
+  httpGet(host, url, (result) => {
+    page = result;
+  });
+  runBounded(sim, () => page !== null, 30_000);
+  const result = page as HttpResult | null;
+  if (result?.kind !== 'ok') throw new Error(`${url} : pas de réponse`);
+  return result.response;
+}
+
+/** The rows of the table of measures of a page, cell by cell (the header row has none). */
+const tableRows = (html: string): string[][] =>
+  [...html.matchAll(/<tr>(.*?)<\/tr>/g)]
+    .map(([, row = '']) => [...row.matchAll(/<td>(.*?)<\/td>/g)].map(([, cell = '']) => cell))
+    .filter((cells) => cells.length > 0);
+
+/** Where a router sends a packet for `to`: the next address, or null without a route. */
+function nextHopOf(network: Network, router: string, to: string): string | null {
+  const route = lookupRoute(network.router(find(network, router).id).stack.routes(), ip(to));
+  return route ? formatIp(nextHop(route, ip(to))) : null;
+}
+
+/** Whether a device is a terminal (computer, server, tablet, object…) and not a switch or a router. */
+const isTerminal = (network: Network, name: string) => find(network, name) instanceof Host;
+
+/** Whether every terminal of the network `net`/24 is linked to the same switch `hub`: a star. */
+function isStar(network: Network, hub: string, net: string): boolean {
+  const centre = find(network, hub).id;
+  const members = network.devices.filter(
+    (d) => d instanceof Host && sameNetwork(d.config.ip, ip(net), MASK_24),
+  );
+  return (
+    members.length > 3 &&
+    members.every((d) => network.cables.some((c) => [c.a, c.b].includes(d.id) && [c.a, c.b].includes(centre)))
+  );
+}
+
+/** What `traceroute 203.0.113.80` prints on a host: the last word of each hop line, or whole texts. */
+function traceroute(sim: Network, host: Host, whole = false): string[] {
+  return run(sim, host, 'traceroute 203.0.113.80')
     .filter((line) => /^\s*\d+\s/.test(line))
     .map((line) => {
       const words = line.trim().split(/\s+/);
@@ -180,6 +285,79 @@ const SOLUTIONS: Record<string, (network: Network) => Work> = {
     web.webServer.setActive(true);
     return { ...EMPTY_WORK, simulated: true, commands: [journalEntry(find(network, 'Poste 1').id, 'ping')] };
   },
+};
+
+/**
+ * Questions of knowledge: nothing in the simulator gives their answer (a
+ * notion of the lesson, good practice, a reasoning, an exercise on paper, an
+ * open answer), or the engine draws and corrects them itself (« même
+ * réseau ? »). Every other question is confronted with the simulator by the
+ * tests « ce que l’élève doit observer ».
+ */
+const KNOWLEDGE: Record<string, readonly string[]> = {
+  'college-musee': [
+    'q-lan',
+    'q-cable-wifi',
+    'q-usurpation',
+    'q-octet',
+    'q-meme-reseau',
+    'q-demarche',
+    'q-donnees-collectees',
+    'q-internet',
+    'q-role-routeur',
+    'q-passerelle',
+    'q-chemin-complet',
+    'q-aller-retour',
+    'q-protocole-routage',
+    'q-role-dns',
+    'q-client-serveur',
+    'q-etapes-requete',
+    'q-paquets',
+    'q-protocole',
+    'q-protocoles-roles',
+    'q-classer-debits',
+    'q-format-message',
+    'q-convenir',
+    'q-strategique',
+    'q-bilan',
+    'q-defi-trajet',
+    'q-defi-retour',
+    'q-defi-panne',
+    'q-defi-nat',
+    'q-defi-justifier',
+  ],
+  'salle-techno': [
+    'q-usages',
+    'q-lan',
+    'q-serveur',
+    'q-routeur',
+    'q-carte',
+    'q-wifi',
+    'q-sans-adresse',
+    'q-unique',
+    'q-mot-de-passe',
+    'q-session',
+    'q-compte',
+    'q-droit-auteur',
+    'q-cyberviolence',
+    'q-octet',
+    'q-masque-role',
+    'q-meme-reseau',
+    'q-ping-echec',
+    'q-demarche',
+    'q-pannes',
+    'q-adresse-fixe',
+    'q-trajet',
+    'q-dhcp',
+    'q-cookie',
+    'q-geolocalisation',
+    'q-identite',
+    'q-donnees-station',
+    'q-bilan',
+    'q-dhcp-fixe',
+    'q-meme-reseau-2',
+    'q-meme-reseau-3',
+  ],
 };
 
 describe('Activités fournies', () => {
@@ -387,18 +565,29 @@ describe('Activités fournies', () => {
     if (!builtin) throw new Error('college-musee');
     const { network, activity } = builtin.build();
     SOLUTIONS['college-musee']?.(network);
-    /** Première réponse acceptée, ou texte du bon choix, d'une question de l'activité. */
-    const expected = (id: string): string => {
-      const check = objectivesOf(activity).find((o) => o.id === id)?.check;
-      if (check?.type !== 'question') throw new Error(id);
-      const q = check.question;
-      if (q.type === 'short') return q.accepted[0] ?? '';
-      if (q.type === 'mcq') return q.choices[q.correct[0] ?? -1] ?? '';
-      throw new Error(id);
-    };
+    const answers = expectedAnswers(activity);
+    const expected = answers.text;
+
+    // « Le réseau du CDI » : les équipements nommés sont bien ce que les questions en disent.
+    const terminals = answers.choices('q-terminaux');
+    expect(terminals.right.filter((name) => !isTerminal(network, name))).toEqual([]);
+    expect(terminals.wrong.filter((name) => isTerminal(network, name))).toEqual([]);
+    expect(answers.pairs('q-roles').map(([device]) => find(network, device).kind)).toEqual([
+      'switch',
+      'server',
+      'router',
+    ]);
+    // Tout le CDI tient au même switch, une fois Poste 3, la tablette et le capteur reliés.
+    expect(isStar(network, 'Switch CDI', '192.168.10.0')).toBe(true);
+    expect(expected('q-topologie')).toBe('En étoile');
+    expect(isStar(builtin.build().network, 'Switch CDI', '192.168.10.0')).toBe(false);
 
     // « Représenter des données » : la taille lue dans l'explorateur du Serveur.
     const server = network.host(find(network, 'Serveur').id);
+    // « Fichiers et bons usages » : le fichier de Nora est bien là où la réponse le dit.
+    expect(server.fs.list('/Documents/3A/Nora').map((e) => e.name)).toContain('carte-cables.png');
+    for (const path of answers.accepted('q-chemin'))
+      expect(server.fs.readFile(path.replaceAll('\\', '/').replace(/^(?!\/)/, '/')), path).not.toBeNull();
     const title = server.fs.list('/Documents/3A/Nora').find((e) => e.name === 'titre.txt');
     expect(String(title?.size)).toBe(expected('q-texte'));
 
@@ -412,6 +601,9 @@ describe('Activités fournies', () => {
     }).toThrow('Dossier en lecture seule : /Documents/Commun');
     server.fs.writeFile('/Documents/3A/Nora/brouillon.txt', 'x');
     server.fs.remove('/Documents/3A/Nora/brouillon.txt');
+    // … mais ses fichiers se consultent : c'est ce que dit la bonne réponse.
+    expect(server.fs.readFile('/Documents/Commun/charte-informatique.pdf')).not.toBeNull();
+    expect(expected('q-droits')).toMatch(/^Consulter ses fichiers, mais ni les modifier/);
 
     const { sim } = prepareProbe(network);
     // En simulation aussi : c'est là que l'élève ouvre l'explorateur.
@@ -420,14 +612,23 @@ describe('Activités fournies', () => {
     const sensor = sim.host(find(network, 'Capteur CO2').id);
     const display = sim.host(find(network, 'Afficheur').id);
 
+    // « Adresse IP et masque » : ce que ipconfig affiche sur Poste 1.
+    const shown = shownByIpconfig(sim, poste1);
+    expect(shown('Adresse IPv4')).toBe('192.168.10.1');
+    expect(shown('Masque de sous-réseau')).toBe('255.255.255.0 (/24)');
+    expect(shown('Adresse IPv4').split('.').slice(0, 3).join('.')).toBe(expected('q-partie-reseau'));
+    expect(answers.prompt('q-partie-reseau')).toContain(shown('Masque de sous-réseau').split(' ')[0]);
+    // Le routeur du collège a bien les deux adresses de la question ; une seule est publique.
+    const school = network.router(find(network, 'Routeur du collège').id);
+    const sides = school.interfaces.filter((i) => i.ip !== IP_ANY).map((i) => formatIp(i.ip));
+    const isPrivate = (address: string) => address.startsWith('192.168.');
+    expect(sides).toHaveLength(2);
+    for (const side of sides) expect(answers.prompt('q-privee')).toContain(side);
+    expect(answers.choices('q-privee').right).toEqual(sides.filter((side) => !isPrivate(side)));
+    expect(answers.choices('q-privee').wrong).toEqual(expect.arrayContaining(sides.filter(isPrivate)));
+
     // Le fichier exporté par le capteur : du texte, une mesure par ligne, des points-virgules.
-    let page: HttpResult | null = null;
-    httpGet(poste1, 'http://192.168.10.50/mesures.csv', (result) => {
-      page = result;
-    });
-    runBounded(sim, () => page !== null, 30_000);
-    const csv = page as HttpResult | null;
-    if (csv?.kind !== 'ok') throw new Error('mesures.csv');
+    const csv = { response: fetchPage(sim, poste1, 'http://192.168.10.50/mesures.csv') };
     expect(csv.response.status).toBe(200);
     expect(csv.response.headers['content-type']).toBe('text/csv');
     const lines = csv.response.body.trim().split('\n');
@@ -438,6 +639,12 @@ describe('Activités fournies', () => {
     // Les mêmes mesures que la page du capteur : premier dépassement de 1000 ppm à 10:00.
     const over = lines.slice(1).find((line) => Number(line.split(';')[1]) > 1000);
     expect(over?.split(';')[0]).toBe(expected('q-aerer'));
+    // La page du capteur, lue dans le navigateur : mêmes mesures, et des CO2 en nombres entiers.
+    const measures = tableRows(fetchPage(sim, poste1, 'http://192.168.10.50/').body);
+    expect(measures.map((row) => row.join(';'))).toEqual(lines.slice(1));
+    expect(measures.find((row) => Number(row[1]) > 1000)?.[0]).toBe(expected('q-aerer'));
+    expect(measures.every((row) => /^\d+$/.test(row[1] ?? ''))).toBe(true);
+    expect(expected('q-type-co2')).toBe('Nombre entier');
 
     // « Deux objets qui communiquent » : port 8 refusé, port 7 accepté, émetteur écrit au journal.
     const say = (port: number, message?: string): string[] => {
@@ -468,14 +675,84 @@ describe('Activités fournies', () => {
     );
 
     // traceroute, une fois le chemin réparé : le dernier routeur avant le musée.
-    expect(traceroute(sim, poste1)).toEqual([
-      '192.168.10.254',
-      '82.64.12.1',
-      '198.51.100.2',
-      '192.0.2.2',
-      '203.0.113.80',
+    const path = traceroute(sim, poste1);
+    expect(path).toEqual(['192.168.10.254', '82.64.12.1', '198.51.100.2', '192.0.2.2', '203.0.113.80']);
+    expect(path.at(-2)).toBe(expected('q-traceroute'));
+    // « Internet, un réseau de réseaux » : autant de routeurs que de lignes avant le musée.
+    expect(String(path.length - 1)).toBe(expected('q-nb-routeurs'));
+    const owners = path
+      .slice(0, -1)
+      .map(
+        (hop) =>
+          network.devices.find(
+            (d) => d.kind === 'router' && network.router(d.id).interfaces.some((i) => i.ip === ip(hop)),
+          )?.name,
+      );
+    expect(owners).toEqual([
+      'Routeur du collège',
+      'Routeur du FAI',
+      'Routeur Internet',
+      'Routeur du data center',
     ]);
-    expect(traceroute(sim, poste1).at(-2)).toBe(expected('q-traceroute'));
+
+    // « Lire une table de routage » : chaque réponse est ce que la table du routeur décide.
+    const museum = formatIp(network.host(find(network, 'Serveur du musée').id).config.ip);
+    expect(formatIp(network.host(poste1.id).config.gateway)).toBe(expected('q-premier-saut'));
+    expect(path[0]).toBe(expected('q-premier-saut'));
+    expect(
+      school.staticRoutes.map(
+        (r) => `${formatIp(r.destination)} / ${formatIp(r.mask)} → ${formatIp(r.gateway)}`,
+      ),
+    ).toEqual(['0.0.0.0 / 0.0.0.0 → 82.64.12.1']);
+    expect(answers.prompt('q-route-defaut')).toContain('0.0.0.0 / 0.0.0.0 → 82.64.12.1');
+    expect(nextHopOf(network, 'Routeur du collège', museum)).toBe('82.64.12.1');
+    expect(expected('q-route-defaut')).toContain(`routeur du FAI (${path[1] ?? ''})`);
+    expect(answers.prompt('q-saut-fai')).toContain(museum);
+    expect(nextHopOf(network, 'Routeur du FAI', museum)).toBe(expected('q-saut-fai'));
+    expect(answers.prompt('q-saut-retour')).toContain(shown('Adresse IPv4'));
+    expect(nextHopOf(network, 'Routeur du FAI', shown('Adresse IPv4'))).toBe(expected('q-saut-retour'));
+
+    // « Du nom à l'adresse » : ce que nslookup répond, et c'est bien l'adresse du Serveur du musée.
+    expect(run(sim, poste1, 'nslookup www.musee-des-reseaux.fr').at(-1)).toBe(
+      `www.musee-des-reseaux.fr  A  ${expected('q-adresse-musee')}`,
+    );
+    expect(expected('q-adresse-musee')).toBe(museum);
+
+    // « Paquets et protocoles » : les paquets de la requête, dans « Échanges de données » de Poste 1.
+    poste1.capture.clear();
+    const home = fetchPage(sim, poste1, 'http://www.musee-des-reseaux.fr/').body;
+    const requests = poste1.capture.entries.flatMap((entry) => {
+      const packet = entry.frame.payload;
+      const sent = entry.direction === 'out' && packet.kind === 'ipv4' && packet.payload.kind === 'tcp';
+      return sent && packet.payload.dstPort === 80
+        ? [`${formatIp(packet.src)} → ${formatIp(packet.dst)}`]
+        : [];
+    });
+    expect(requests.length).toBeGreaterThan(0);
+    expect([...new Set(requests)]).toEqual([`192.168.10.1 → ${expected('q-adresse-destination')}`]);
+
+    // « Les enjeux du numérique » : les réponses se lisent dans la page du musée.
+    expect(home).toContain('<h1>Musée des réseaux</h1>');
+    expect(home).toContain(expected('q-cables').replace(/^Des /, ''));
+    expect(home).toContain('plus de 95 %');
+    expect(answers.explanation('q-cables')).toContain('Plus de 95 %');
+    expect(home).toMatch(/serveur est rangé avec des milliers d’autres dans un data center/);
+    expect(expected('q-data-center')).toContain('rempli de serveurs');
+    expect(home).toContain('la fabrication de nos appareils qui pèse le plus');
+    expect(answers.explanation('q-empreinte')).toContain('La fabrication des appareils pèse plus');
+    const jobs = answers.choices('q-metiers').right;
+    expect(jobs).toHaveLength(3);
+    for (const [index, word] of ['technicien réseau', 'installateur de fibre', 'cybersécurité'].entries()) {
+      expect(home).toContain(word);
+      expect(jobs[index]?.toLowerCase()).toContain(word.split(' ').at(-1));
+    }
+
+    // Les calculs : la réponse attendue est le résultat du calcul que la question pose.
+    expect(Number(expected('q-image'))).toBe(100 * 100 * 3);
+    expect(Number(expected('q-temps-photo'))).toBe((4 * 8) / 8);
+    expect(Number(expected('q-temps-video'))).toBe((1500 * 8) / 100);
+    expect(expected('q-debit-unite')).toBe(`${1000 / 8} Mo`);
+    expect(Number(expected('q-binaire'))).toBe(0b1010);
 
     // Avant réparation (seule la passerelle est réglée) : l'élève trouve la panne lui-même.
     const broken = builtin.build().network;
@@ -495,6 +772,105 @@ describe('Activités fournies', () => {
     const routes = broken.router(owner?.id ?? '').staticRoutes;
     expect(routes.map((r) => formatIp(r.destination))).toEqual(['192.168.10.0', '82.64.12.0', '80.10.0.0']);
     expect(routes.some((r) => (ip('203.0.113.80') & r.mask) >>> 0 === r.destination)).toBe(false);
+    expect(nextHopOf(broken, 'Routeur Internet', '203.0.113.80')).toBeNull();
+    expect(expected('q-table-incomplete')).toBe(
+      'Aucune ligne pour le réseau du musée, et pas de route par défaut',
+    );
+
+    // Toute autre question est une question de cours, sans rien à lire dans le simulateur.
+    // Une question ajoutée à l'activité arrive ici : la confronter ci-dessus, ou la déclarer.
+    expect(answers.unread()).toEqual(KNOWLEDGE['college-musee']);
+  });
+
+  test('La salle de techno : ce que l’élève doit observer est bien ce que montre le simulateur', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'salle-techno');
+    if (!builtin) throw new Error('salle-techno');
+    const { network, activity } = builtin.build();
+    SOLUTIONS['salle-techno']?.(network);
+    const answers = expectedAnswers(activity);
+    const expected = answers.text;
+
+    // Partie 1 : les équipements nommés, la topologie, les fichiers du serveur.
+    const terminals = answers.choices('q-terminaux');
+    expect(terminals.right.filter((name) => !isTerminal(network, name))).toEqual([]);
+    expect(terminals.wrong.filter((name) => isTerminal(network, name))).toEqual([]);
+    expect(find(network, 'Switch salle').kind).toBe('switch');
+    expect(answers.prompt('q-switch')).toContain('« Switch salle »');
+    expect(isStar(network, 'Switch salle', '192.168.10.0')).toBe(true);
+    expect(expected('q-topologie')).toBe('En étoile');
+    const server = network.host(find(network, 'Serveur').id);
+    for (const path of answers.accepted('q-chemin'))
+      expect(server.fs.readFile(path.replaceAll('\\', '/').replace(/^(?!\/)/, '/')), path).not.toBeNull();
+    // Le plan de la salle, dans le dossier de Léa : son extension est celle que la réponse attend.
+    const plans = server.fs.list('/Documents/4A/Lea').filter((e) => e.name.startsWith('plan'));
+    expect(plans.map((e) => e.name.split('.').at(-1))).toEqual([expected('q-extension')]);
+    expect(server.fs.isReadOnly('/Documents/Commun')).toBe(true);
+    expect(() => {
+      server.fs.mkdir('/Documents/Commun/essai');
+    }).toThrow('Dossier en lecture seule : /Documents/Commun');
+    expect(server.fs.readFile('/Documents/Commun/charte-informatique.pdf')).not.toBeNull();
+    expect(expected('q-droits')).toMatch(/^Consulter ses fichiers, mais ni les modifier/);
+
+    // Partie 2 : ce que ipconfig affiche sur Poste 1.
+    const { sim } = prepareProbe(network);
+    const poste1 = sim.host(find(network, 'Poste 1').id);
+    const shown = shownByIpconfig(sim, poste1);
+    expect(shown('Adresse IPv4')).toBe(expected('q-ip-poste1'));
+    expect(shown('Masque de sous-réseau')).toBe(`${expected('q-masque-poste1')} (/24)`);
+    expect(shown('Adresse IPv4').split('.').slice(0, 3).join('.')).toBe(expected('q-partie-reseau'));
+    expect(answers.prompt('q-partie-reseau')).toContain(expected('q-masque-poste1'));
+    // Une adresse est valide si le simulateur l'accepte.
+    const addresses = answers.choices('q-ip-valides');
+    expect(addresses.right.filter((text) => parseIp(text) === null)).toEqual([]);
+    expect(addresses.wrong.filter((text) => parseIp(text) !== null)).toEqual([]);
+    // 192.168.10.2 est déjà l'adresse de Poste 2.
+    expect(answers.prompt('q-pas-deux')).toContain(
+      formatIp(network.host(find(network, 'Poste 2').id).config.ip),
+    );
+    expect(expected('q-pas-deux')).toContain('Poste 2');
+
+    // « Lire les mesures » : la table que la station sert au navigateur de Poste 1.
+    const page = fetchPage(sim, poste1, 'http://192.168.10.50/').body;
+    const rows = tableRows(page).map(([hour = '', temperature = '', humidity = '']) => ({
+      hour,
+      temperature: Number(temperature.replace(',', '.')),
+      humidity: Number(humidity),
+      decimal: temperature.includes(','),
+    }));
+    expect(rows).toHaveLength(9);
+    const hottest = rows.reduce((best, row) => (row.temperature > best.temperature ? row : best));
+    expect(hottest.hour).toBe(expected('q-maximum'));
+    expect(rows.every((row) => row.decimal)).toBe(true);
+    expect(expected('q-type')).toBe('Nombre décimal');
+    expect(page).toContain(`<th>Humidité (${expected('q-unite')})</th>`);
+    expect(answers.prompt('q-type')).toContain('« Température (°C) »');
+    expect(page).toContain('<th>Température (°C)</th>');
+    // D'une heure à la suivante, l'humidité baisse quand la température monte, et inversement.
+    for (const [index, row] of rows.entries()) {
+      const before = rows[index - 1];
+      if (before)
+        expect(Math.sign(row.humidity - before.humidity), row.hour).toBe(
+          -Math.sign(row.temperature - before.temperature),
+        );
+    }
+    expect(expected('q-tendance')).toBe('Elle baisse');
+
+    // « Internet » : les deux côtés du routeur du collège.
+    const router = network.router(find(network, 'Routeur du collège').id);
+    const sides = router.interfaces.filter((i) => i.ip !== IP_ANY).map((i) => formatIp(i.ip));
+    expect(sides.filter((side) => !side.startsWith('192.168.'))).toEqual([expected('q-ip-publique')]);
+    expect(answers.prompt('q-fai')).toContain(expected('q-ip-publique'));
+    expect(answers.prompt('q-privee')).toContain(`${shown('Adresse IPv4')} de Poste 1`);
+    expect(expected('q-privee')).toContain('adresse privée');
+
+    // Bonus « masques » : le calcul que fait le simulateur.
+    expect(sameNetwork(ip('192.168.10.5'), ip('192.168.20.7'), ip('255.255.0.0'))).toBe(true);
+    expect(answers.prompt('q-masque-16')).toContain('192.168.10.5 et 192.168.20.7');
+    expect(expected('q-masque-16')).toMatch(/^Oui/);
+    expect(Number(expected('q-bits'))).toBe(8);
+    expect(Number(expected('q-valeurs'))).toBe(2 ** 8);
+
+    expect(answers.unread()).toEqual(KNOWLEDGE['salle-techno']);
   });
 
   test('le plan d’adressage est vérifié : un poste réparé hors de sa plage n’est pas accepté', () => {
