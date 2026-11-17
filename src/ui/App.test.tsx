@@ -11,6 +11,7 @@ import { App, INFO_NOTICE_MS } from './App';
 import { serializePack } from '../learn/content/schema';
 import { SCREEN_ELEMENTS } from '../learn/content/screen';
 import { ACTIVITY_WIDTH_KEY, PACK_KEY, PROFILE_KEY, Session } from './session';
+import { checkReportText } from './learn/ActivityPanel';
 
 function setup() {
   const frames = new ManualFrames();
@@ -1006,13 +1007,13 @@ describe('Diagnostic', () => {
 
   test('signale un équipement mal configuré sur le plan, dans la barre d’outils et dans son panneau', () => {
     const { session } = setup();
-    expect(screen.getByRole('button', { name: 'Vérifier' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vérifier le réseau' })).toBeInTheDocument();
     act(() => {
       session.addDevice('switch');
       session.addDevice('computer');
     });
     // Ni adresse ni câble : deux erreurs pour le même poste.
-    expect(screen.getByRole('button', { name: 'Vérifier : 2 points repérés' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vérifier le réseau : 2 points repérés' })).toBeInTheDocument();
     const device = screen.getByRole('button', { name: 'Ordinateur 1 (sans adresse)' });
     expect(device.querySelector('.lint-mark.error title')).toHaveTextContent(
       'Ordinateur 1 n’est relié à rien — Ordinateur 1 n’a pas d’adresse IP',
@@ -1021,16 +1022,16 @@ describe('Diagnostic', () => {
     expect(points).toHaveTextContent('Ordinateur 1 n’a pas d’adresse IP. Donnez-lui une adresse IP');
 
     commit('Adresse IP', '10.0.0.1');
-    expect(screen.getByRole('button', { name: 'Vérifier : 1 point repéré' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vérifier le réseau : 1 point repéré' })).toBeInTheDocument();
     expect(points).not.toHaveTextContent('adresse IP');
     expect(document.querySelectorAll('.lint-mark')).toHaveLength(1);
   });
 
-  test('« Vérifier » liste les problèmes et montre l’équipement concerné', () => {
+  test('« Vérifier le réseau » liste les problèmes et montre l’équipement concerné', () => {
     const { session } = setup();
     const { a, b } = lan(session);
-    fireEvent.click(screen.getByRole('button', { name: 'Vérifier' }));
-    const dialog = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    fireEvent.click(screen.getByRole('button', { name: 'Vérifier le réseau' }));
+    const dialog = screen.getByRole('dialog', { name: 'Vérifier le réseau' });
     expect(dialog).toHaveTextContent('Aucun problème repéré dans la configuration.');
 
     act(() => {
@@ -1049,8 +1050,8 @@ describe('Diagnostic', () => {
     act(() => {
       session.select({ kind: 'device', id: a });
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Vérifier' }));
-    const dialog = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    fireEvent.click(screen.getByRole('button', { name: 'Vérifier le réseau' }));
+    const dialog = screen.getByRole('dialog', { name: 'Vérifier le réseau' });
     const submit = within(dialog).getByRole('button', { name: 'Tester' });
     expect(submit).toBeDisabled();
     // L'équipement sélectionné est proposé comme point de départ.
@@ -1103,13 +1104,13 @@ describe('Diagnostic', () => {
       'Hôte de destination inaccessible : aucun équipement n’a répondu à cette adresse sur le réseau.',
     );
     fireEvent.click(within(terminal).getByRole('button', { name: 'Pourquoi ça ne marche pas ?' }));
-    const dialog = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    const dialog = screen.getByRole('dialog', { name: 'Vérifier le réseau' });
     expect(within(dialog).getByRole('status')).toHaveTextContent('Personne n’a l’adresse 10.0.0.77');
     expect(within(dialog).getByRole('combobox', { name: /^Vers/ })).toHaveValue('10.0.0.77');
 
     // La fenêtre de vérification reste ouverte en revenant à la conception.
     fireEvent.click(screen.getByRole('radio', { name: /Conception/ }));
-    expect(screen.getByRole('dialog', { name: 'Vérifier mon réseau' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Vérifier le réseau' })).toBeInTheDocument();
     // Une nouvelle commande retire la proposition.
     act(() => {
       session.setMode('simulation');
@@ -1604,7 +1605,7 @@ describe('Aide et connaissances', () => {
       session.addDevice('computer');
       session.openWindow({ type: 'diagnose' });
     });
-    const check = screen.getByRole('dialog', { name: 'Vérifier mon réseau' });
+    const check = screen.getByRole('dialog', { name: 'Vérifier le réseau' });
     fireEvent.click(within(check).getByRole('button', { name: 'Fiche : Adresse IP' }));
     const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
     expect(within(help).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
@@ -2167,6 +2168,61 @@ describe('Activités guidées', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Vérifier mon travail' }));
     expect(panel).toHaveTextContent('9 objectifs sur 9');
     expect(panel).toHaveTextContent('Tous les objectifs sont atteints. Bravo !');
+    // Le bouton répond, juste au-dessus de lui.
+    expect(panel).toHaveTextContent('✔ 1 objectif validé.');
+  });
+
+  test('« Vérifier mon travail » répond à chaque clic, même quand rien ne change', () => {
+    const { session } = setup();
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'depannage');
+    let poste = '';
+    act(() => {
+      if (builtin) session.startActivity(builtin);
+      poste = session.network.devices.find((d) => d.name === 'Poste 1')?.id ?? '';
+    });
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    const button = within(panel).getByRole('button', { name: 'Vérifier mon travail' });
+    const answer = () => panel.querySelector('.check-report');
+    expect(answer()).toBeNull();
+    fireEvent.click(button);
+    expect(answer()).toHaveTextContent('Vérifié : rien de plus à valider avec ce bouton pour l’instant.');
+    expect(answer()).toHaveAttribute('role', 'status');
+
+    act(() => {
+      session.setMode('simulation');
+      session.recordCommand(poste, 'ping');
+    });
+    fireEvent.click(button);
+    const first = answer();
+    expect(first).toHaveTextContent(
+      'Vérifié : rien de nouveau. Pas encore atteint : « Poste 1 communique avec le serveur web ».',
+    );
+    // Même réponse au second clic, mais dans une nouvelle ligne : elle clignote de nouveau.
+    fireEvent.click(button);
+    expect(answer()).toHaveTextContent('Vérifié : rien de nouveau.');
+    expect(answer()).not.toBe(first);
+    // De retour en conception, la réponse est toujours là. Le réseau change : elle
+    // ne vaut plus et disparaît.
+    act(() => {
+      session.setMode('design');
+    });
+    expect(answer()).toHaveTextContent('Vérifié : rien de nouveau.');
+    act(() => {
+      session.network.host(poste).updateConfig({ ip: ip('192.168.1.77') });
+      session.touch();
+    });
+    expect(answer()).toBeNull();
+  });
+
+  test('la réponse de « Vérifier mon travail » s’accorde en nombre', () => {
+    expect(checkReportText({ id: 1, validated: 1, pending: [] })).toBe('✔ 1 objectif validé.');
+    expect(checkReportText({ id: 1, validated: 3, pending: ['A'] })).toBe(
+      '✔ 3 objectifs validés. Pas encore atteint : « A ».',
+    );
+    expect(checkReportText({ id: 1, validated: 0, pending: ['A', 'B'] })).toBe(
+      'Vérifié : rien de nouveau. Pas encore atteint : « A » et 1 autre.',
+    );
+    expect(checkReportText({ id: 1, validated: 0, pending: ['A', 'B', 'C'] })).toContain('et 2 autres.');
   });
 
   test('une commande tapée dans la ligne de commande compte pour l’objectif', () => {

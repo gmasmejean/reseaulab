@@ -18,7 +18,7 @@ export const SCREEN_ELEMENTS = {
   zone: { label: 'Zone', where: 'dans la palette, à gauche, en mode Conception (selon le niveau)' },
   panneau: { label: 'panneau du bas', where: 'en bas de l’écran' },
   annuler: { label: 'Annuler', where: 'en haut de l’écran, en mode Conception' },
-  verifier: { label: 'Vérifier', where: 'en haut à droite de l’écran' },
+  verifier: { label: 'Vérifier le réseau', where: 'en haut à droite de l’écran' },
   aide: { label: 'Aide', where: 'en haut à droite de l’écran' },
   reglages: { label: 'Réglages', where: 'en haut à droite de l’écran (⚙)' },
   enregistrer: { label: 'Enregistrer', where: 'en haut à gauche de l’écran' },

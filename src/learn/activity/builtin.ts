@@ -98,7 +98,7 @@ Donne au second ordinateur une **autre** adresse du même réseau.`,
             },
             {
               id: 'rien-a-signaler',
-              label: 'Le bouton Vérifier ne signale plus rien',
+              label: '« Vérifier le réseau » ne signale plus rien',
               check: { type: 'lintClean' },
             },
           ],
@@ -440,7 +440,7 @@ Il faut un [[routeur]] : il relie des réseaux différents. Il est posé sur le 
             },
             {
               id: 'rien-a-signaler',
-              label: 'Le bouton Vérifier ne signale plus rien',
+              label: '« Vérifier le réseau » ne signale plus rien',
               check: { type: 'lintClean' },
             },
           ],
@@ -501,7 +501,7 @@ const troubleshooting: BuiltinActivity = {
       duration: 40,
       intro: `Ce matin, plus personne dans la salle des élèves n’arrive à ouvrir \`www.college.fr\`. Hier, tout fonctionnait.
 
-À toi de trouver ce qui ne va pas — il y a **plusieurs pannes** — et de réparer. Les outils du technicien : la commande \`ping\`, le bouton **Vérifier** et son test de communication.`,
+À toi de trouver ce qui ne va pas — il y a **plusieurs pannes** — et de réparer. Les outils du technicien : la commande \`ping\`, le bouton **Vérifier le réseau** et son test de communication.`,
       profile: { base: '3e' },
       steps: [
         {
@@ -522,7 +522,7 @@ const troubleshooting: BuiltinActivity = {
         {
           id: 'reparer',
           title: 'Trouver et réparer',
-          body: 'Reviens en **Conception**. Ouvre **Vérifier** : la vérification du réseau liste ce qui semble mal réglé, et « Tester une communication » indique où un message s’arrête. Corrige un problème à la fois, puis teste de nouveau.',
+          body: 'Reviens en **Conception**. Ouvre **Vérifier le réseau** : la vérification liste ce qui semble mal réglé, et « Tester une communication » indique où un message s’arrête. Corrige un problème à la fois, puis teste de nouveau.',
           notions: ['passerelle', 'liaison', 'client-serveur'],
           hints: [
             'Regarde le plan : tous les équipements sont-ils reliés ?',
@@ -532,7 +532,7 @@ const troubleshooting: BuiltinActivity = {
           objectives: [
             {
               id: 'reseau-sain',
-              label: 'Le bouton Vérifier ne signale plus rien',
+              label: '« Vérifier le réseau » ne signale plus rien',
               check: { type: 'lintClean' },
             },
             {

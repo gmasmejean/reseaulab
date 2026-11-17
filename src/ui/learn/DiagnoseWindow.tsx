@@ -80,7 +80,7 @@ interface Props {
 }
 
 /**
- * « Vérifier mon réseau » : tests a communication on a copy of the network and
+ * « Vérifier le réseau » : tests a communication on a copy of the network and
  * explains a failure, then lists what looks wrong in the configuration.
  */
 export function DiagnoseWindow({ from, to }: Props) {

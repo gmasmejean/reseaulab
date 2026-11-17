@@ -109,7 +109,8 @@ function LintMark({ findings, deviceId }: { findings: readonly Finding[]; device
   return (
     <g className={`lint-mark ${level}`} transform={`translate(${ICON / 2 + 2}, ${-ICON / 2 - 2})`}>
       <title>
-        {shown.map((f) => findingText(session, f).title).join(' — ')} (bouton Vérifier pour les détails)
+        {shown.map((f) => findingText(session, f).title).join(' — ')} (bouton « Vérifier le réseau » pour les
+        détails)
       </title>
       <circle r={10} />
       <text y={5}>!</text>

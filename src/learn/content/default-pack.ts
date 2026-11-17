@@ -90,7 +90,8 @@ La fenêtre **Échanges de données** d’un équipement liste tout ce qu’il a
     aliases: ['vérifier', 'diagnostic', 'erreur', 'panne'],
     level: '5e',
     category: 'guide',
-    short: 'Le bouton Vérifier repère les erreurs de réglage et explique pourquoi une communication échoue.',
+    short:
+      'Le bouton « Vérifier le réseau » repère les erreurs de réglage et explique pourquoi une communication échoue.',
     body: `Le bouton [[ecran:verifier]] ouvre deux outils.
 
 **Vérification du réseau** : la liste de ce qui semble mal réglé (équipement non relié, adresse manquante ou en double, passerelle mal choisie…). Chaque point dit pourquoi c’est gênant et quoi faire ; **Montrer** sélectionne l’équipement concerné.
@@ -505,7 +506,7 @@ Avec le masque \`255.255.255.0\`, un réseau peut contenir 254 équipements : le
     example:
       '192.168.1.10 et 192.168.1.25 (masque 255.255.255.0) sont dans le même réseau. 192.168.1.10 et 192.168.2.10 ne le sont pas.',
     inApp:
-      'RéseauLab propose le masque 255.255.255.0 avec la première adresse. Vérifier signale des équipements reliés au même switch mais placés dans des réseaux différents.',
+      'RéseauLab propose le masque 255.255.255.0 avec la première adresse. « Vérifier le réseau » signale des équipements reliés au même switch mais placés dans des réseaux différents.',
     mistakes: [
       {
         belief: 'deux adresses qui se ressemblent sont dans le même réseau.',

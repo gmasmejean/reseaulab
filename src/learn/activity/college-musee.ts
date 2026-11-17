@@ -590,7 +590,7 @@ Ouvre le dossier \`Commun\` : comme sur le réseau du collège, il est en **lect
           title: 'Dépanner le CDI',
           solution: `**Poste 2** a l’adresse \`192.168.1.2\` : une faute de frappe, elle n’est pas dans le réseau \`192.168.10.0\`. Adresse attendue : une adresse **libre** réservée aux postes, de \`192.168.10.1\` à \`192.168.10.9\` — par exemple \`192.168.10.2\` (\`.1\` est à Poste 1, \`.3\` à Poste 3). Une adresse hors de cette plage est refusée (« Hors du plan d’adressage »). Ensuite \`ping 192.168.10.2\` depuis Poste 1, puis **Vérifier mon travail**.
 
-Le bouton Vérifier de la barre garde des alertes (passerelles manquantes, capteur non installé) : elles ne comptent pas à cette étape.`,
+Le bouton « Vérifier le réseau » de la barre garde des alertes (passerelles manquantes, capteur non installé) : elles ne comptent pas à cette étape.`,
           body: `**Poste 2** ne communique avec personne. Trouve la panne et répare-la en respectant le plan d’adressage (dans la consigne, en haut).
 
 Pour tester, lance un \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecran:conception]], clique sur l’équipement et change son réglage. Le bouton [[ecran:verifier]] t’aide à repérer ce qui ne va pas. Il signale aussi des **passerelles** manquantes et le capteur pas encore installé : c’est normal, on s’en occupe plus tard.`,

@@ -25,6 +25,7 @@ import {
   type Step,
 } from '../../learn/activity/schema';
 import { useSession } from '../context';
+import type { CheckReport } from '../session';
 import {
   ACTIVITY_DEFAULT_WIDTH,
   ACTIVITY_MIN_WIDTH,
@@ -424,6 +425,25 @@ function PartScore({
   );
 }
 
+/** What « Vérifier mon travail » answers, in one or two sentences. */
+export function checkReportText(report: CheckReport): string {
+  const { validated, pending } = report;
+  const others = pending.length - 1;
+  const left =
+    pending.length === 0
+      ? ''
+      : `Pas encore atteint : « ${pending[0] ?? ''} »${
+          others > 0 ? ` et ${others} autre${others > 1 ? 's' : ''}` : ''
+        }.`;
+  if (validated > 0) {
+    return `✔ ${validated} objectif${validated > 1 ? 's' : ''} validé${validated > 1 ? 's' : ''}.${
+      left === '' ? '' : ` ${left}`
+    }`;
+  }
+  if (left !== '') return `Vérifié : rien de nouveau. ${left}`;
+  return 'Vérifié : rien de plus à valider avec ce bouton pour l’instant. Les autres objectifs se cochent seuls ou attendent une réponse.';
+}
+
 /**
  * The activity being done, next to the plan: instructions step by step,
  * objectives that tick themselves, hints on request.
@@ -456,6 +476,7 @@ export function ActivityPanel() {
   // Read first, then folded: on a 768 px screen the instructions fill the panel.
   const introOpen = intro?.activity === activity.id ? intro.open : done === 0;
   const hasProbes = objectivesOf(activity).some((o) => familyOf(o.check) === 'probe');
+  const report = session.checkReport;
   /** « 3 », or « B1 » for the first bonus step. */
   const numberOf = (index: number) => {
     const step = activity.steps[index];
@@ -734,6 +755,12 @@ export function ActivityPanel() {
         )}
       </div>
       <footer>
+        {report && (
+          // A new element at every click: the line flashes even when its text is the same.
+          <p key={report.id} className={`check-report${report.validated > 0 ? ' good' : ''}`} role="status">
+            {checkReportText(report)}
+          </p>
+        )}
         {hasProbes && (
           <button
             type="button"

@@ -125,7 +125,7 @@ export function suggestObjectives(network: Network): Suggestion[] {
     lintNetwork(network).every((f) => f.severity !== 'error' && f.severity !== 'warning') &&
     devices.length > 0
   ) {
-    add('Le bouton Vérifier ne signale plus rien', { type: 'lintClean', ignore: [] });
+    add('« Vérifier le réseau » ne signale plus rien', { type: 'lintClean', ignore: [] });
   }
 
   // Communications that work: inside a network first, then from one network to another.

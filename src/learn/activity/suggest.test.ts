@@ -63,7 +63,7 @@ describe('Objectifs proposés à l’enseignant', () => {
       'B a une passerelle',
       'R a une interface dans le réseau 192.168.1.0',
       'R a une interface dans le réseau 192.168.2.0',
-      'Le bouton Vérifier ne signale plus rien',
+      '« Vérifier le réseau » ne signale plus rien',
       'A communique avec B',
       'B communique avec A',
       'La commande ping a été utilisée sur A',
@@ -86,7 +86,7 @@ describe('Objectifs proposés à l’enseignant', () => {
     a.updateConfig({ gateway: IP_ANY });
     const labels = suggestObjectives(net).map((s) => s.label);
     expect(labels).not.toContain('A communique avec B');
-    expect(labels).not.toContain('Le bouton Vérifier ne signale plus rien');
+    expect(labels).not.toContain('« Vérifier le réseau » ne signale plus rien');
     expect(suggestObjectives(new Network())).toEqual([]);
   });
 });

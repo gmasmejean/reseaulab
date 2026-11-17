@@ -205,7 +205,9 @@ function evaluateStateCheck(network: Network, check: Check, profile: ProfileSpec
           concerns(profile, f.code) &&
           !check.ignore.some((code) => code === f.code),
       );
-      return left.length === 0 ? DONE : todo(`${left.length} point(s) signalé(s) par Vérifier.`);
+      return left.length === 0
+        ? DONE
+        : todo(`${left.length} point(s) signalé(s) par « Vérifier le réseau ».`);
     }
     default:
       return todo();

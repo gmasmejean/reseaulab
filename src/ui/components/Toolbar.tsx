@@ -243,14 +243,14 @@ export function Toolbar() {
         title="Tester une communication et repérer les erreurs de configuration"
         aria-label={
           problems === 0
-            ? 'Vérifier'
-            : `Vérifier : ${problems} ${problems === 1 ? 'point repéré' : 'points repérés'}`
+            ? 'Vérifier le réseau'
+            : `Vérifier le réseau : ${problems} ${problems === 1 ? 'point repéré' : 'points repérés'}`
         }
         onClick={() => {
           session.openWindow({ type: 'diagnose' });
         }}
       >
-        Vérifier
+        Vérifier le réseau
         {problems > 0 && (
           <span className="count" aria-hidden>
             {problems}

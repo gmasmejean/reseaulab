@@ -429,7 +429,7 @@ describe('Touches et éléments de l’écran dans le texte', () => {
       { type: 'screen', target: 'inconnu', text: 'inconnu', known: false },
     ]);
     expect(plainText('Cliquez sur [[ecran:verifier]] ou tapez [touche:Ctrl+Z].')).toBe(
-      'Cliquez sur Vérifier ou tapez Ctrl+Z.',
+      'Cliquez sur Vérifier le réseau ou tapez Ctrl+Z.',
     );
     // Un élément de l’écran n’est pas un lien vers une fiche.
     expect(linkedNotions('[[ecran:aide]] et [[masque]]')).toEqual(['masque']);

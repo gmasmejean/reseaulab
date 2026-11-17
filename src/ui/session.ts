@@ -82,7 +82,7 @@ export type WindowSpec =
   /** « Aide et connaissances », opened on a knowledge card when `notion` is given. */
   | { readonly type: 'help'; readonly notion?: string; readonly at?: number }
   /**
-   * « Vérifier mon réseau ». With `from` and `to`, the communication between
+   * « Vérifier le réseau ». With `from` and `to`, the communication between
    * them is tested at once; `at` tells two requests for the same test apart.
    */
   | { readonly type: 'diagnose'; readonly from?: string; readonly to?: string; readonly at?: number }
@@ -115,6 +115,16 @@ export interface OpenWindow {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+}
+
+/** What the last « Vérifier mon travail » found: the pupil must see that the click counted. */
+export interface CheckReport {
+  /** Changes at every click, even when the result is the same. */
+  readonly id: number;
+  /** Objectives reached by this check (a test that passes may complete a step and open the next one). */
+  readonly validated: number;
+  /** Labels of the tested objectives of the open steps that are still not reached. */
+  readonly pending: readonly string[];
 }
 
 export interface Notice {
@@ -356,6 +366,8 @@ export class Session {
   private guardFor: { activity: Activity | null; guard: Guard } | null = null;
   private probed = new Map<string, Outcome>();
   private probedAt = -1;
+  private checked: CheckReport | null = null;
+  private checkCount = 0;
   /** Counts the changes of the design, to know when a test is outdated. */
   private designRevision = 0;
   private outcomeCache: { readonly key: string; readonly value: Map<string, Outcome> } | null = null;
@@ -464,6 +476,7 @@ export class Session {
       this.work = { ...this.work, startedAt: this.now() };
     }
     this.probed = new Map();
+    this.checked = null;
     this.probedAt = -1;
     this.resumed = null;
     this.selection = null;
@@ -552,6 +565,7 @@ export class Session {
     this.activity = null;
     this.work = { ...EMPTY_WORK, student: this.work.student };
     this.probed = new Map();
+    this.checked = null;
     this.scheduleSave();
     this.touch();
   }
@@ -618,13 +632,29 @@ export class Session {
 
   /** « Vérifier mon travail » : tests on a copy of the network what cannot be read on the plan. */
   checkWork(): void {
-    if (!this.activity) return;
+    const activity = this.activity;
+    if (!activity) return;
     this.commitEdit();
-    this.probed = evaluateProbes(this.activity, this.network);
+    const before = this.objectivesDone();
+    this.probed = evaluateProbes(activity, this.network);
     this.probedAt = this.designRevision;
+    const outcomes = this.activityOutcomes();
+    this.checked = {
+      id: ++this.checkCount,
+      validated: [...outcomes].filter(([id, o]) => o.status === 'done' && !before.has(id)).length,
+      pending: objectivesOf(activity)
+        .filter((o) => familyOf(o.check) === 'probe')
+        .filter((o) => ['todo', 'unknown'].includes(outcomes.get(o.id)?.status ?? 'locked'))
+        .map((o) => o.label),
+    };
     this.noteProgress();
     this.scheduleSave();
     this.touch();
+  }
+
+  /** Answer of the last « Vérifier mon travail », as long as the network has not changed since. */
+  get checkReport(): CheckReport | null {
+    return this.activity && this.probedAt === this.designRevision ? this.checked : null;
   }
 
   /** Notes when each objective was first reached, for the report. */
@@ -993,9 +1023,13 @@ export class Session {
       this.paused = false;
       this.clock.start();
     } else {
+      const revision = this.designRevision;
       this.clock.stop();
       this.network.stop();
-      // What the simulation changed for good (files, server settings) is one step.
+      // Stopping is not a change of the design: what « Vérifier mon travail » tested stays
+      // tested, unless the simulation changed something for good (files, server settings).
+      if (this.designText() === this.present) this.designRevision = revision;
+      // What it changed for good is one step.
       this.commitHistory();
     }
     this.touch();

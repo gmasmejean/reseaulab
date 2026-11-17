@@ -946,9 +946,52 @@ constats d'interface A1 à A11.
       de l'activité de 3e et plan défilé dans la session ; de bout en
       bout à 1366 × 768 (aucun équipement du chemin sous une fenêtre),
       test vérifié en retirant le poids des équipements.
+- [x] **Étape 60 — « Vérifier mon travail » répond, et ne se confond
+      plus avec « Vérifier »** (bilan A5). (1) **Une réponse à chaque
+      clic** : `checkWork` garde ce qu'il a trouvé (`CheckReport`) et le
+      panneau l'écrit juste au-dessus du bouton : « ✔ 2 objectifs
+      validés. », « Vérifié : rien de nouveau. Pas encore atteint :
+      « Poste 1 communique avec le serveur web ». », ou « rien de plus à
+      valider avec ce bouton pour l'instant » quand l'étape en cours n'a
+      rien à tester. La ligne est recréée à chaque clic et clignote une
+      fois, même si son texte n'a pas changé ; elle disparaît dès que le
+      réseau change, puisque le test est alors à refaire. Seuls les
+      objectifs testés des étapes ouvertes sont cités, pas ceux des
+      étapes à venir. (2) **Deux noms** : le bouton de la barre s'appelle
+      « Vérifier le réseau », comme sa fenêtre (qui s'appelait « Vérifier
+      mon réseau ») ; consignes, objectifs, fiches et messages suivent
+      (`screen.ts`, activités, `default-pack.ts`). La barre d'outils
+      tient toujours sur une ligne à 1366 px, compteur compris (espace
+      entre groupes de 10 à 8 px, curseur de vitesse de 84 à 64 px).
+      (3) **Défaut trouvé en chemin** : un objectif validé en simulation
+      redevenait « à faire » au simple retour en Conception, l'arrêt de
+      la simulation étant compté comme une modification du réseau.
+      Désormais il reste validé si le réseau est le même qu'à l'entrée
+      en simulation ; ce que la simulation a changé pour de bon (fichier
+      écrit, service réglé) périme toujours le test. Tests : réponses de
+      `checkWork` selon l'étape, texte et accord en nombre, ligne recréée
+      à chaque clic, retour en conception avec et sans changement
+      (vérifié en retirant le correctif), barre sur une ligne dans les
+      deux modes à 1366 px.
 
 ## Écarts au plan
 
+- **« Vérifier le réseau » plutôt que « Diagnostic »** (étape 60) : le
+  bilan proposait de renommer le bouton de la barre « Diagnostic ». Les
+  consignes des travaux déjà commencés, qui voyagent dans le fichier de
+  l'élève, disent « le bouton Vérifier » : un nom qui commence toujours
+  par « Vérifier » reste trouvable par ces élèves. « Vérifier mon
+  réseau », symétrique de « Vérifier mon travail », faisait passer la
+  barre sur deux lignes à 1366 px.
+- **Anciens libellés dans les travaux en cours** (étape 60) : un
+  objectif déjà distribué s'appelle encore « Le bouton Vérifier ne
+  signale plus rien » ; seules les activités commencées avec cette
+  version disent « Vérifier le réseau ». Les renvois à l'écran des
+  consignes (`[[ecran:verifier]]`) affichent, eux, le nouveau nom
+  partout.
+- **Pas de raison donnée pour un test raté** (étape 60) : la réponse
+  nomme l'objectif non atteint, pas la cause (c'est le rôle de
+  « Vérifier le réseau » et de « Pourquoi ça ne marche pas ? »).
 - **Terminal non ancré en bas de l'écran** (étape 59) : le bilan
   proposait aussi d'ancrer la ligne de commande sous le plan. Non
   retenu : il aurait fallu réduire encore le plan pour lui faire de la

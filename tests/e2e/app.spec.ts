@@ -542,7 +542,7 @@ test('diagnostic : un ping raté est expliqué, puis la correction est vérifié
   await input.press('Enter');
   await expect(terminal.getByRole('log')).toContainText('Aucune route vers cet hôte');
   await terminal.getByRole('button', { name: 'Pourquoi ça ne marche pas ?' }).click();
-  const check = page.getByRole('dialog', { name: 'Vérifier mon réseau' });
+  const check = page.getByRole('dialog', { name: 'Vérifier le réseau' });
   await expect(check.getByRole('status')).toContainText(
     'Ordinateur 1 ne sait pas par où envoyer vers 10.0.2.10',
   );
@@ -724,7 +724,7 @@ test('activité guidée : « Mon premier réseau » réalisée de bout en bout',
     await address.press('Enter');
   }
   await expect(panel).toContainText('5 objectifs sur 9');
-  await expect(panel).toContainText('1 point(s) signalé(s) par Vérifier.');
+  await expect(panel).toContainText('1 point(s) signalé(s) par « Vérifier le réseau ».');
   await address.fill('192.168.1.2');
   await address.press('Enter');
   await expect(panel).toContainText('6 objectifs sur 9');
@@ -741,7 +741,13 @@ test('activité guidée : « Mon premier réseau » réalisée de bout en bout',
   await expect(panel).toContainText('8 objectifs sur 9');
   await panel.getByRole('button', { name: 'Vérifier mon travail' }).click();
   await expect(panel).toContainText('Tous les objectifs sont atteints. Bravo !');
+  // Le bouton dit ce qu'il a validé.
+  await expect(panel).toContainText('✔ 1 objectif validé.');
   await shot(page, '39-activite-terminee');
+  // Revenir en conception n'est pas modifier le réseau : l'objectif reste validé.
+  await page.getByRole('radio', { name: /Conception/ }).click();
+  await expect(panel).toContainText('9 objectifs sur 9');
+  await page.getByRole('radio', { name: /Simulation/ }).click();
 
   // Le fichier rendu contient l'activité et le travail de l'élève.
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
@@ -1331,6 +1337,22 @@ test('écran de 1366 × 768 : plan lisible, activité sur toute la hauteur, rég
     const box = await boxOf(locator);
     return Math.round(box.y + box.height);
   };
+
+  // Les deux « Vérifier » ne se confondent plus : celui de la barre porte le nom de sa
+  // fenêtre, et la barre tient toujours sur une ligne, compteur compris.
+  await expect(page.getByRole('button', { name: /^Vérifier le réseau : \d+ points repérés$/ })).toBeVisible();
+  await expect(activity.getByRole('button', { name: 'Vérifier mon travail' })).toBeVisible();
+  expect((await boxOf(page.getByRole('banner'))).height).toBeLessThan(60);
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  expect((await boxOf(page.getByRole('banner'))).height).toBeLessThan(60);
+  await page.getByRole('radio', { name: /Conception/ }).click();
+
+  // « Vérifier mon travail » répond toujours, même quand il n'a rien à valider.
+  await activity.getByRole('button', { name: 'Vérifier mon travail' }).click();
+  await expect(activity.getByRole('status').filter({ hasText: 'Vérifié' })).toContainText(
+    'rien de plus à valider avec ce bouton pour l’instant',
+  );
+  await shot(page, '69c-ecran-1366-verifier');
 
   // Tout le plan tient dans la zone visible, donc fortement réduit…
   const zoom = page.getByRole('group', { name: 'Zoom du plan' });

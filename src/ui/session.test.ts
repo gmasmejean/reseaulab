@@ -775,12 +775,21 @@ describe('Session : activités', () => {
       status: 'todo',
       detail: 'Se vérifie avec le bouton « Vérifier mon travail ».',
     });
+    expect(session.checkReport).toBeNull();
     session.checkWork();
     expect(statusOf(session, 'a-vers-b')).toBe('done');
     expect(session.mode).toBe('design');
+    // Le bouton répond : un objectif validé, plus rien à tester à cette étape.
+    expect(session.checkReport).toMatchObject({ validated: 1, pending: [] });
+    // Un second clic ne valide rien de plus, et le dit : c'est une autre réponse.
+    const first = session.checkReport?.id;
+    session.checkWork();
+    expect(session.checkReport).toMatchObject({ validated: 0, pending: [] });
+    expect(session.checkReport?.id).not.toBe(first);
 
-    // L'élève casse ensuite son réseau : le test est à refaire.
+    // L'élève casse ensuite son réseau : le test est à refaire, la réponse ne vaut plus.
     net.host(id('Poste B1')).updateConfig({ gateway: IP_ANY });
+    expect(session.checkReport).toBeNull();
     expect(session.activityOutcomes().get('a-vers-b')).toEqual({ status: 'locked' });
     net.host(id('Poste B1')).updateConfig({ gateway: ip('192.168.2.1') });
     expect(session.activityOutcomes().get('a-vers-b')).toEqual({
@@ -789,6 +798,57 @@ describe('Session : activités', () => {
     });
     session.checkWork();
     expect(statusOf(session, 'a-vers-b')).toBe('done');
+  });
+
+  test('« Vérifier mon travail » dit ce qui n’est pas encore atteint, parmi ce qu’il teste à l’étape en cours', () => {
+    const session = new Session(null, new ManualFrames());
+    session.startActivity(builtin('depannage'));
+    const poste = session.network.devices.find((d) => d.name === 'Poste 1')?.id ?? '';
+    // Première étape : rien ne se teste encore, les communications sont pour les étapes suivantes.
+    session.checkWork();
+    expect(session.checkReport).toMatchObject({ validated: 0, pending: [] });
+    session.setMode('simulation');
+    session.recordCommand(poste, 'ping');
+    expect(session.activityStep).toBe(1);
+    // Étape « réparer » : la panne est toujours là. Le site, à l'étape d'après, n'est pas encore cité.
+    session.checkWork();
+    expect(session.checkReport).toMatchObject({
+      validated: 0,
+      pending: ['Poste 1 communique avec le serveur web'],
+    });
+    // Sans activité, pas de réponse.
+    session.quitActivity();
+    expect(session.checkReport).toBeNull();
+  });
+
+  test('un objectif validé en simulation le reste au retour en conception, sauf si le réseau a changé', () => {
+    const session = new Session(null, new ManualFrames());
+    session.startActivity(builtin('premier-reseau'));
+    const a = session.addDevice('computer');
+    const b = session.addDevice('computer');
+    const sw = session.addDevice('switch');
+    session.network.host(a).updateConfig({ ip: ip('192.168.1.1'), mask: MASK_24 });
+    session.network.host(b).updateConfig({ ip: ip('192.168.1.2'), mask: MASK_24 });
+    session.network.connect(a, sw);
+    session.network.connect(b, sw);
+    session.setMode('simulation');
+    session.recordCommand(a, 'ping');
+    expect(session.objectivesDone().size).toBe(8);
+    session.checkWork();
+    expect(session.objectivesDone().size).toBe(9);
+
+    // Arrêter la simulation n'est pas modifier le réseau : rien à vérifier de nouveau.
+    session.setMode('design');
+    expect(session.objectivesDone().size).toBe(9);
+    expect(session.checkReport).toMatchObject({ validated: 1, pending: [] });
+
+    // Ce que la simulation a changé pour de bon (ici un fichier écrit sur un poste)
+    // est une modification : le test est à refaire.
+    session.setMode('simulation');
+    session.network.host(b).fs.writeFile('/note.txt', 'essai');
+    session.setMode('design');
+    expect(session.objectivesDone().size).toBe(8);
+    expect(session.checkReport).toBeNull();
   });
 
   test('note la simulation et les commandes tapées ; donne les indices un par un', () => {

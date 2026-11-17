@@ -214,7 +214,7 @@ describe('Vérification des objectifs : état du réseau', () => {
     a.updateConfig({ gateway: IP_ANY });
     expect(evaluateAll(activity({ type: 'lintClean' }), net, EMPTY_WORK).get('o0')).toEqual({
       status: 'todo',
-      detail: '1 point(s) signalé(s) par Vérifier.',
+      detail: '1 point(s) signalé(s) par « Vérifier le réseau ».',
     });
     expect(statuses(net, [{ type: 'lintClean', ignore: ['gateway-missing'] }])).toEqual(['done']);
     // Seul ce que Vérifier montre au niveau de la classe compte : en 4e, pas la passerelle.

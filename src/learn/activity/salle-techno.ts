@@ -921,7 +921,7 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
             },
             {
               id: 'reseau-sain',
-              label: 'Vérifier ne signale plus rien, sauf des passerelles manquantes',
+              label: '« Vérifier le réseau » ne signale plus rien, sauf des passerelles manquantes',
               check: { type: 'lintClean', ignore: ['gateway-missing'] },
             },
             {
@@ -1309,7 +1309,7 @@ Pour tester, lance des \`ping\` depuis Poste 1. Pour corriger, reviens en [[ecra
             },
             {
               id: 'bonus-sain',
-              label: 'Vérifier ne signale plus rien, sauf des passerelles manquantes',
+              label: '« Vérifier le réseau » ne signale plus rien, sauf des passerelles manquantes',
               check: { type: 'lintClean', ignore: ['gateway-missing'] },
             },
             {

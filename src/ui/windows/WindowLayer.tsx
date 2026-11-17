@@ -70,7 +70,7 @@ function WindowContent({ w }: { w: OpenWindow }) {
   }
   if (spec.type === 'diagnose') {
     return (
-      <Window window={w} title="Vérifier mon réseau">
+      <Window window={w} title="Vérifier le réseau">
         {/* A new request (another ping failed) starts a new test. */}
         <DiagnoseWindow
           key={`${spec.from ?? ''}>${spec.to ?? ''}@${spec.at ?? 0}`}

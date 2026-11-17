@@ -219,8 +219,12 @@ plan : la consigne, des étapes, et des objectifs qui **se cochent tout seuls**
 quand ils sont atteints. Certains se lisent sur le plan (équipements reliés,
 adresse dans le bon réseau, plus rien à signaler) ; d'autres — une
 communication, une page web — sont testés sur une copie du réseau par le
-bouton **Vérifier mon travail**. Chaque étape propose des indices, donnés un
-par un, et renvoie aux fiches de connaissances.
+bouton **Vérifier mon travail**, qui répond à chaque clic, juste au-dessus de
+lui : ce qu'il vient de valider, ce qui n'est pas encore atteint à l'étape en
+cours, ou qu'il n'a rien de plus à tester pour l'instant. Un objectif ainsi
+validé le reste tant que le réseau ne change pas, y compris au retour en
+Conception. Chaque étape propose des indices, donnés un par un, et renvoie aux
+fiches de connaissances.
 
 Une étape peut aussi poser des **questions** dans le panneau : choix simple ou
 multiple, liste à remettre dans l'ordre, paires à associer (un équipement et
@@ -386,7 +390,9 @@ proposition, à ajuster à votre progression.
 
 ### Vérifier son réseau
 
-Le bouton **Vérifier** repère les erreurs de configuration les plus courantes
+Le bouton **Vérifier le réseau** (dans la barre, à ne pas confondre avec
+« Vérifier mon travail » d'une activité) repère les erreurs de configuration
+les plus courantes
 (poste non relié, adresse manquante ou en double, passerelle absente ou mal
 choisie, serveur non démarré…) : un « ! » marque l'équipement sur le plan et
 son panneau indique quoi faire. La même fenêtre **teste une communication**
