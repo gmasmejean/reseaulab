@@ -629,8 +629,9 @@ questions.
 Bilan de l'interface et de l'activité « Du collège au musée » du
 2026-11-13 ([`BILAN.md`](BILAN.md)). Demandes de l'enseignant, dans
 l'ordre : B6 et B1, puis B2, B4, B5 et B3, puis B7, B8 et B9, puis la
-mise en page du corrigé (étape 55), puis B10 (étape 56). Restent à
-planifier : les constats d'interface A1 à A11.
+mise en page du corrigé (étape 55), puis B10 (étape 56). L'étape 57
+corrige un bug vu en classe, hors bilan. Restent à planifier : les
+constats d'interface A1 à A11.
 
 - [x] **Étape 46 — Réseau de départ protégé** (bilan B6). Une activité peut
       déclarer `protect` : des équipements (avec, pour un routeur, le
@@ -871,8 +872,41 @@ planifier : les constats d'interface A1 à A11.
       l'un ni l'autre fait échouer les tests. Contrôle : treize réponses
       ou données faussées une à une, toutes détectées.
 
+- [x] **Étape 57 — Un objectif ne compte que ce que « Vérifier »
+      montre** (bug signalé par l'enseignant le 2026-11-17, hors bilan). Un groupe de
+      4e restait bloqué à l'étape « Dépanner la salle » de « La salle de
+      techno », ses trois pannes pourtant réparées : il avait mis
+      l'interface côté Internet du routeur à `192.168.10.254`, d'après le
+      plan d'adressage. L'objectif « Plus aucune adresse en double ni hors
+      du réseau » comptait alors le point « deux interfaces dans le même
+      réseau », que l'interface ne montre pas en 4e (les routeurs sont du
+      programme de 3e) : rien à l'écran ne disait quoi corriger.
+      (1) **Même règle des deux côtés** : un objectif `lintClean` ne
+      compte plus que les points que « Vérifier » montre au niveau de la
+      classe, celui de l'activité ou, à défaut, celui de la session
+      (`evaluate.ts`). Cela vaut pour toutes les activités et pour les
+      fichiers déjà distribués. (2) **Routeur protégé** : « La salle de
+      techno » protège le routeur du collège et son câble (mécanisme de
+      l'étape 46) ; ses deux adresses se lisent toujours, pour l'étape
+      « Adresse privée, adresse publique ». Tests : la manipulation du
+      groupe rejouée (point masqué en 4e, compté au niveau complet),
+      garde du routeur et liberté des terminaux, niveau pris en compte par
+      la vérification. Contrôle : le fichier du groupe, rouvert tel quel,
+      valide l'étape.
+
 ## Écarts au plan
 
+- **Fichiers déjà distribués sans protection** (étape 57) : l'activité
+  voyage dans le fichier de l'élève, la protection du routeur ne vaut
+  donc que pour les activités commencées avec cette version. Un groupe
+  qui a déjà déréglé le routeur n'est plus bloqué, mais lira une adresse
+  fausse à la question sur l'adresse publique : l'interface côté
+  Internet est à remettre à `82.64.12.34` à la main.
+- **Objectif lu au niveau de la session** (étape 57) : pour une activité
+  qui ne fixe pas de niveau, « Vérifier » dépend du niveau choisi sur
+  l'ordinateur, et l'objectif avec lui. Un même fichier peut donc être
+  validé en 4e et pas au niveau complet ; c'est le prix pour que
+  l'objectif et l'écran disent toujours la même chose.
 - **Questions de cours non confrontées** (étape 56) : 29 questions de
   « Du collège au musée » sur 62 et 30 de « La salle de techno » n'ont
   rien à lire dans le simulateur (notion, bon usage, raisonnement,
