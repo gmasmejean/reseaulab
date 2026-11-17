@@ -486,13 +486,19 @@ test('plan lisible : zoom ajusté, fenêtres à côté de l’équipement, annul
   await page.getByRole('button', { name: 'Tout fermer' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  // Un équipement de droite ouvre ses fenêtres à gauche ; Échap ferme celle du dessus.
+  // Un équipement de droite : sa fenêtre ne le recouvre pas non plus, et s'ouvre là où
+  // elle cache le moins d'équipements. Échap ferme celle du dessus.
   await page.locator('[aria-label^="Serveur web"]').click();
   expect(await apart('Serveur web', 'Bureau de Serveur web')).toBe(true);
-  await page.locator('[aria-label^="Serveur mail"]').click();
+  const uncovered: string[] = [];
+  for (const name of ['Poste 1', 'Poste 2', 'Portable', 'Switch salle', 'Serveur DHCP', 'Routeur'])
+    if (await apart(name, 'Bureau de Serveur web')) uncovered.push(name);
+  // À gauche, elle aurait caché au moins deux de ces équipements.
+  expect(uncovered).toHaveLength(6);
+  await page.locator('[aria-label^="Serveur DNS"]').click();
   await expect(page.getByRole('dialog')).toHaveCount(2);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Bureau de Serveur mail' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Bureau de Serveur DNS' })).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: 'Bureau de Serveur web' })).toBeVisible();
 });
 
@@ -1371,4 +1377,63 @@ test('écran de 1366 × 768 : plan lisible, activité sur toute la hauteur, rég
   // Un routeur : son tableau d'interfaces tient à côté de son nom.
   await page.locator('[aria-label^="Routeur du FAI"]').click();
   await expect(settings.getByRole('textbox', { name: 'IP eth1' })).toBeInViewport({ ratio: 1 });
+});
+
+test('simulation à 1366 × 768 : le bureau et le terminal laissent voir le chemin du paquet', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : Du collège au musée' }).click();
+  await page.getByRole('button', { name: 'Fermer le message' }).click();
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  const terminal = await openTerminal(page, 'Poste 1');
+  const desktop = page.getByRole('dialog', { name: 'Bureau de Poste 1' });
+  await expect(terminal).toBeVisible();
+  const boxOf = async (locator: Locator) => {
+    const box = await locator.boundingBox();
+    if (!box) throw new Error('élément introuvable');
+    return box;
+  };
+  const windows = [await boxOf(desktop), await boxOf(terminal)];
+  // Du CDI au musée : aucun équipement du chemin n'est sous une fenêtre.
+  for (const name of [
+    'Poste 1',
+    'Switch CDI',
+    'Routeur du collège',
+    'Routeur du FAI',
+    'Serveur DNS du FAI',
+    'Routeur Internet',
+    'Routeur du data center',
+    'Switch data center',
+    'Serveur du musée',
+  ]) {
+    const device = await boxOf(page.locator(`[aria-label^="${name}"]`));
+    const covered = windows.some(
+      (w) =>
+        device.x < w.x + w.width &&
+        w.x < device.x + device.width &&
+        device.y < w.y + w.height &&
+        w.y < device.y + device.height,
+    );
+    expect(covered, name).toBe(false);
+  }
+  // Les deux fenêtres tiennent dans la zone du plan, et le bureau reste attrapable :
+  // sa barre de titre dépasse au-dessus du terminal.
+  const stage = await boxOf(page.getByRole('main'));
+  for (const w of windows) expect(w.y + w.height).toBeLessThanOrEqual(stage.y + stage.height);
+  expect(windows[1].y).toBeGreaterThanOrEqual(windows[0].y + 24);
+  await terminal.getByRole('textbox').fill('ping 203.0.113.80');
+  await terminal.getByRole('textbox').press('Enter');
+  await shot(page, '70-simulation-1366-terminal');
+
+  // Déplacée à la main puis « rangée », une fenêtre retrouve cette place.
+  const title = await boxOf(terminal.getByText('Ligne de commande — Poste 1'));
+  await page.mouse.move(title.x + 20, title.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(title.x - 200, title.y - 250, { steps: 5 });
+  await page.mouse.up();
+  expect((await boxOf(terminal)).y).toBeLessThan(windows[1].y - 100);
+  await page.getByRole('button', { name: 'Ranger les fenêtres' }).click();
+  expect(await boxOf(terminal)).toEqual(windows[1]);
 });

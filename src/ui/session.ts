@@ -1,5 +1,5 @@
 import { Emitter } from '../engine/core/emitter';
-import type { DeviceKind, Position } from '../engine/devices/device';
+import type { Device, DeviceKind, Position } from '../engine/devices/device';
 import { protocolTag, summarizeFrame, transportTag } from '../engine/net/describe';
 import type { DropReason } from '../engine/net/drop';
 import { ConnectError, Network } from '../engine/network';
@@ -56,7 +56,16 @@ import { importFilius } from '../project/filius';
 import { parseProject, serializeProject } from '../project/serialize';
 import { SimulationClock, type FrameSource } from './clock';
 import { parseActivityWidth } from './panelWidth';
-import { clampWindow, defaultWindowSize, fitWindow, placeWindow, type Size } from './windowLayout';
+import {
+  chooseWindowPlace,
+  clampWindow,
+  defaultWindowSize,
+  fitWindow,
+  placeWindow,
+  type Point,
+  type Rect,
+  type Size,
+} from './windowLayout';
 
 export type Mode = 'design' | 'simulation';
 export type Tool = 'select' | 'cable';
@@ -152,6 +161,18 @@ const ZOOM_MAX = 2;
 const LABEL_READABLE = 0.85;
 /** …unless the plan is so small that larger names would cover one another. */
 const LABEL_SCALE_MAX = 2;
+
+/** Room of a device on the plan, around its centre: icon, then one or two lines of text below. */
+const DEVICE_HALF_WIDTH = 48;
+const DEVICE_ABOVE = 36;
+const DEVICE_BELOW = 36;
+const DEVICE_LINE = 16;
+
+/** Same rule as the plan: an address under a terminal or a box, the Wi-Fi network under a switch that has one. */
+function hasSecondLine(device: Device): boolean {
+  if (device.kind === 'router') return false;
+  return device.kind !== 'switch' || device.ports.some((p) => p.cable?.wireless === true);
+}
 
 /**
  * How much the texts of the plan are enlarged to stay readable when the plan is
@@ -342,6 +363,8 @@ export class Session {
   private localProfile: ProfileSpec = FULL_PROFILE;
   /** Size of the stage (plan and windows), once known. */
   viewport: Size | null = null;
+  /** How far the plan is scrolled in the stage (not drawn: followed without a redraw). */
+  planScroll: Point = { x: 0, y: 0 };
   /** Scale of the plan: 1 = real size. */
   zoom = 1;
   /** The zoom follows the size of the stage until the pupil chooses one. */
@@ -1341,26 +1364,64 @@ export class Session {
       return;
     }
     const size = fitWindow(defaultWindowSize(spec), this.viewport, spec);
-    const position = placeWindow(size, this.viewport, this.sideFor(spec), this.windows.length);
-    this.windows = [...this.windows, { id: key, spec, z: ++this.zCounter, ...position, ...size }];
+    const place = this.placeFor(spec, size, this.windows);
+    this.windows = [...this.windows, { id: key, spec, z: ++this.zCounter, ...place }];
     this.touch();
+  }
+
+  /** Called by the plan when it is scrolled: the windows are placed over what is really shown. */
+  setPlanScroll(x: number, y: number): void {
+    this.planScroll = { x, y };
+  }
+
+  /** Room taken on the stage by a device: its icon, its name and its address. */
+  private deviceRect(device: Device): Rect {
+    const zoom = this.zoom;
+    const text = labelScale(zoom);
+    return {
+      x: (device.position.x - DEVICE_HALF_WIDTH) * zoom - this.planScroll.x,
+      y: (device.position.y - DEVICE_ABOVE) * zoom - this.planScroll.y,
+      width: 2 * DEVICE_HALF_WIDTH * zoom,
+      // A computer shows its address under its name, a Wi-Fi switch the name of its network.
+      height: (DEVICE_ABOVE + DEVICE_BELOW + DEVICE_LINE * text * (hasSecondLine(device) ? 2 : 1)) * zoom,
+    };
+  }
+
+  /** Where a window opens: where it hides the fewest devices (the top of one edge in the tests). */
+  private placeFor(spec: WindowSpec, size: Size, others: readonly OpenWindow[]): Rect {
+    const side = this.sideFor(spec);
+    if (!this.viewport) return { ...placeWindow(size, null, side, others.length), ...size };
+    const own = this.anchorOf(spec);
+    return chooseWindowPlace(size, this.viewport, side, {
+      devices: this.network.devices.map((d) => this.deviceRect(d)),
+      own: own ? this.deviceRect(own) : null,
+      windows: others,
+    });
+  }
+
+  /** Device a window is about, if any. */
+  private anchorOf(spec: WindowSpec): Device | undefined {
+    const anchor = 'deviceId' in spec ? spec.deviceId : spec.type === 'diagnose' ? spec.from : undefined;
+    return anchor === undefined ? undefined : this.network.device(anchor);
   }
 
   /** Side of the stage where a window hides its device the least: the opposite one. */
   private sideFor(spec: WindowSpec): 'left' | 'right' {
     if (!this.viewport) return 'right';
-    const anchor = 'deviceId' in spec ? spec.deviceId : spec.type === 'diagnose' ? spec.from : undefined;
-    const device = anchor === undefined ? undefined : this.network.device(anchor);
-    return device && device.position.x * this.zoom > this.viewport.width / 2 ? 'left' : 'right';
+    const device = this.anchorOf(spec);
+    return device && device.position.x * this.zoom - this.planScroll.x > this.viewport.width / 2
+      ? 'left'
+      : 'right';
   }
 
-  /** « Ranger » : cascades the windows again from the top right corner. */
+  /** « Ranger » : every window back to its size and to the place it would open at now. */
   arrangeWindows(): void {
-    const ordered = [...this.windows].sort((a, b) => a.z - b.z);
-    this.windows = ordered.map((w, index) => {
+    const placed: OpenWindow[] = [];
+    for (const w of [...this.windows].sort((a, b) => a.z - b.z)) {
       const size = fitWindow(defaultWindowSize(w.spec), this.viewport, w.spec);
-      return { ...w, ...size, ...placeWindow(size, this.viewport, 'right', index), z: index + 1 };
-    });
+      placed.push({ ...w, ...this.placeFor(w.spec, size, placed), z: placed.length + 1 });
+    }
+    this.windows = placed;
     this.zCounter = this.windows.length;
     this.touch();
   }

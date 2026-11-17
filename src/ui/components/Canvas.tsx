@@ -350,7 +350,14 @@ export function Canvas() {
 
   const selected = session.selection;
   return (
-    <div className="canvas-scroll" data-tool={session.tool} ref={scrollRef}>
+    <div
+      className="canvas-scroll"
+      data-tool={session.tool}
+      ref={scrollRef}
+      onScroll={(e) => {
+        session.setPlanScroll(e.currentTarget.scrollLeft, e.currentTarget.scrollTop);
+      }}
+    >
       <svg
         ref={svgRef}
         className={`canvas ${simulation ? 'simulating' : ''}`}

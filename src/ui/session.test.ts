@@ -503,9 +503,11 @@ describe('Session : zoom du plan et fenêtres', () => {
     session.openWindow({ type: 'desktop', deviceId: left });
     session.openWindow({ type: 'capture', deviceId: right });
     const [first, second] = session.windows;
-    // Bureau : 560 × 360, calé à droite. Capture : limitée à 55 % de la largeur, à gauche.
-    expect(first).toMatchObject({ x: 1200 - 560 - 8, y: 8, width: 560, height: 360 });
-    expect(second).toMatchObject({ x: 8, y: 8 + 26, width: 660, height: 520 });
+    // Bureau : 560 × 360, calé à droite, sous l'autre ordinateur qu'il aurait caché en haut.
+    expect(first).toMatchObject({ x: 1200 - 560 - 8, y: 8 + 7 * 26, width: 560, height: 360 });
+    // Capture : limitée à 55 % de la largeur, à gauche ; elle s'ouvre sous le premier
+    // ordinateur, moins haute que ses 520 px, plutôt que de le recouvrir.
+    expect(second).toMatchObject({ x: 8, y: 8 + 7 * 26, width: 660, height: 600 - 8 - 190 });
     expect(session.topWindow?.id).toBe(`capture:${right}`);
 
     session.moveWindow(`desktop:${left}`, 5000, -40);
@@ -519,6 +521,67 @@ describe('Session : zoom du plan et fenêtres', () => {
     session.closeAllWindows();
     expect(session.windows).toHaveLength(0);
     expect(session.topWindow).toBeNull();
+  });
+
+  test('« Du collège au musée » sur un écran de classe : le terminal laisse voir le chemin du paquet', () => {
+    const session = new Session(null, new ManualFrames());
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    if (!builtin) throw new Error('activité introuvable');
+    session.startActivity(builtin);
+    session.setMode('simulation');
+    // Zone du plan en simulation sur un écran de 1366 × 768, activité ouverte.
+    session.setViewport(1046, 667);
+    expect(session.zoom).toBe(0.68);
+    const device = (name: string) => {
+      const found = session.network.devices.find((d) => d.name === name);
+      if (!found) throw new Error(name);
+      return found;
+    };
+    const hidden = () =>
+      session.network.devices
+        .filter((d) => {
+          const x = d.position.x * session.zoom - session.planScroll.x;
+          const y = d.position.y * session.zoom - session.planScroll.y;
+          return session.windows.some((w) => x > w.x && x < w.x + w.width && y > w.y && y < w.y + w.height);
+        })
+        .map((d) => d.name);
+    const poste = device('Poste 1').id;
+    session.openWindow({ type: 'desktop', deviceId: poste });
+    session.openWindow({ type: 'app', deviceId: poste, app: 'terminal' });
+    const [desktop, terminal] = session.windows;
+    if (!desktop || !terminal) throw new Error('fenêtres');
+    // Tout le chemin vers le musée reste visible ; seule la médiathèque, hors du chemin, est cachée.
+    expect(hidden().sort()).toEqual([
+      'Portable médiathèque',
+      'Routeur de la médiathèque',
+      'Switch médiathèque',
+    ]);
+    // Les deux fenêtres tiennent dans la zone, la barre de titre du bureau dépasse au-dessus du terminal.
+    for (const w of session.windows) expect(w.y + w.height).toBeLessThanOrEqual(667 - 8);
+    expect(terminal.y).toBe(desktop.y + 26);
+    // Le terminal a cédé un peu de sa hauteur (400 px) plutôt que de recouvrir les routeurs.
+    expect(terminal.height).toBeLessThan(400);
+    expect(terminal.height).toBeGreaterThanOrEqual(300);
+
+    // Plan agrandi et descendu de 250 px : la fenêtre se place d'après ce qui est
+    // réellement à l'écran. Sous la médiathèque, il reste de quoi l'ouvrir sans rien cacher.
+    session.closeAllWindows();
+    session.setZoom(1);
+    session.setPlanScroll(0, 250);
+    session.openWindow({ type: 'desktop', deviceId: poste });
+    expect(session.windows[0]).toMatchObject({ x: 478, y: 372, height: 287 });
+    expect(hidden()).toEqual([]);
+
+    // « Ranger » remet chaque fenêtre là où elle s'ouvrirait.
+    session.closeAllWindows();
+    session.fitPlan();
+    session.setPlanScroll(0, 0);
+    session.openWindow({ type: 'desktop', deviceId: poste });
+    session.openWindow({ type: 'app', deviceId: poste, app: 'terminal' });
+    const before = session.windows.map(({ x, y, width, height }) => ({ x, y, width, height }));
+    session.moveWindow(`desktop:${poste}`, 20, 20);
+    session.arrangeWindows();
+    expect(session.windows.map(({ x, y, width, height }) => ({ x, y, width, height }))).toEqual(before);
   });
 
   test('renumérote l’empilement des fenêtres plutôt que de le laisser croître', () => {

@@ -104,8 +104,12 @@ complète pèse moins de 100 Ko.
   Menu ou Maj+F10.
 - **Mode simulation** : cliquer sur un ordinateur ouvre son bureau. On y
   installe et lance des logiciels. Les fenêtres s'ouvrent du côté opposé à
-  l'équipement pour le laisser visible ; **Échap** ferme celle du dessus,
-  **Ranger les fenêtres** et **Tout fermer** sont dans la barre du bas. Les paquets sont animés sur les câbles, au
+  l'équipement, à l'endroit où elles cachent le moins d'équipements du plan
+  (un peu moins hautes s'il le faut), sans jamais recouvrir la barre de titre
+  d'une autre fenêtre : on voit le paquet voyager pendant qu'on tape la
+  commande. **Échap** ferme celle du dessus, **Ranger les
+  fenêtres** (chacune retrouve cette place) et **Tout fermer** sont dans la
+  barre du bas. Les paquets sont animés sur les câbles, au
   ralenti pour qu'on puisse les suivre (0,4 s par câble à la vitesse par
   défaut) ; entre deux envois, le temps s'écoule normalement. Le
   curseur **Vitesse** règle ce ralenti. Chaque trame porte le nom de son

@@ -1,4 +1,4 @@
-import { clampWindow, defaultWindowSize, fitWindow, placeWindow } from './windowLayout';
+import { chooseWindowPlace, clampWindow, defaultWindowSize, fitWindow, placeWindow } from './windowLayout';
 
 const STAGE = { width: 1366, height: 560 };
 
@@ -43,6 +43,125 @@ describe('Disposition des fenêtres', () => {
     expect(placeWindow({ width: 560, height: 544 }, STAGE, 'left', 3)).toEqual({ x: 8, y: 8 });
     expect(placeWindow({ width: 2000, height: 900 }, STAGE, 'right', 0)).toEqual({ x: 8, y: 8 });
     expect(placeWindow(size, null, 'right', 1)).toEqual({ x: 108, y: 88 });
+  });
+
+  describe('une fenêtre s’ouvre là où elle cache le moins le plan', () => {
+    const stage = { width: 1000, height: 600 };
+    const size = { width: 400, height: 300 };
+    /** Un équipement de 100 × 100 dont le coin est en (x, y). */
+    const device = (x: number, y: number) => ({ x, y, width: 100, height: 100 });
+    const nothing = { devices: [], windows: [] };
+
+    test('rien à éviter : en haut du bord demandé, à sa taille', () => {
+      expect(chooseWindowPlace(size, stage, 'right', nothing)).toEqual({ x: 592, y: 8, ...size });
+      expect(chooseWindowPlace(size, stage, 'left', nothing)).toEqual({ x: 8, y: 8, ...size });
+    });
+
+    test('elle descend sous les équipements du haut plutôt que de les recouvrir', () => {
+      const devices = [device(700, 20), device(850, 60)];
+      // Premier cran de la cascade sous le plus bas des deux (160) : 8 + 6 × 26.
+      expect(chooseWindowPlace(size, stage, 'right', { devices, windows: [] })).toEqual({
+        x: 592,
+        y: 164,
+        ...size,
+      });
+    });
+
+    test('elle change de bord quand l’autre cache moins, mais jamais sur son propre équipement', () => {
+      const right = [device(650, 50), device(650, 250), device(650, 450)];
+      expect(chooseWindowPlace(size, stage, 'right', { devices: right, windows: [] })).toMatchObject({
+        x: 8,
+        y: 8,
+      });
+      // À gauche se trouve le poste d'où la fenêtre est ouverte : elle s'ouvre dessous.
+      const own = device(100, 100);
+      expect(
+        chooseWindowPlace(size, stage, 'right', { devices: [...right, own], own, windows: [] }),
+      ).toMatchObject({ x: 8, y: 216 });
+      // Ce poste occupe toute la hauteur du bord gauche : mieux vaut cacher un autre équipement que lui.
+      const tall = { x: 100, y: 0, width: 100, height: 600 };
+      expect(
+        chooseWindowPlace(size, stage, 'right', { devices: [...right, tall], own: tall, windows: [] }).x,
+      ).toBe(592);
+    });
+
+    test('près du bas, elle s’ouvre moins haute, sans descendre sous les trois quarts de sa hauteur', () => {
+      // Des équipements de y = 0 à 340 : il reste 252 px sous eux, pour une fenêtre de 300.
+      const devices = [device(700, 0), device(700, 240), device(100, 0), device(100, 240)];
+      const chosen = chooseWindowPlace(size, stage, 'right', { devices, windows: [] });
+      // Premier cran sous eux : 8 + 13 × 26 = 346, d'où 600 − 8 − 346 = 246 px de haut.
+      expect(chosen).toEqual({ x: 592, y: 346, width: 400, height: 246 });
+      // Trop peu de place pour 225 px (les trois quarts) : elle garde sa taille et cache un équipement.
+      const lower = [device(700, 0), device(700, 300), device(100, 0), device(100, 300)];
+      expect(chooseWindowPlace(size, stage, 'right', { devices: lower, windows: [] }).height).toBe(300);
+    });
+
+    test('les fenêtres s’empilent : une barre de titre plus bas, sur ce qui est déjà caché', () => {
+      const devices = [
+        device(700, 20),
+        device(700, 300),
+        device(100, 20),
+        device(100, 300),
+        device(100, 450),
+      ];
+      // Impossible de n'en cacher aucun : la première en cache un seul, sous celui du haut.
+      const first = chooseWindowPlace(size, stage, 'right', { devices, windows: [] });
+      expect(first).toMatchObject({ x: 592, y: 138, height: 300 });
+      // Cet équipement est déjà sous la première fenêtre : la seconde peut le
+      // recouvrir, et laisse dépasser la barre de titre de la première.
+      const second = chooseWindowPlace(size, stage, 'right', { devices, windows: [first] });
+      expect(second).toMatchObject({ x: 592, y: first.y + 26, height: 300 });
+    });
+
+    test('pas la place une barre de titre plus bas : elle s’écarte du bord, le bouton de fermeture reste visible', () => {
+      // Une fenêtre déjà ouverte en bas à droite, et des équipements partout au-dessus.
+      const first = { x: 592, y: 292, ...size };
+      const devices = [
+        device(700, 20),
+        device(700, 150),
+        device(100, 20),
+        device(100, 150),
+        device(100, 400),
+      ];
+      // La seconde, plus haute, ne peut ni descendre ni se réduire assez.
+      const second = chooseWindowPlace({ width: 400, height: 340 }, stage, 'right', {
+        devices,
+        windows: [first],
+      });
+      expect(second).toMatchObject({ x: 592 - 44, y: 252, height: 340 });
+      // L'extrémité droite de la barre de titre de la première dépasse : 44 px, avec son bouton.
+      expect(second.x + second.width).toBe(first.x + first.width - 44);
+    });
+
+    test('elle cache un équipement de plus plutôt que la barre de titre d’une autre fenêtre', () => {
+      // Une fenêtre en bas à droite, trop basse pour qu'une autre s'ouvre une barre de titre dessous.
+      const first = { x: 592, y: 320, width: 400, height: 272 };
+      const devices = [
+        device(700, 20),
+        device(700, 150),
+        // Le bord gauche est occupé du haut en bas.
+        device(100, 20),
+        device(100, 150),
+        device(100, 300),
+        device(250, 450),
+        // Juste à gauche de la première fenêtre.
+        device(470, 400),
+      ];
+      const second = chooseWindowPlace({ width: 400, height: 340 }, stage, 'right', {
+        devices,
+        windows: [first],
+      });
+      // Écartée du bord, elle recouvre un équipement ; contre le bord, elle n'aurait rien
+      // caché de plus, mais la première fenêtre ne se serait plus ni attrapée ni fermée.
+      expect(second).toMatchObject({ x: 592 - 44, y: 252, height: 340 });
+    });
+
+    test('zone plus petite que la fenêtre : dans le coin, sans erreur', () => {
+      expect(chooseWindowPlace({ width: 2000, height: 900 }, stage, 'right', nothing)).toMatchObject({
+        x: 8,
+        y: 8,
+      });
+    });
   });
 
   test('la barre de titre d’une fenêtre reste attrapable', () => {

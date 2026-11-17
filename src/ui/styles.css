@@ -920,6 +920,9 @@ input.narrow {
   flex-wrap: wrap;
   gap: 8px 10px;
   padding-block: 8px;
+  /* Same height with a line of text or with buttons: the plan does not move when a device is selected. */
+  min-height: 50px;
+  box-sizing: border-box;
 }
 .simulation-bar p {
   margin: 0;

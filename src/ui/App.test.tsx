@@ -822,6 +822,16 @@ describe('Plan lisible', () => {
     expect(text().parentElement).toHaveAttribute('width', '170');
   });
 
+  test('le plan dit à la session de combien il est déplacé, pour placer les fenêtres', () => {
+    const { session } = setup();
+    const scroller = screen.getByRole('application', { name: 'Plan du réseau' }).parentElement;
+    if (!scroller) throw new Error('plan introuvable');
+    Object.defineProperty(scroller, 'scrollLeft', { value: 120, configurable: true });
+    Object.defineProperty(scroller, 'scrollTop', { value: 40, configurable: true });
+    fireEvent.scroll(scroller);
+    expect(session.planScroll).toEqual({ x: 120, y: 40 });
+  });
+
   test('les réglages se réduisent à une ligne, pour laisser la hauteur au plan', () => {
     const { session } = setup();
     let pc = '';

@@ -997,7 +997,7 @@ function SimulationBar({ device }: { device: Device | null }) {
           <button
             type="button"
             data-ui="ranger"
-            title="Replacer les fenêtres en cascade, à droite du plan"
+            title="Remettre chaque fenêtre à sa taille, là où elle cache le moins le plan"
             onClick={() => {
               session.arrangeWindows();
             }}

@@ -116,3 +116,101 @@ export function placeWindow(size: Size, stage: Size | null, side: 'left' | 'righ
     y: Math.round(Math.min(MARGIN + step * CASCADE, maxY)),
   };
 }
+
+export interface Rect extends Point, Size {}
+
+/** What a new window should hide as little as possible, in the coordinates of the stage. */
+export interface Obstacles {
+  /** The devices drawn on the plan. */
+  readonly devices: readonly Rect[];
+  /** The device the window is opened from: the last one to hide. */
+  readonly own?: Rect | null;
+  /** The windows already open. */
+  readonly windows: readonly Rect[];
+}
+
+const overlaps = (a: Rect, b: Rect) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+/**
+ * Hiding the device one works on is the worst. Then the title bar of another
+ * window: it holds its close button, and a pupil cannot guess that a window is
+ * underneath, while a hidden device shows again as soon as a window is moved.
+ * Then any device.
+ */
+const COST_OWN = 1000;
+const COST_TITLE = 100;
+const COST_DEVICE = 10;
+const COST_OTHER_SIDE = 1;
+/** For each title bar of height given up. */
+const COST_SHORTER = 1;
+/** For each step away from the edge, which covers a little more of the plan. */
+const COST_INSET = 2;
+/** End of a title bar that is enough to catch a window, or to close it (its button is at the right end). */
+const GRIP = 44;
+/** A window is opened at most this many grips away from its edge. */
+const MAX_INSET = 2;
+
+/** True when `rect` leaves neither end of the title bar of `window` reachable. */
+function hidesTitle(rect: Rect, window: Rect): boolean {
+  const bar = { y: window.y, width: GRIP, height: CASCADE };
+  return (
+    overlaps({ ...bar, x: window.x }, rect) && overlaps({ ...bar, x: window.x + window.width - GRIP }, rect)
+  );
+}
+/** A window is not opened under this share of its height to spare the plan. */
+const MIN_HEIGHT_SHARE = 0.75;
+
+/**
+ * Where to open a window so that the plan stays readable: against the left or
+ * the right edge of the stage, at the height where it hides the fewest devices.
+ * A pupil who types `ping` must still see the routers the packet goes through.
+ * Near the bottom of the stage the window is opened less high rather than over
+ * a device. Devices already under another window cost nothing more, so the
+ * windows of a computer pile up in the same corner, each one a title bar lower
+ * when there is room, a little away from the edge otherwise: the title bar of
+ * the window underneath, with its close button, stays reachable. With nothing
+ * to avoid: the top of the `side` edge.
+ */
+export function chooseWindowPlace(
+  size: Size,
+  stage: Size,
+  side: 'left' | 'right',
+  obstacles: Obstacles,
+): Rect {
+  const maxX = Math.max(MARGIN, stage.width - size.width - MARGIN);
+  const minHeight = Math.min(size.height, Math.max(MIN_HEIGHT, Math.round(size.height * MIN_HEIGHT_SHARE)));
+  /** Lowest place of the window, at its full height then at its smallest one. */
+  const fullY = Math.max(MARGIN, stage.height - size.height - MARGIN);
+  const lastY = Math.max(fullY, stage.height - minHeight - MARGIN);
+  const visible = obstacles.devices.filter((d) => !obstacles.windows.some((w) => overlaps(d, w)));
+  const tops: number[] = [];
+  for (let y = MARGIN; y < lastY; y += CASCADE) {
+    // The lowest place of the whole window is always tried.
+    if (y > fullY && (tops.at(-1) ?? fullY) < fullY) tops.push(fullY);
+    tops.push(y);
+  }
+  if (!tops.includes(fullY)) tops.push(fullY);
+  tops.push(lastY);
+  let best: { rect: Rect; cost: number } | null = null;
+  for (const edge of side === 'right' ? (['right', 'left'] as const) : (['left', 'right'] as const)) {
+    for (let inset = 0; inset <= MAX_INSET; inset++) {
+      const x = Math.round(edge === 'right' ? maxX - inset * GRIP : MARGIN + inset * GRIP);
+      if (inset > 0 && (x < MARGIN || x > maxX)) break;
+      for (const y of tops) {
+        const height = Math.round(y <= fullY ? size.height : stage.height - MARGIN - y);
+        const rect = { x, y: Math.round(y), width: size.width, height };
+        const cost =
+          (obstacles.own && overlaps(obstacles.own, rect) ? COST_OWN : 0) +
+          COST_DEVICE * visible.filter((d) => overlaps(d, rect)).length +
+          COST_TITLE * obstacles.windows.filter((w) => hidesTitle(rect, w)).length +
+          COST_SHORTER * Math.ceil((size.height - height) / CASCADE) +
+          COST_INSET * inset +
+          (edge === side ? 0 : COST_OTHER_SIDE);
+        // The first of the cheapest: the preferred edge, against it, then the highest place.
+        if (!best || cost < best.cost) best = { rect, cost };
+      }
+    }
+  }
+  return best?.rect ?? { x: MARGIN, y: MARGIN, ...size };
+}

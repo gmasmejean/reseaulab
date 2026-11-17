@@ -919,9 +919,50 @@ constats d'interface A1 à A11.
       de l'activité inchangée, hauteur des textes, passerelle et
       interfaces visibles sans défiler), test vérifié en remettant
       l'ancienne disposition puis l'ancienne taille.
+- [x] **Étape 59 — Les fenêtres laissent voir le plan** (bilan A2). En
+      simulation, le bureau puis le terminal de Poste 1 s'ouvraient en haut
+      à droite : sur un écran de 1366 × 768, ils cachaient les routeurs du
+      FAI, d'Internet et du data center, c'est-à-dire le chemin que la
+      commande fait parcourir au paquet. (1) **Placement choisi**
+      (`chooseWindowPlace`, `windowLayout.ts`) : contre le bord opposé à
+      son équipement, la fenêtre s'ouvre à la hauteur où elle recouvre le
+      moins d'équipements ; elle change de bord si l'autre en cache moins,
+      et ne recouvre son propre équipement qu'en dernier recours. Près du
+      bas de la zone, elle s'ouvre moins haute (jusqu'aux trois quarts de
+      sa hauteur) plutôt que sur un équipement. Ce qui est déjà sous une
+      fenêtre ne compte plus : les fenêtres d'un poste s'empilent au même
+      endroit, chacune une barre de titre plus bas ; faute de place, elle
+      s'écarte du bord de 44 px. La barre de titre de la fenêtre du
+      dessous, avec son bouton de fermeture, reste toujours attrapable :
+      cela passe avant un équipement caché, qu'un déplacement de fenêtre
+      suffit à retrouver. (2) Le placement suit
+      ce qui est réellement à l'écran : zoom, taille des textes (étape 58) et défilement du plan, que le plan signale à la session.
+      (3) « Ranger les fenêtres » remet chacune à sa taille et à cette
+      place. (4) Le bandeau de simulation garde la même hauteur avec ou
+      sans sélection : le plan ne bouge plus quand on clique un
+      équipement. Résultat sur « Du collège au musée » : du CDI au musée,
+      tout le chemin reste visible ; seule la médiathèque, hors du chemin,
+      est sous les fenêtres. Tests : règles du placement une à une, cas
+      de l'activité de 3e et plan défilé dans la session ; de bout en
+      bout à 1366 × 768 (aucun équipement du chemin sous une fenêtre),
+      test vérifié en retirant le poids des équipements.
 
 ## Écarts au plan
 
+- **Terminal non ancré en bas de l'écran** (étape 59) : le bilan
+  proposait aussi d'ancrer la ligne de commande sous le plan. Non
+  retenu : il aurait fallu réduire encore le plan pour lui faire de la
+  place, et la règle n'aurait rien réglé pour le navigateur ou les
+  échanges de données. Le placement choisi vaut pour toutes les
+  fenêtres.
+- **Destination parfois sous une fenêtre** (étape 59) : la fenêtre ne
+  sait pas, en s'ouvrant, quelle adresse l'élève va taper. Sur un plan
+  qui remplit l'écran, elle cache forcément quelque chose : dans « Du
+  collège au musée », la médiathèque, qu'une étape fait joindre. La
+  fenêtre se déplace alors à la main.
+- **Fenêtre ouverte moins haute** (étape 59) : pour ne rien cacher, une
+  fenêtre peut s'ouvrir jusqu'à un quart moins haute (le navigateur à
+  390 px au lieu de 520) ; elle s'agrandit par son coin.
 - **Pas de cadrage par étape** (étape 58) : le bilan proposait que
   l'activité indique la zone du plan à montrer (le CDI seul en
   partie 1). Non fait : les textes étant lisibles plan entier, le gain
