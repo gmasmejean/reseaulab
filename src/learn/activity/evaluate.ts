@@ -18,7 +18,13 @@ import { fold } from '../content/merge';
 import { lintNetwork } from '../diagnose/lint';
 import { segments } from '../diagnose/topology';
 import { tracePath, type TraceTarget } from '../diagnose/trace';
-import { CAPABILITIES, type Capability, type ProfileSpec } from '../profile/capabilities';
+import {
+  CAPABILITIES,
+  FULL_PROFILE,
+  concerns,
+  type Capability,
+  type ProfileSpec,
+} from '../profile/capabilities';
 import { prepareProbe, runBounded } from '../sim/probe';
 import {
   familyOf,
@@ -109,7 +115,7 @@ function addressesOf(device: Device): Ipv4[] {
   return [];
 }
 
-function evaluateStateCheck(network: Network, check: Check): Outcome {
+function evaluateStateCheck(network: Network, check: Check, profile: ProfileSpec): Outcome {
   switch (check.type) {
     case 'deviceCount': {
       const count = network.devices.filter((d) =>
@@ -191,9 +197,12 @@ function evaluateStateCheck(network: Network, check: Check): Outcome {
     case 'lintClean': {
       // An empty plan has nothing wrong, and nothing done either.
       if (network.devices.length === 0) return todo();
+      // Only what « Vérifier » shows at this level counts: a point the pupil
+      // is not told about must never keep the objective from being reached.
       const left = lintNetwork(network).filter(
         (f) =>
           (f.severity === 'error' || f.severity === 'warning') &&
+          concerns(profile, f.code) &&
           !check.ignore.some((code) => code === f.code),
       );
       return left.length === 0 ? DONE : todo(`${left.length} point(s) signalé(s) par Vérifier.`);
@@ -273,12 +282,21 @@ export function journalEntry(deviceId: string, command: string): string {
   return `${deviceId}:${command}`;
 }
 
-/** Objectives that can be evaluated at once: state of the design and journal. */
-export function evaluateNow(activity: Activity, network: Network, work: Work): Map<string, Outcome> {
+/**
+ * Objectives that can be evaluated at once: state of the design and journal.
+ * `profile` is the level the interface is shown at (by default, the one the
+ * activity asks for): the verification is read as the pupil sees it.
+ */
+export function evaluateNow(
+  activity: Activity,
+  network: Network,
+  work: Work,
+  profile: ProfileSpec = activityProfile(activity) ?? FULL_PROFILE,
+): Map<string, Outcome> {
   const outcomes = new Map<string, Outcome>();
   for (const objective of objectivesOf(activity)) {
     const family = familyOf(objective.check);
-    if (family === 'state') outcomes.set(objective.id, evaluateStateCheck(network, objective.check));
+    if (family === 'state') outcomes.set(objective.id, evaluateStateCheck(network, objective.check, profile));
     else if (objective.check.type === 'question')
       outcomes.set(objective.id, evaluateQuestion(activity, work.answers[objective.id]));
     else if (family === 'journal')
@@ -299,8 +317,13 @@ export function evaluateProbes(activity: Activity, network: Network): Map<string
 }
 
 /** Every objective, evaluated one way or the other (for the teacher's checks and the tests). */
-export function evaluateAll(activity: Activity, network: Network, work: Work): Map<string, Outcome> {
-  return new Map([...evaluateNow(activity, network, work), ...evaluateProbes(activity, network)]);
+export function evaluateAll(
+  activity: Activity,
+  network: Network,
+  work: Work,
+  profile?: ProfileSpec,
+): Map<string, Outcome> {
+  return new Map([...evaluateNow(activity, network, work, profile), ...evaluateProbes(activity, network)]);
 }
 
 /**

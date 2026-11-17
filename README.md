@@ -182,7 +182,9 @@ frappe), installer une station météo à une adresse fixe et interpréter sa
 table de mesures, adresses privée et publique, DHCP, usage raisonné. Le bonus
 fait distribuer les adresses par un serveur DHCP et pose un défi sur les
 octets et les masques. L'élève enregistre son fichier à la fin de la première
-séance et le rouvre à la suivante.
+séance et le rouvre à la suivante. Le **routeur du collège est protégé** :
+l'élève lit ses deux adresses mais ne peut ni les changer ni le débrancher
+(les pannes à réparer sont toutes sur les terminaux).
 
 **Du collège au musée** (3e) dure deux séances de 1 h 30, plus un bonus. Les
 titres des parties disent la séance. En séance 1, la partie 1 vérifie les

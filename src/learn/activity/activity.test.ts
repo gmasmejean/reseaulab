@@ -217,6 +217,16 @@ describe('Vérification des objectifs : état du réseau', () => {
       detail: '1 point(s) signalé(s) par Vérifier.',
     });
     expect(statuses(net, [{ type: 'lintClean', ignore: ['gateway-missing'] }])).toEqual(['done']);
+    // Seul ce que Vérifier montre au niveau de la classe compte : en 4e, pas la passerelle.
+    const lesson = activity({ type: 'lintClean' });
+    expect(evaluateAll({ ...lesson, profile: { base: '4e' } }, net, EMPTY_WORK).get('o0')?.status).toBe(
+      'done',
+    );
+    expect(evaluateAll({ ...lesson, profile: { base: '3e' } }, net, EMPTY_WORK).get('o0')?.status).toBe(
+      'todo',
+    );
+    // Sans niveau dans l'activité, celui de l'interface est donné par la session.
+    expect(evaluateAll(lesson, net, EMPTY_WORK, { base: '4e' }).get('o0')?.status).toBe('done');
     // Un plan vide n'a rien à corriger, mais rien n'y est fait non plus.
     expect(statuses(new Network(), [{ type: 'lintClean' }])).toEqual(['todo']);
   });

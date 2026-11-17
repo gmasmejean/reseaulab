@@ -1,6 +1,7 @@
 import { Network } from '../../engine/network';
 import type { BuiltinActivity } from './builtin';
 import { MASK_24, define, existing, ip, named } from './define';
+import { protectionOf } from './protect';
 
 /* « La salle de techno » : an activity of two lessons for a class of 4e. The
  * first part revises what was seen in 5e (components, links, topology, why an
@@ -51,13 +52,15 @@ const SERVER_FILES: readonly (readonly [string, string])[] = [
 
 const PART_1 = 'Partie 1 — Ce que je sais depuis la 5e';
 const PART_2 = 'Partie 2 — Adresser, configurer, dépanner';
+/** Infrastructure of the school: read by the pupil, never set. */
+const ROUTER = 'Routeur du collège';
 
 /** The network of the classroom, with its faults and the devices to install. */
 function startingNetwork(): Network {
   const network = new Network();
   const sw = network.addSwitch({ name: 'Switch salle', position: { x: 520, y: 300 }, ssid: 'Salle-Techno' });
 
-  const router = network.addRouter({ name: 'Routeur du collège', position: { x: 520, y: 90 } });
+  const router = network.addRouter({ name: ROUTER, position: { x: 520, y: 90 } });
   router.setInterface(0, { ip: ip('192.168.10.254'), mask: MASK_24 });
   router.setInterface(1, { ip: ip('82.64.12.34'), mask: MASK_24 });
   network.connect(router.id, sw.id);
@@ -159,6 +162,9 @@ export const classroom: BuiltinActivity = {
 
 Les questions se corrigent tout de suite et c’est ta **première réponse** qui est notée : réfléchis avant de valider ! À la fin de chaque séance, clique sur [[ecran:enregistrer]] ; à la séance suivante, rouvre ton fichier avec [[ecran:ouvrir]].`,
       profile: { base: '4e' },
+      // The pupil repairs terminals only. A router « corrected » to follow the
+      // addressing plan (both interfaces at .254) could never pass « Vérifier ».
+      protect: protectionOf(network, [ROUTER]),
       steps: [
         /* ---------- Partie 1 ---------- */
         {

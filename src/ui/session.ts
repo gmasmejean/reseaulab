@@ -534,7 +534,7 @@ export class Session {
     const key = `${this.network.version}:${this.designRevision}:${this.probedAt}:${this.work.commands.length}:${String(this.work.simulated)}:${answers.length}:${tries}:${this.work.skipped.join(',')}`;
     if (this.outcomeCache?.key === key) return this.outcomeCache.value;
     const fresh = this.probedAt === this.designRevision;
-    const outcomes = evaluateNow(activity, this.network, this.work);
+    const outcomes = evaluateNow(activity, this.network, this.work, this.profile);
     for (const objective of objectivesOf(activity)) {
       if (familyOf(objective.check) !== 'probe') continue;
       const tested = this.probed.get(objective.id);
@@ -724,6 +724,8 @@ export class Session {
   /** Chooses the level of the class on this computer. */
   setProfileLevel(base: ProfileLevel): void {
     this.localProfile = { base };
+    // « Vérifier » shows other points at another level: the objectives follow.
+    this.outcomeCache = null;
     try {
       this.storage?.setItem(PROFILE_KEY, JSON.stringify(this.localProfile));
     } catch {

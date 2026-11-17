@@ -9,6 +9,7 @@ import { MASK_24, ip } from '../../engine/testing';
 import { DEFAULT_PACK } from '../content/default-pack';
 import { lintNetwork } from '../diagnose/lint';
 import { tracePath } from '../diagnose/trace';
+import { FULL_PROFILE, concerns } from '../profile/capabilities';
 import { linkedNotions } from '../richtext';
 import { rightAnswer } from '../quiz/quiz';
 import { prepareProbe, runBounded } from '../sim/probe';
@@ -453,6 +454,52 @@ describe('Activités fournies', () => {
     // La station n'est pas encore installée : Vérifier la signale encore.
     expect(status('reseau-sain')).toBe('todo');
     expect(status('mesures-lues')).toBe('todo');
+  });
+
+  test('La salle de techno : le routeur du collège est protégé, les terminaux restent réglables', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'salle-techno');
+    if (!builtin) throw new Error('salle-techno');
+    const { network, activity } = builtin.build();
+    const status = (id: string) => evaluateAll(activity, network, EMPTY_WORK).get(id)?.status;
+    const router = network.router(find(network, 'Routeur du collège').id);
+    const repair = () => {
+      network.connect(find(network, 'Poste 4').id, find(network, 'Switch salle').id);
+      network.joinWifi(find(network, 'Tablette').id, 'Salle-Techno');
+      network.host(find(network, 'Poste 3').id).updateConfig({ ip: ip('192.168.10.3') });
+      network.host(find(network, 'Imprimante').id).updateConfig({ ip: ip('192.168.10.30') });
+      network.host(find(network, 'Tablette').id).updateConfig({ ip: ip('192.168.10.21') });
+    };
+
+    // Ce qu'un groupe de 4e a fait : les trois pannes réparées, puis l'interface côté Internet
+    // « corrigée » d'après le plan d'adressage (routeur .254). En 4e, Vérifier ne montre pas ce
+    // point (les routeurs sont du programme de 3e) : il ne doit donc pas bloquer l'étape.
+    repair();
+    expect(status('salle-saine')).toBe('done');
+    const internet = router.interfaces[1];
+    if (!internet) throw new Error('interface');
+    const { ip: publicIp, mask } = internet;
+    router.setInterface(1, { ip: ip('192.168.10.254'), mask });
+    const codes = lintNetwork(network).map((f) => f.code);
+    expect(codes).toContain('router-ifaces-same-network');
+    expect(codes.filter((code) => concerns({ base: '4e' }, code))).not.toContain(
+      'router-ifaces-same-network',
+    );
+    expect(status('salle-saine')).toBe('done');
+    // Au niveau complet, le point est montré : il compte.
+    expect(evaluateAll(activity, network, EMPTY_WORK, FULL_PROFILE).get('salle-saine')?.status).toBe('todo');
+    router.setInterface(1, { ip: publicIp, mask });
+
+    // D'où la protection : le routeur, ses interfaces et son câble ne se modifient plus.
+    const guard = guardOf(activity);
+    expect(guard.device(router.id)).toBe(true);
+    expect(router.interfaces.every((_, i) => guard.iface(router.id, i))).toBe(true);
+    const uplink = network.cables.find((c) => c.a === router.id || c.b === router.id);
+    expect(uplink && guard.cable(uplink.id)).toBe(true);
+    // Tout ce que l'élève règle, câble ou installe reste libre.
+    for (const device of network.devices)
+      if (device.id !== router.id) expect(guard.device(device.id), device.name).toBe(false);
+    for (const cable of network.cables)
+      if (cable.id !== uplink?.id) expect(guard.cable(cable.id), cable.id).toBe(false);
   });
 
   test('Du collège au musée : vraies pannes au CDI, puis le chemin se répare route, DNS et site', () => {
