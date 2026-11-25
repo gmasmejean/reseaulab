@@ -43,6 +43,32 @@ describe('Network', () => {
     net.disconnect('absent');
   });
 
+  test('un switch gagne un port quand il est plein, sauf si son nombre de ports est fixe', () => {
+    const net = new Network();
+    const open = net.addSwitch({ ports: 2 });
+    const fixed = net.addSwitch({ name: 'Switch salle info', ports: 2, fixedPorts: true });
+    const hosts = [1, 2, 3].map(() => net.addHost('computer'));
+    for (const host of hosts) net.connect(host.id, open.id);
+    expect(open.ports).toHaveLength(3);
+
+    const others = [1, 2, 3].map(() => net.addHost('computer'));
+    net.connect(others[0]?.id ?? '', fixed.id);
+    net.connect(others[1]?.id ?? '', fixed.id);
+    expect(() => net.connect(others[2]?.id ?? '', fixed.id)).toThrow(
+      '« Switch salle info » n’a plus de port libre',
+    );
+    expect(fixed.ports).toHaveLength(2);
+    expect(fixed.portAt(5)).toBeNull();
+    // Le Wi-Fi prend un port lui aussi : un switch plein n'accepte pas un poste de plus.
+    const laptop = net.addHost('laptop');
+    net.setHostWifi(laptop.id, true);
+    expect(() => net.joinWifi(laptop.id, fixed.ssid)).toThrow('n’a plus de port libre');
+    // Un câble retiré libère sa prise.
+    const cable = others[0]?.iface.port.cable;
+    net.disconnect(cable?.id ?? '');
+    expect(net.connect(others[2]?.id ?? '', fixed.id)).toBeDefined();
+  });
+
   test('accès typés', () => {
     const { net, a, sw } = simpleLan();
     expect(net.host(a.id)).toBe(a);

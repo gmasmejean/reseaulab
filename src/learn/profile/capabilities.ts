@@ -32,6 +32,8 @@ export const FEATURES = [
   'tables',
   /** Text and zone annotations. */
   'notes',
+  /** Mask 255.255.255.0 filled in with a first address: hidden, the pupil types the mask. */
+  'mask-default',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -102,6 +104,7 @@ export const CAPABILITY_LEVEL: Record<Capability, ProfileLevel> = {
 
   'feature:wifi': '5e',
   'feature:notes': '5e',
+  'feature:mask-default': '5e',
   'feature:dhcp-client': '4e',
   'feature:capture': '4e',
   'feature:mac-table': '4e',

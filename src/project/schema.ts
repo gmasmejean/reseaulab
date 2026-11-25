@@ -109,6 +109,8 @@ const switchSchema = z.object({
   ports: z.number().int().min(1).max(256),
   // Added with Wi-Fi; a default name is chosen when absent.
   ssid: z.string().trim().min(1).max(32).optional(),
+  /** The switch keeps this number of ports: a full one refuses a cable. Absent: ports are added. */
+  fixedPorts: z.boolean().optional(),
 });
 
 const routerSchema = z.object({

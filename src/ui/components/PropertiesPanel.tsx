@@ -27,9 +27,13 @@ import { FirewallEditor } from './FirewallEditor';
 /** Mask proposed with a first address, as in Filius: 255.255.255.0. */
 const DEFAULT_MASK = prefixToMask(24);
 
-/** Mask to keep with `ip`: the current one, or the usual one when none was given yet. */
-function maskFor(ip: Ipv4, mask: Ipv4): Ipv4 {
-  return mask === IP_ANY && ip !== IP_ANY ? DEFAULT_MASK : mask;
+/**
+ * Mask to keep with `ip`: the current one, or the usual one when none was given
+ * yet. An activity where the pupil is to type the mask hides the proposal.
+ */
+function maskFor(session: Session, ip: Ipv4, mask: Ipv4): Ipv4 {
+  const proposed = session.can('feature:mask-default');
+  return proposed && mask === IP_ANY && ip !== IP_ANY ? DEFAULT_MASK : mask;
 }
 
 function neighbour(net: Network, device: Device, port: number): string {
@@ -193,6 +197,17 @@ function ConnectionSection({ host }: { host: Host }) {
   );
 }
 
+/** What the panel says of the ports of a switch: how many are used, and whether more can come. */
+export function portsSentence(device: Switch): string {
+  const used = device.ports.filter((p) => p.isConnected).length;
+  if (!device.fixedPorts) {
+    return `${used} port(s) utilisé(s). Un port est ajouté automatiquement quand tous sont occupés.`;
+  }
+  const free = device.ports.length - used;
+  const left = free === 0 ? 'aucun de libre' : free === 1 ? '1 libre' : `${free} libres`;
+  return `Ce switch a ${device.ports.length} ports, pas un de plus : ${used} utilisé(s), ${left}.`;
+}
+
 function SwitchProperties({ device }: { device: Switch }) {
   const session = useSession();
   const { network } = session;
@@ -202,10 +217,7 @@ function SwitchProperties({ device }: { device: Switch }) {
     <div className="properties-grid">
       <Section title="Switch (commutateur)">
         <NameField device={device} />
-        <p className="muted">
-          {device.ports.filter((p) => p.isConnected).length} port(s) utilisé(s). Un port est ajouté
-          automatiquement quand tous sont occupés.
-        </p>
+        <p className="muted">{portsSentence(device)}</p>
       </Section>
       {(session.can('feature:wifi') || wifiClients > 0) && (
         <Section title="Point d’accès Wi-Fi">
@@ -281,7 +293,7 @@ function BoxProperties({ box }: { box: Box }) {
             disabled={locked}
             hint="C’est la passerelle des terminaux de la maison."
             onChange={(ip) => {
-              box.setLan({ ip, mask: maskFor(ip, lan.mask) });
+              box.setLan({ ip, mask: maskFor(session, ip, lan.mask) });
             }}
           />
           <IpField
@@ -351,7 +363,7 @@ function BoxProperties({ box }: { box: Box }) {
               value={wan.ip}
               disabled={locked}
               onChange={(ip) => {
-                box.setWan({ ip, mask: maskFor(ip, wan.mask) });
+                box.setWan({ ip, mask: maskFor(session, ip, wan.mask) });
               }}
             />
             <IpField
@@ -438,7 +450,7 @@ function HostProperties({ host }: { host: Host }) {
             value={c.ip}
             disabled={locked || c.useDhcp}
             onChange={(ip) => {
-              host.updateConfig({ ip, mask: maskFor(ip, c.mask) });
+              host.updateConfig({ ip, mask: maskFor(session, ip, c.mask) });
             }}
           />
           <IpField
@@ -660,7 +672,7 @@ function RouterProperties({ router }: { router: Router }) {
                         value={iface.ip}
                         disabled={guard.iface(router.id, i)}
                         onChange={(ip) => {
-                          router.setInterface(i, { ip, mask: maskFor(ip, iface.mask) });
+                          router.setInterface(i, { ip, mask: maskFor(session, ip, iface.mask) });
                         }}
                       />
                     </td>

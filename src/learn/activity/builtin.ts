@@ -5,6 +5,7 @@ import type { Level } from '../content/types';
 import { MASK_24, define, existing, ip, named } from './define';
 import type { Activity } from './schema';
 import { collegeMuseum } from './college-musee';
+import { schoolNetwork } from './reseau-college';
 import { classroom } from './salle-techno';
 
 /* Activities shipped with RéseauLab: ready to use, and examples of what a
@@ -571,6 +572,7 @@ export const BUILTIN_ACTIVITIES: readonly BuiltinActivity[] = [
   connectedObject,
   homeNetwork,
   classroom,
+  schoolNetwork,
   twoNetworks,
   troubleshooting,
   collegeMuseum,

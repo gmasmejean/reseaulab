@@ -70,6 +70,49 @@ describe('Vérification des objectifs : état du réseau', () => {
     ).toEqual(['done', 'todo', 'done', 'todo', 'todo', 'done']);
   });
 
+  test('branchés sur un même switch : une chaîne de switchs ne compte pas, le Wi-Fi compte', () => {
+    const net = new Network();
+    const central = net.addSwitch({ name: 'Central' });
+    const room = net.addSwitch({ name: 'Salle', ssid: 'Salle-1' });
+    const [a, b, c] = ['A', 'B', 'C'].map((name) => net.addHost('computer', { name }));
+    const laptop = net.addHost('laptop', { name: 'Portable' });
+    net.connect(a?.id ?? '', room.id);
+    net.connect(b?.id ?? '', room.id);
+    net.connect(c?.id ?? '', central.id);
+    net.setHostWifi(laptop.id, true);
+    net.joinWifi(laptop.id, 'Salle-1');
+    const up = named('Central');
+    const checks: CheckInput[] = [
+      { type: 'sameSwitch', devices: [named('A'), named('B'), named('Portable')] },
+      { type: 'sameSwitch', devices: [named('A'), named('B')], uplink: up },
+      // C est sur le switch central : relié à A (`linked`), mais pas sur le même switch.
+      { type: 'sameSwitch', devices: [named('A'), named('C')] },
+      { type: 'linked', a: named('A'), b: named('C') },
+      // Le switch commun ne peut pas être celui auquel il doit être relié.
+      { type: 'sameSwitch', devices: [named('C')], uplink: up },
+      { type: 'sameSwitch', devices: [named('A'), named('Absent')] },
+      { type: 'sameSwitch', devices: [named('A')], uplink: named('Absent') },
+    ];
+    // Tant que le switch de la salle n'est pas relié au central : ensemble, mais sans le câble vers lui.
+    expect(statuses(net, checks)).toEqual(['done', 'todo', 'todo', 'todo', 'todo', 'unknown', 'unknown']);
+    net.connect(room.id, central.id);
+    expect(statuses(net, checks)).toEqual(['done', 'done', 'todo', 'done', 'todo', 'unknown', 'unknown']);
+    // Le switch de la salle relié au central par un autre switch : pas de câble direct.
+    net.disconnect(net.cables.at(-1)?.id ?? '');
+    const middle = net.addSwitch({ name: 'Milieu' });
+    net.connect(room.id, middle.id);
+    net.connect(middle.id, central.id);
+    expect(statuses(net, checks.slice(0, 2))).toEqual(['done', 'todo']);
+    expect(familyOf({ type: 'sameSwitch', devices: [named('A')], apart: [] })).toBe('state');
+    // « À part » : le switch de A et B ne doit pas être aussi celui de C.
+    const apart: CheckInput = { type: 'sameSwitch', devices: [named('A'), named('B')], apart: [named('C')] };
+    const later: CheckInput = { ...apart, apart: [named('Pas encore posé')] };
+    expect(statuses(net, [apart, later])).toEqual(['done', 'done']);
+    net.disconnect(c?.iface.port.cable?.id ?? '');
+    net.connect(c?.id ?? '', room.id);
+    expect(statuses(net, [apart, later])).toEqual(['todo', 'done']);
+  });
+
   test('équipements reliés, directement ou par des switchs, mais pas à travers un routeur', () => {
     const { net, a, b, r, s1 } = routedNetwork();
     const id = (device: { id: string; name: string }) =>

@@ -348,6 +348,180 @@ test('clic droit : menus contextuels comme dans Filius', async ({ page }) => {
   await expect(page.getByRole('menu')).toHaveCount(0);
 });
 
+test('activité guidée : « Reconstruire le réseau du collège », du switch plein aux portables en DHCP', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : Reconstruire le réseau du collège' }).click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  await expect(panel).toContainText('0 objectif sur 47');
+  const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
+  const device = (name: string) => page.locator(`[aria-label^="${name}"]`);
+  const cable = async (...names: string[]) => {
+    await palette.getByRole('button', { name: 'Câble' }).click();
+    for (const name of names) await device(name).click();
+    await palette.getByRole('button', { name: 'Câble' }).click();
+  };
+
+  // Les trois salles tiennent à l'écran sans réduire le plan ; pas de box dans la palette.
+  const zoom = page.getByRole('group', { name: 'Zoom du plan' });
+  expect(Number((/(\d+) %/.exec(await zoom.innerText()) ?? [])[1])).toBeGreaterThanOrEqual(90);
+  for (const room of ['Salle informatique', 'Salle 1', 'Salle 2'])
+    await expect(page.getByRole('button', { name: `Zone : ${room}` })).toBeVisible();
+  await expect(palette.getByRole('button', { name: 'Box Internet' })).toHaveCount(0);
+  await shot(page, '61-college-depart');
+
+  // Le switch de la salle informatique dit combien de ports il lui reste, et refuse le troisième appareil.
+  await device('Switch salle info').click();
+  await expect(page.getByText('Ce switch a 4 ports, pas un de plus : 2 utilisé(s), 2 libres.')).toBeVisible();
+  await cable(
+    'Poste 1A',
+    'Switch salle info',
+    'Poste 1B',
+    'Switch salle info',
+    'Poste 1C',
+    'Switch salle info',
+  );
+  await expect(page.getByText('« Switch salle info » n’a plus de port libre')).toBeVisible();
+  await page.getByRole('button', { name: 'Fermer le message' }).click();
+  await expect(panel).toContainText('2 objectifs sur 47');
+  await shot(page, '61-college-switch-plein');
+  for (const name of ['Poste 1A', 'Poste 1B']) {
+    await device(name).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Supprimer le câble' }).click();
+  }
+  await expect(panel).toContainText('0 objectif sur 47');
+
+  // Partie 1 : un switch par salle, relié au switch de la salle informatique.
+  const place = async (name: string, x: number, y: number) => {
+    const box = await device(name).boundingBox();
+    if (!box) throw new Error(name);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(x, y, { steps: 8 });
+    await page.mouse.up();
+  };
+  const spot = async (name: string, dx: number, dy: number) => {
+    const box = await device(name).boundingBox();
+    if (!box) throw new Error(name);
+    return [box.x + box.width / 2 + dx, box.y + box.height / 2 + dy] as const;
+  };
+  const rooms = [
+    { n: 1, sw: 'Switch 1', hosts: ['Poste 1A', 'Poste 1B', 'Poste 1C', 'Imprimante 1'], near: 'Poste 1B' },
+    { n: 2, sw: 'Switch 2', hosts: ['Poste 2A', 'Poste 2B', 'Poste 2C', 'Imprimante 2'], near: 'Poste 2B' },
+  ];
+  for (const room of rooms) {
+    await palette.getByRole('button', { name: 'Switch', exact: true }).click();
+    await place(room.sw, ...(await spot(room.near, 0, -150)));
+    await cable(...room.hosts.flatMap((host) => [host, room.sw]));
+    // Tant que le switch de la salle n'est pas relié à la salle informatique, rien de plus n'est atteint.
+    await expect(panel).toContainText(room.n === 1 ? '0 objectif sur 47' : '5 objectifs sur 47');
+    await cable(room.sw, 'Switch salle info');
+    await expect(panel).toContainText(`${room.n * 5} objectifs sur 47`);
+  }
+  await device('Switch salle info').click();
+  await expect(page.getByText('4 utilisé(s), aucun de libre.')).toBeVisible();
+  await shot(page, '61-college-cable');
+
+  // Partie 2 : le plan d'adressage. Une adresse de l'autre salle n'est pas acceptée.
+  const address = page.getByRole('textbox', { name: 'Adresse IP', exact: true });
+  const give = async (name: string, value: string) => {
+    await device(name).click();
+    await address.fill(value);
+    await address.press('Enter');
+  };
+  await give('Poste 1A', '192.168.1.21');
+  await expect(panel).toContainText('10 objectifs sur 47');
+  for (const room of rooms) {
+    for (const [i, host] of room.hosts.entries())
+      await give(host, `192.168.1.${room.n}${host.startsWith('Imprimante') ? 9 : i + 1}`);
+  }
+  // Dans cette activité, le masque n'est pas proposé avec l'adresse : l'élève le tape. Tant qu'il
+  // manque en salle 1, l'étape de la salle 2 reste fermée et ses adresses ne comptent pas.
+  const mask = page.getByRole('textbox', { name: 'Masque', exact: true });
+  await expect(mask).toHaveValue('');
+  await expect(panel).toContainText('14 objectifs sur 47');
+  await expect(panel).toContainText('Poste 1A n’a pas d’adresse fixe complète.');
+  for (const host of rooms.flatMap((room) => room.hosts)) {
+    await device(host).click();
+    await mask.fill('255.255.255.0');
+    await mask.press('Enter');
+  }
+  await expect(panel).toContainText('20 objectifs sur 47');
+  await shot(page, '61-college-adresse');
+
+  // Tester d'une salle à l'autre.
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5');
+  let terminal = await openTerminal(page, 'Poste 1A');
+  let input = terminal.getByRole('textbox', { name: 'Commande', exact: true });
+  await input.fill('ping -n 1 192.168.1.21');
+  await input.press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('reçus = 1, perdus = 0', { timeout: 20_000 });
+  await expect(panel).toContainText('22 objectifs sur 47');
+  await page.getByRole('button', { name: 'Ranger les fenêtres' }).click();
+
+  // Partie 3 : le serveur DHCP, sur le Serveur de la salle informatique.
+  await device('Serveur').click();
+  const desktop = page.getByRole('dialog', { name: 'Bureau de Serveur' });
+  await desktop.getByRole('button', { name: 'Installer des logiciels' }).click();
+  const software = page.getByRole('dialog', { name: 'Installer des logiciels — Serveur' });
+  await software.getByRole('listitem').filter({ hasText: 'Serveur DHCP' }).getByRole('button').click();
+  await software.getByRole('button', { name: 'Fermer Installer des logiciels — Serveur' }).click();
+  // Installer n'est pas démarrer : rien de ce qui était atteint ne se défait pendant le réglage.
+  await expect(panel).toContainText('23 objectifs sur 47');
+  await desktop.getByRole('button', { name: 'Serveur DHCP' }).click();
+  const dhcp = page.getByRole('dialog', { name: /Serveur DHCP — Serveur/ });
+  for (const [label, value] of [
+    ['Première adresse', '192.168.1.100'],
+    ['Dernière adresse', '192.168.1.150'],
+  ] as const) {
+    await dhcp.getByRole('textbox', { name: label, exact: true }).fill(value);
+    await dhcp.getByRole('textbox', { name: label, exact: true }).press('Enter');
+  }
+  await dhcp.getByRole('button', { name: 'Démarrer' }).click();
+  // Le serveur démarré, et rien à signaler tant qu'aucun portable n'est posé.
+  await expect(panel).toContainText('25 objectifs sur 47');
+
+  // Un portable par salle : Wi-Fi du switch de la salle, configuration automatique.
+  await page.getByRole('radio', { name: /Conception/ }).click();
+  for (const room of rooms) {
+    const name = `Portable ${room.n}`;
+    await palette.getByRole('button', { name: 'Portable', exact: true }).click();
+    await place(name, ...(await spot(room.near, room.n === 1 ? 130 : -130, -150)));
+    await page.getByRole('radio', { name: 'Sans fil (Wi-Fi)' }).check();
+    await page.getByRole('combobox', { name: 'Réseau sans fil (SSID)' }).selectOption(`Wifi-${room.n}`);
+    await page.getByRole('checkbox', { name: 'Configuration automatique (DHCP)' }).check();
+  }
+  await expect(panel).toContainText('29 objectifs sur 47');
+  await shot(page, '61-college-portables');
+
+  // Le portable reçoit son adresse : l'échange DHCP se lit dans « Échanges de données ».
+  await page.getByRole('radio', { name: /Simulation/ }).click();
+  await page.getByRole('slider').fill('5');
+  await expect(device('Portable 1 (192.168.1.10')).toBeVisible({ timeout: 20_000 });
+  terminal = await openTerminal(page, 'Portable 1');
+  input = terminal.getByRole('textbox', { name: 'Commande', exact: true });
+  // « ipconfig /renew » redemande une adresse, puis affiche celle que le serveur a prêtée.
+  await input.fill('ipconfig /renew');
+  await input.press('Enter');
+  await expect(terminal.getByRole('log')).toContainText('Adresse IPv4.......... : 192.168.1.10', {
+    timeout: 20_000,
+  });
+  await page.getByRole('button', { name: 'Afficher les échanges de données' }).click();
+  const capture = page.getByRole('dialog', { name: 'Échanges de données — Portable 1' });
+  for (const message of ['(DISCOVER)', '(OFFER)', '(REQUEST)', '(ACK)'])
+    await expect(capture.getByText(message).first()).toBeVisible({ timeout: 20_000 });
+  await shot(page, '61-college-dhcp');
+  // Ajouter les portables n'a rien défait des étapes précédentes : il reste les communications à tester.
+  await expect(panel).toContainText('30 objectifs sur 47');
+  await panel.getByRole('button', { name: 'Vérifier mon travail' }).click();
+  await expect(panel).toContainText('34 objectifs sur 47');
+  await expect(panel).toContainText('✔ 4 objectifs validés.');
+});
+
 test('Wi-Fi : un portable rejoint le réseau sans fil d’un switch puis répond au ping', async ({ page }) => {
   const palette = page.getByRole('complementary', { name: 'Palette d’équipements' });
   await palette.getByRole('button', { name: /Switch/ }).click();

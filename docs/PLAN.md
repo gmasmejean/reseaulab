@@ -973,9 +973,52 @@ constats d'interface A1 à A11.
       à chaque clic, retour en conception avec et sans changement
       (vérifié en retirant le correctif), barre sur une ligne dans les
       deux modes à 1366 px.
+- [x] **Étape 61 — Activité de 4e « Reconstruire le réseau du
+      collège »** (demande de l'enseignant). Deux salles de cours et la
+      salle informatique sont dessinées par des zones colorées ; postes et
+      imprimantes des salles sont posés, sans câble ni adresse. Quatre
+      parties : (1) **câbler** — l'élève essaie de tout brancher sur le
+      switch de la salle informatique, lit « n'a plus de port libre » et en
+      déduit qu'il faut un switch par salle, relié par un seul câble ;
+      (2) **adresser** selon un plan d'adressage (une plage par salle),
+      puis `ping` d'une salle à l'autre ; (3) **DHCP** — le Serveur
+      distribue une plage, un portable par salle rejoint le Wi-Fi du switch
+      de sa salle, l'échange se lit dans « Échanges de données » ;
+      (4) **questions** de compréhension, regroupées à la fin. Deux
+      évolutions du simulateur la servent. **Switch au nombre de ports
+      fixe** (`fixedPorts`, dans le fichier du réseau) : plein, il refuse
+      un câble ou un poste en Wi-Fi au lieu de gagner un port, et son
+      panneau compte ses ports libres. **Objectif `sameSwitch`** : des
+      équipements branchés directement sur un même switch, relié
+      directement à un autre (`uplink`) et distinct de celui d'autres
+      équipements (`apart`) — là où `linked` accepte une chaîne de switchs.
+      Le **masque n'est pas proposé** avec l'adresse dans cette activité
+      (capacité `feature:mask-default`, masquée par son profil) : l'élève
+      le tape sur chaque appareil.
+      Tests : switch fixe et aller-retour du fichier ; cas de `sameSwitch` ;
+      solution de l'activité, switch central plein au troisième appareil,
+      salle 2 branchée sur le switch de la salle 1 refusée, plan
+      d'adressage, réponses confrontées au simulateur (ports libres,
+      trajet par les trois switchs, adresses reçues, ordre de l'échange
+      DHCP, câble de salle débranché, serveur DHCP arrêté) ; de bout en
+      bout à 1366 × 768, du switch plein aux portables configurés.
 
 ## Écarts au plan
 
+- **Pas de test de communication au milieu de l'activité** (étape 61) :
+  dans « Reconstruire le réseau du collège », l'étape « Tester d'une salle
+  à l'autre » ne garde que ce que l'élève a fait (simulation lancée,
+  `ping` tapé). Un `ping` vérifié à cette étape redevenait « à refaire »
+  dès l'ajout d'un portable, et refermait les étapes du DHCP pendant que
+  l'élève y travaillait. Les communications sont testées une fois, à la
+  dernière étape de manipulation. Pour la même raison, « Vérifier le
+  réseau ne signale plus rien » n'est demandé qu'à l'étape des portables.
+- **Ports fixes sans réglage à l'écran** (étape 61) : `fixedPorts` se pose
+  dans le fichier du réseau ou par le code d'une activité fournie ; le
+  panneau du switch l'affiche mais ne permet pas de le changer.
+- **Zones non protégées** (étape 61) : l'élève peut déplacer ou supprimer
+  les zones des salles ; la protection d'une activité ne couvre que les
+  équipements et les câbles, et aucun objectif ne lit une position.
 - **« Vérifier le réseau » plutôt que « Diagnostic »** (étape 60) : le
   bilan proposait de renommer le bouton de la barre « Diagnostic ». Les
   consignes des travaux déjà commencés, qui voyagent dans le fichier de

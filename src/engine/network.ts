@@ -211,7 +211,14 @@ export class Network {
     return this.register(host);
   }
 
-  addSwitch(options: CreateOptions & { readonly ports?: number; readonly ssid?: string } = {}): Switch {
+  addSwitch(
+    options: CreateOptions & {
+      readonly ports?: number;
+      readonly ssid?: string;
+      /** No port is added when all are used (they are, otherwise). */
+      readonly fixedPorts?: boolean;
+    } = {},
+  ): Switch {
     if (options.ssid !== undefined) {
       const problem = this.ssidProblem(options.ssid);
       if (problem) throw new Error(problem);
@@ -223,6 +230,7 @@ export class Network {
       this.ctx,
       options.ports,
       options.ssid?.trim() ?? this.defaultSsid(),
+      options.fixedPorts,
     );
     return this.register(device);
   }

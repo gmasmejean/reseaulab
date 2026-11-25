@@ -115,6 +115,14 @@ function addressesOf(device: Device): Ipv4[] {
   return [];
 }
 
+/** The devices at the other end of each cable or Wi-Fi link of a device. */
+function neighbours(network: Network, device: Device): Device[] {
+  return device.ports.flatMap((port) => {
+    const peer = port.cable ? network.device(port.cable.other(port).owner.id) : undefined;
+    return peer ? [peer] : [];
+  });
+}
+
 function evaluateStateCheck(network: Network, check: Check, profile: ProfileSpec): Outcome {
   switch (check.type) {
     case 'deviceCount': {
@@ -134,6 +142,26 @@ function evaluateStateCheck(network: Network, check: Check, profile: ProfileSpec
           ? s.switches.includes(device.id)
           : s.members.some((m) => m.deviceId === device.id);
       return segments(network).some((s) => holds(a)(s) && holds(b)(s)) ? DONE : todo();
+    }
+    case 'sameSwitch': {
+      const uplink = check.uplink ? resolveRef(network, check.uplink)[0] : undefined;
+      if (check.uplink && !uplink) return missing(check.uplink);
+      let shared: Device[] | null = null;
+      for (const ref of check.devices) {
+        const [device] = resolveRef(network, ref);
+        if (!device) return missing(ref);
+        const plugged: Device[] = neighbours(network, device).filter(
+          (d) => d instanceof Switch || d instanceof Box,
+        );
+        shared = shared === null ? plugged : shared.filter((d) => plugged.includes(d));
+      }
+      // A device of `apart` that is not on the plan (yet) is plugged nowhere: nothing to keep apart.
+      const others = check.apart.flatMap((ref) => resolveRef(network, ref));
+      const fits = (room: Device) => {
+        const plugged = neighbours(network, room);
+        return (uplink === undefined || plugged.includes(uplink)) && !others.some((d) => plugged.includes(d));
+      };
+      return (shared ?? []).some((d) => d !== uplink && fits(d)) ? DONE : todo();
     }
     case 'sameNetwork': {
       const cards: { ip: Ipv4; mask: Ipv4 }[] = [];

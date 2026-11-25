@@ -110,6 +110,20 @@ const check = z.discriminatedUnion('type', [
   }),
   /** Both devices reach each other without a router (cables, Wi-Fi, switches). */
   z.object({ type: z.literal('linked'), a: oneDevice, b: oneDevice }),
+  /**
+   * The devices are all plugged into one and the same switch (or box), each by
+   * its own cable or by Wi-Fi: the switch of their room. With `uplink`, that
+   * switch is another one than `uplink` and a cable joins the two. With
+   * `apart`, none of those devices is plugged into it: the switch of this
+   * room is not the one of the next room. Unlike `linked`, a chain of
+   * switches does not count.
+   */
+  z.object({
+    type: z.literal('sameSwitch'),
+    devices: z.array(oneDevice).min(1).max(20),
+    uplink: oneDevice.optional(),
+    apart: z.array(oneDevice).max(20).default([]),
+  }),
   /** The devices have addresses of one and the same IP network. */
   z.object({ type: z.literal('sameNetwork'), devices: z.array(deviceRef).min(1).max(20) }),
   z.object({

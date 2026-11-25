@@ -1,11 +1,13 @@
 import { IP_ANY, formatIp, parseIp, sameNetwork } from '../../engine/core/ipv4';
 import { Host } from '../../engine/devices/host';
+import { summarizeFrame } from '../../engine/net/describe';
 import type { Network } from '../../engine/network';
 import { LineClient } from '../../engine/services/echo';
 import { httpGet, type HttpResponse, type HttpResult } from '../../engine/services/http';
 import { lookupRoute, nextHop } from '../../engine/stack/routing';
 import { Terminal } from '../../engine/terminal/terminal';
 import { MASK_24, ip } from '../../engine/testing';
+import { cloneNetwork } from '../../project/clone';
 import { DEFAULT_PACK } from '../content/default-pack';
 import { lintNetwork } from '../diagnose/lint';
 import { tracePath } from '../diagnose/trace';
@@ -17,6 +19,7 @@ import { BUILTIN_ACTIVITIES } from './builtin';
 import { currentStep, evaluateAll, gateSteps, journalEntry, protectedDevices } from './evaluate';
 import { guardOf } from './protect';
 import { askQuestion, drawSalt, markAnswer, partsOf } from './questions';
+import { ROOMS } from './reseau-college';
 import { EMPTY_WORK, objectivesOf, type Activity, type ActivityQuestion, type Work } from './schema';
 
 const find = (network: Network, name: string) => {
@@ -208,6 +211,42 @@ const SOLUTIONS: Record<string, (network: Network) => Work> = {
     network.joinWifi(phone.id, 'Maison');
     return { ...EMPTY_WORK, simulated: true, commands: [journalEntry(pc.id, 'ipconfig')] };
   },
+  'reseau-college': (network) => {
+    const central = find(network, 'Switch salle info').id;
+    // Parties 1 et 2 : un switch par salle, relié au switch central ; le plan d'adressage.
+    const switches = ROOMS.map((room, index) => {
+      const sw = network.addSwitch();
+      network.connect(sw.id, central);
+      [...room.postes, room.printer].forEach((name, i) => {
+        const host = network.host(find(network, name).id);
+        network.connect(host.id, sw.id);
+        const last = name === room.printer ? 9 : i + 1;
+        host.updateConfig({ ip: ip(`192.168.1.${index + 1}${last}`), mask: MASK_24 });
+      });
+      return sw;
+    });
+    // Partie 3 : le serveur DHCP, puis un portable par salle, en Wi-Fi et en automatique.
+    const server = network.host(find(network, 'Serveur').id);
+    server.install('dhcpserver');
+    server.dhcpServer.updateConfig({ rangeStart: ip('192.168.1.100'), rangeEnd: ip('192.168.1.150') });
+    server.dhcpServer.setActive(true);
+    const [laptop] = switches.map((sw) => {
+      const host = network.addHost('laptop', { config: { useDhcp: true } });
+      network.setHostWifi(host.id, true);
+      network.joinWifi(host.id, sw.ssid);
+      return host;
+    });
+    const { activity } = BUILTIN_ACTIVITIES.find((a) => a.id === 'reseau-college')?.build() ?? {};
+    const work = {
+      ...EMPTY_WORK,
+      simulated: true,
+      commands: [
+        journalEntry(find(network, 'Poste 1A').id, 'ping'),
+        journalEntry(laptop?.id ?? '', 'ipconfig'),
+      ],
+    };
+    return activity ? answerAll(activity, work) : work;
+  },
   'deux-reseaux': (network) => {
     const router = network.router(find(network, 'Routeur').id);
     network.connect(router.id, find(network, 'Switch salle A').id);
@@ -326,6 +365,15 @@ const KNOWLEDGE: Record<string, readonly string[]> = {
     'q-defi-panne',
     'q-defi-nat',
     'q-defi-justifier',
+  ],
+  'reseau-college': [
+    'q-switch-salle',
+    'q-reglages',
+    'q-doublon',
+    'q-meme-reseau',
+    'q-nouveau-poste',
+    'q-adresse-fixe',
+    'q-bilan',
   ],
   'salle-techno': [
     'q-usages',
@@ -971,6 +1019,183 @@ describe('Activités fournies', () => {
     expect(parts[2]?.note).toContain('La 1re séance s’arrête ici');
     expect(parts[2]?.note).toContain('[[ecran:enregistrer]]');
     expect(parts[2]?.note).toContain('[[ecran:ouvrir]]');
+  });
+
+  test('Reconstruire le réseau du collège : le switch central est plein au troisième appareil ; un switch par salle', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'reseau-college');
+    if (!builtin) throw new Error('reseau-college');
+    const { network, activity } = builtin.build();
+    const status = (id: string) => evaluateAll(activity, network, EMPTY_WORK).get(id)?.status;
+    const central = network.switches.find((sw) => sw.name === 'Switch salle info');
+    if (!central) throw new Error('Switch salle info');
+    const id = (name: string) => find(network, name).id;
+    // Rien n'est câblé ni adressé dans les salles ; la salle informatique fonctionne et ne se modifie pas.
+    const [room1, room2] = ROOMS;
+    for (const name of ROOMS.flatMap((room) => [...room.postes, room.printer])) {
+      const host = network.host(id(name));
+      expect([host.iface.port.isConnected, host.config.ip], name).toEqual([false, IP_ANY]);
+    }
+    const guard = guardOf(activity);
+    expect(
+      ['Routeur du collège', 'Switch salle info', 'Serveur'].map((name) => guard.device(id(name))),
+    ).toEqual([true, true, false]);
+    expect(protectedDevices(activity).has(id('Serveur'))).toBe(true);
+
+    // Ce que l'élève essaie d'abord : tout brancher sur le switch de la salle informatique.
+    expect(central.ports.filter((p) => !p.isConnected)).toHaveLength(2);
+    network.connect(id('Poste 1A'), central.id);
+    network.connect(id('Poste 1B'), central.id);
+    expect(() => network.connect(id('Poste 1C'), central.id)).toThrow(
+      '« Switch salle info » n’a plus de port libre',
+    );
+    expect(['salle1-relie-1', 'salle1-relie-2', 'salle1-relie-3', 'salle1-un-cable'].map(status)).toEqual([
+      'done',
+      'done',
+      'todo',
+      'todo',
+    ]);
+
+    // Il libère les ports, pose un switch dans la salle 1 et y branche ses quatre appareils.
+    for (const name of ['Poste 1A', 'Poste 1B'])
+      network.disconnect(network.host(id(name)).iface.port.cable?.id ?? '');
+    const first = network.addSwitch();
+    for (const name of [...room1.postes, room1.printer]) network.connect(id(name), first.id);
+    expect(status('salle1-un-cable')).toBe('todo');
+    network.connect(first.id, central.id);
+    expect(status('salle1-un-cable')).toBe('done');
+
+    // La salle 2 branchée sur le switch de la salle 1 : reliée, mais sans son propre switch.
+    for (const name of [...room2.postes, room2.printer]) network.connect(id(name), first.id);
+    const outcomes = gateSteps(activity, evaluateAll(activity, network, EMPTY_WORK));
+    expect(outcomes.get('salle2-relie-1')?.status).toBe('locked');
+    expect(['salle2-relie-1', 'salle1-un-cable', 'salle2-un-cable'].map(status)).toEqual([
+      'done',
+      'todo',
+      'todo',
+    ]);
+    const second = network.addSwitch();
+    for (const name of [...room2.postes, room2.printer]) {
+      network.disconnect(network.host(id(name)).iface.port.cable?.id ?? '');
+      network.connect(id(name), second.id);
+    }
+    network.connect(second.id, central.id);
+    expect(['salle1-un-cable', 'salle2-un-cable'].map(status)).toEqual(['done', 'done']);
+    // Le switch central est complet : routeur, serveur, salle 1, salle 2.
+    expect(central.ports.every((p) => p.isConnected)).toBe(true);
+    expect(central.ports).toHaveLength(4);
+  });
+
+  test('Reconstruire le réseau du collège : le plan d’adressage de chaque salle est vérifié', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'reseau-college');
+    if (!builtin) throw new Error('reseau-college');
+    const { network, activity } = builtin.build();
+    SOLUTIONS['reseau-college']?.(network);
+    const status = (id: string) => evaluateAll(activity, network, EMPTY_WORK).get(id)?.status;
+    const poste = network.host(find(network, 'Poste 2A').id);
+    const outcome = (address: string, mask = MASK_24) => {
+      poste.updateConfig({ ip: ip(address), mask });
+      return [status('salle2-adresse-1'), status('salle2-meme-reseau')];
+    };
+    expect(outcome('192.168.1.28')).toEqual(['done', 'done']);
+    // Une adresse de la salle 1, celle de l'imprimante, une adresse déjà prise, un autre réseau.
+    expect(outcome('192.168.1.14')).toEqual(['todo', 'done']);
+    expect(outcome('192.168.1.29')).toEqual(['todo', 'done']);
+    expect(outcome('192.168.1.22')).toEqual(['todo', 'done']);
+    expect(outcome('192.168.2.21')).toEqual(['todo', 'todo']);
+    // Le masque compte : avec 255.255.0.0, Poste 2A n'est plus dans le réseau du Serveur.
+    expect(outcome('192.168.1.21', ip('255.255.0.0'))).toEqual(['done', 'todo']);
+    expect(outcome('192.168.1.21')).toEqual(['done', 'done']);
+  });
+
+  test('Reconstruire le réseau du collège : ce que l’élève doit observer est bien ce que montre le simulateur', () => {
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'reseau-college');
+    if (!builtin) throw new Error('reseau-college');
+    const { network, activity } = builtin.build();
+    const answers = expectedAnswers(activity);
+    const central = network.switches.find((sw) => sw.name === 'Switch salle info');
+    if (!central) throw new Error('Switch salle info');
+
+    // Partie 1 : les ports libres du switch central, au départ.
+    const free = central.ports.filter((p) => !p.isConnected).length;
+    expect(answers.text('q-ports')).toContain(`${free} ports libres`);
+    expect(answers.explanation('q-ports')).toContain(`${central.ports.length} ports`);
+
+    SOLUTIONS['reseau-college']?.(network);
+    const { sim } = prepareProbe(network);
+    const host = (name: string) => sim.host(find(sim, name).id);
+    const pings = (from: string, to: string) =>
+      run(sim, host(from), `ping ${formatIp(host(to).iface.ip)}`).some((line) => line.includes('temps='));
+
+    // Le trajet de Poste 1A à Poste 2A : les trois switchs voient passer le message, dans cet ordre.
+    const seen: string[] = [];
+    sim.events.on('transmit', (event) => {
+      const from = sim.device(event.from);
+      if (from?.kind === 'switch' && seen.at(-1) !== from.name) seen.push(from.name);
+    });
+    expect(pings('Poste 1A', 'Poste 2A')).toBe(true);
+    const [room1, room2] = ['Poste 1A', 'Poste 2A'].map(
+      (name) =>
+        sim.cables.flatMap((c) => (c.a === host(name).id ? [c.b] : c.b === host(name).id ? [c.a] : []))[0],
+    );
+    const trip = [sim.device(room1 ?? '')?.name, 'Switch salle info', sim.device(room2 ?? '')?.name];
+    expect(seen.slice(0, 3)).toEqual(trip);
+    const q = activity.steps.flatMap((s) => s.objectives).find((o) => o.id === 'q-trajet')?.check;
+    const items = q?.type === 'question' && q.question.type === 'order' ? q.question.items : [];
+    answers.prompt('q-trajet');
+    expect(items).toEqual([
+      'Poste 1A',
+      'Le switch de la salle 1',
+      'Le Switch salle info',
+      'Le switch de la salle 2',
+      'Poste 2A',
+    ]);
+
+    // Partie 3 : les portables ont reçu une adresse de la plage, dans le masque du collège.
+    const laptops = sim.devices.filter((d): d is Host => d instanceof Host && d.kind === 'laptop');
+    const received = laptops.map((d) => formatIp(d.iface.ip)).sort();
+    expect(received).toEqual(['192.168.1.100', '192.168.1.101']);
+    const address = answers.choices('q-dhcp-adresse');
+    expect(received).toContain(address.right[0]);
+    expect(address.wrong.filter((choice) => received.includes(choice))).toEqual([]);
+    expect(shownByIpconfig(sim, host('Portable 1'))('Masque de sous-réseau')).toBe('255.255.255.0 (/24)');
+    expect(pings('Portable 1', 'Portable 2')).toBe(true);
+
+    // L'échange DHCP, tel que « Échanges de données » le raconte après « ipconfig /renew ».
+    // La fenêtre du portable ne montre que ce qu'il envoie et reçoit : ce qui passe par sa liaison Wi-Fi.
+    const told: string[] = [];
+    const wifi = host('Portable 1').iface.port.cable?.id;
+    sim.events.on('transmit', (event) => {
+      const info = summarizeFrame(event.frame).info;
+      if (event.cableId === wifi && /\((DISCOVER|OFFER|REQUEST|ACK)\)$/.test(info)) told.push(info);
+    });
+    run(sim, host('Portable 1'), 'ipconfig /renew');
+    expect(told.map((info) => info.replace(/^.*\((\w+)\)$/, '$1'))).toEqual([
+      'DISCOVER',
+      'OFFER',
+      'REQUEST',
+      'ACK',
+    ]);
+    expect(told[0]).toContain('Qui peut me donner une adresse ?');
+
+    // Le câble de la salle 2 débranché : la salle se parle encore, mais plus au reste du collège.
+    const uplink = sim.cables.find(
+      (c) => [c.a, c.b].includes(room2 ?? '') && [c.a, c.b].includes(central.id),
+    );
+    sim.disconnect(uplink?.id ?? '');
+    expect([pings('Poste 2A', 'Poste 2B'), pings('Poste 2A', 'Serveur')]).toEqual([true, false]);
+    expect(answers.text('q-cable-coupe')).toMatch(/communiquent encore entre eux, mais plus avec le reste/);
+
+    // Sans serveur DHCP, un portable reste sans adresse.
+    const stopped = cloneNetwork(network);
+    stopped.host(find(stopped, 'Serveur').id).dhcpServer.setActive(false);
+    const { sim: silent } = prepareProbe(stopped);
+    expect(
+      silent.devices.filter((d) => d instanceof Host && d.kind === 'laptop' && d.iface.ip !== IP_ANY),
+    ).toEqual([]);
+    expect(answers.text('q-dhcp-arrete')).toMatch(/sans adresse/);
+    answers.prompt('q-dhcp-ordre');
+
+    expect(answers.unread()).toEqual(KNOWLEDGE['reseau-college']);
   });
 
   test('chaque appel construit un nouveau réseau de départ', () => {

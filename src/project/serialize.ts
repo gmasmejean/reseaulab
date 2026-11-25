@@ -191,6 +191,8 @@ export function toProject(network: Network): ProjectFile {
       y: device.position.y,
       ports: device.ports.length,
       ssid: device instanceof Switch ? device.ssid : undefined,
+      // Only written when set: files of networks without it stay as they were.
+      ...(device instanceof Switch && device.fixedPorts ? { fixedPorts: true } : {}),
     };
   });
   return {
@@ -314,6 +316,7 @@ export function fromProject(project: ProjectFile): Network {
         position: { x: device.x, y: device.y },
         ports: device.ports,
         ...(device.ssid === undefined ? {} : { ssid: device.ssid }),
+        ...(device.fixedPorts === true ? { fixedPorts: true } : {}),
       });
     } else if (device.kind === 'router') {
       loadRouter(network, device);

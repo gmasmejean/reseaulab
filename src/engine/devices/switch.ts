@@ -13,7 +13,8 @@ export interface MacTableEntry {
 /**
  * Learning switch: remembers on which port each source MAC was seen
  * (source address table) and floods frames for unknown destinations.
- * It gains a new port whenever all ports are cabled.
+ * It gains a new port whenever all ports are cabled, unless its number of
+ * ports is fixed: a full switch then refuses one more cable, as a real one.
  */
 export class Switch extends Device {
   private readonly table = new Map<Mac, number>();
@@ -26,6 +27,8 @@ export class Switch extends Device {
     portCount = 4,
     /** Name of its Wi-Fi network: like in Filius, every switch is also an access point. */
     public ssid = 'Wifi',
+    /** A real switch has so many sockets and no more: no port is added when all are used. */
+    readonly fixedPorts = false,
   ) {
     super(id, 'switch', name, position, ctx);
     for (let i = 0; i < portCount; i++) this.addPort();
@@ -35,13 +38,13 @@ export class Switch extends Device {
     return [...this.table].map(([mac, port]) => ({ mac, port }));
   }
 
-  override freePort(): Port {
-    return super.freePort() ?? this.addPort();
+  override freePort(): Port | null {
+    return super.freePort() ?? (this.fixedPorts ? null : this.addPort());
   }
 
   override portAt(index: number): Port | null {
     if (!Number.isInteger(index) || index < 0 || index > 255) return null;
-    while (this.ports.length <= index) this.addPort();
+    while (!this.fixedPorts && this.ports.length <= index) this.addPort();
     return super.portAt(index);
   }
 

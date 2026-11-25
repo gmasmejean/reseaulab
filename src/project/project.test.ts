@@ -1,4 +1,5 @@
 import { Host as HostClass, type Host } from '../engine/devices/host';
+import { Network } from '../engine/network';
 import { exampleNetwork } from './example';
 import { ip, ping, routedNetwork, settle } from '../engine/testing';
 import { httpGet, type HttpResult } from '../engine/services/http';
@@ -80,6 +81,26 @@ describe('Projet', () => {
       httpGet(a2, 'http://192.168.2.10/', done); // DNS (UDP 53) is blocked by the firewall
     });
     expect(result.kind === 'ok' && result.response.body).toBe('<h1>Projet</h1>');
+  });
+
+  test('un switch au nombre de ports fixe le reste après enregistrement ; les autres fichiers ne changent pas', () => {
+    const net = new Network();
+    const fixed = net.addSwitch({ name: 'Central', ports: 2, fixedPorts: true });
+    const open = net.addSwitch({ name: 'Salle' });
+    net.connect(fixed.id, open.id);
+    const project = toProject(net);
+    // Le champ n'est écrit que s'il est posé : les fichiers des autres réseaux restent les mêmes.
+    expect(project.devices.map((d) => ('fixedPorts' in d ? d.fixedPorts : 'absent'))).toEqual([
+      true,
+      'absent',
+    ]);
+    const loaded = parseProject(serializeProject(net));
+    const [fixed2, open2] = loaded.switches;
+    expect([fixed2?.fixedPorts, open2?.fixedPorts]).toEqual([true, false]);
+    loaded.connect(loaded.addHost('computer').id, fixed2?.id ?? '');
+    expect(() => loaded.connect(loaded.addHost('computer').id, fixed2?.id ?? '')).toThrow(
+      'plus de port libre',
+    );
   });
 
   test('les ports des câbles sont conservés', () => {

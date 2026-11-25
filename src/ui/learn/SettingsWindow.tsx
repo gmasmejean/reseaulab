@@ -28,6 +28,7 @@ const FEATURE_LABEL: Record<Feature, string> = {
   'mac-table': 'table des adresses MAC',
   tables: 'tables de routage et ARP',
   notes: 'textes et zones',
+  'mask-default': 'masque 255.255.255.0 proposé avec l’adresse',
 };
 
 const LEVEL_HINT: Record<ProfileLevel, string> = {

@@ -73,7 +73,8 @@ complète pèse moins de 100 Ko.
   bas (adresse IP, masque, passerelle, DNS, DHCP, interfaces et routes du
   routeur, pare-feu). Une valeur tapée est prise en compte dès qu'on quitte le
   champ (Entrée, Tab ou clic ailleurs) ; le masque `255.255.255.0` est proposé
-  avec la première adresse. Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
+  avec la première adresse (sauf dans une activité qui le fait taper : son
+  profil masque `feature:mask-default`). Un routeur a de 2 à 8 interfaces, que l'on ajoute ou
   retire dans son onglet « Interfaces ». Les outils **Texte** et **Zone** ajoutent des annotations
   sur le plan. Touche Suppr pour effacer la sélection ; **Ctrl+Z** annule,
   **Ctrl+Y** rétablit (50 étapes). Le plan s'ajuste à l'écran ; les boutons
@@ -172,10 +173,11 @@ pédagogique » plus bas).
 
 ### Activités guidées
 
-Le bouton **Activités** propose sept activités prêtes à l'emploi : « Mon
-premier réseau », « Ajouter un objet connecté », « Le réseau de la maison »
-et « La salle de techno » (4e), « Relier deux réseaux », « Dépannage : le
-site du collège ne s'affiche plus » et « Du collège au musée » (3e).
+Le bouton **Activités** propose huit activités prêtes à l'emploi : « Mon
+premier réseau », « Ajouter un objet connecté », « Le réseau de la maison »,
+« La salle de techno » et « Reconstruire le réseau du collège » (4e),
+« Relier deux réseaux », « Dépannage : le site du collège ne s'affiche
+plus » et « Du collège au musée » (3e).
 
 **La salle de techno** dure deux séances, plus un bonus. La partie 1 fait
 réviser la 5e par des questions et des manipulations (composants, câble et
@@ -189,6 +191,19 @@ octets et les masques. L'élève enregistre son fichier à la fin de la premièr
 séance et le rouvre à la suivante. Le **routeur du collège est protégé** :
 l'élève lit ses deux adresses mais ne peut ni les changer ni le débrancher
 (les pannes à réparer sont toutes sur les terminaux).
+
+**Reconstruire le réseau du collège** (4e) part d'un plan en trois zones :
+la salle informatique, déjà en service (routeur vers Internet, serveur,
+switch), et deux salles de cours où trois postes et une imprimante attendent
+d'être branchés. Le switch de la salle informatique n'a que **quatre ports** :
+en essayant d'y relier toute une salle, l'élève lit « n'a plus de port
+libre » et en déduit qu'il faut un switch par salle, relié par un seul câble.
+Il suit ensuite un plan d'adressage (une plage par salle) en tapant l'adresse
+et le masque de chaque appareil — le masque n'est pas proposé ici —, teste d'une salle à
+l'autre avec `ping`, puis installe un serveur DHCP pour des portables qui
+rejoignent le Wi-Fi de leur salle et lit l'échange dans « Échanges de
+données ». Les questions de compréhension sont regroupées à la fin. La durée
+indiquée (110 min) est indicative.
 
 **Du collège au musée** (3e) dure deux séances de 1 h 30, plus un bonus. Les
 titres des parties disent la séance. En séance 1, la partie 1 vérifie les
@@ -341,6 +356,19 @@ dans la version à distribuer aux élèves. `"teacherNote"` est une remarque
 pour vous seul, absente de cette version. Comme les réponses des questions,
 ces textes restent lisibles par qui ouvre le fichier dans un éditeur de
 texte.
+
+Un objectif `sameSwitch` vérifie que des équipements sont branchés
+**directement** sur un même switch, là où `linked` accepte une chaîne de
+switchs : `{ "type": "sameSwitch", "devices": [...], "uplink": {...},
+"apart": [...] }`. Avec `uplink`, ce switch doit être relié par un câble à
+l'équipement cité (le switch central) ; avec `apart`, aucun des équipements
+cités ne doit y être branché (le switch d'une salle n'est pas celui de la
+salle voisine).
+
+Un switch gagne un port dès que tous sont occupés. Pour qu'il se comporte
+comme un vrai, avec un nombre de ports qui ne change pas, il porte dans
+`network` le champ `"fixedPorts": true` à côté de `"ports"` : plein, il
+refuse un câble de plus (« n'a plus de port libre »).
 
 Un objectif `config` sur une adresse peut imposer la plage d'un plan
 d'adressage, bornes comprises : `"range": { "from": "192.168.10.1", "to":
