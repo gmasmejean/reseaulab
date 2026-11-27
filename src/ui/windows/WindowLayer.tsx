@@ -64,7 +64,11 @@ function WindowContent({ w }: { w: OpenWindow }) {
     return (
       <Window window={w} title="Aide et connaissances">
         {/* Asking for another card opens it, whatever was being read. */}
-        <KnowledgeWindow key={`${spec.notion ?? ''}@${spec.at ?? 0}`} notion={spec.notion} />
+        <KnowledgeWindow
+          key={`${spec.notion ?? ''}@${spec.at ?? 0}`}
+          notion={spec.notion}
+          alone={spec.alone === true}
+        />
       </Window>
     );
   }

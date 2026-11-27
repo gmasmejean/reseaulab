@@ -22,7 +22,6 @@ export type WindowKind =
         | 'capture'
         | 'switch'
         | 'router'
-        | 'help'
         | 'diagnose'
         | 'settings'
         | 'activities'
@@ -31,6 +30,8 @@ export type WindowKind =
         | 'author'
         | 'answers';
     }
+  /** `alone`: a card read for itself, without the list of the cards beside it. */
+  | { readonly type: 'help'; readonly alone?: boolean }
   | { readonly type: 'app'; readonly app: AppId | 'software' };
 
 const APP_SIZE: Partial<Record<AppId | 'software', Size>> = {
@@ -59,6 +60,18 @@ const TYPE_SIZE: Record<Exclude<WindowKind['type'], 'app'>, Size> = {
   answers: { width: 780, height: 600 },
 };
 
+/**
+ * A card read alone: a column of text about 65 characters wide, as high as
+ * the stage allows, since a card is longer than it is wide.
+ */
+const CARD_SIZE: Size = { width: 560, height: 720 };
+/**
+ * On a wide stage the card takes half of it, up to the width where its lines
+ * reach 42 em: longer ones are harder to read, whatever the room left.
+ */
+const CARD_WIDTH_SHARE = 0.5;
+const CARD_MAX_WIDTH = 720;
+
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 180;
 /** Free space kept around a window that fits in the stage. */
@@ -67,8 +80,11 @@ const MARGIN = 8;
 const CASCADE = 26;
 /** A window never takes more than this share of the stage width by default. */
 const MAX_WIDTH_SHARE = 0.55;
-/** The help is read for itself, not beside a device: it may take more room. */
-const HELP_WIDTH_SHARE = 0.75;
+/**
+ * The help is read for itself, not beside a device: it may take more room,
+ * so that a card keeps a readable width beside the list of the cards.
+ */
+const HELP_WIDTH_SHARE = 0.85;
 /** Part of the title bar that always stays reachable. */
 const GRIP_WIDTH = 120;
 const GRIP_HEIGHT = 36;
@@ -76,6 +92,7 @@ const GRIP_HEIGHT = 36;
 /** Size a window would like to have. */
 export function defaultWindowSize(kind: WindowKind): Size {
   if (kind.type === 'app') return APP_SIZE[kind.app] ?? { width: 600, height: 440 };
+  if (kind.type === 'help' && kind.alone === true) return CARD_SIZE;
   return TYPE_SIZE[kind.type];
 }
 
@@ -85,10 +102,24 @@ export function fitWindow(size: Size, stage: Size | null, kind?: WindowKind): Si
   const share = kind?.type === 'help' ? HELP_WIDTH_SHARE : MAX_WIDTH_SHARE;
   const maxWidth = Math.max(MIN_WIDTH, Math.min(stage.width - 2 * MARGIN, stage.width * share));
   const maxHeight = Math.max(MIN_HEIGHT, stage.height - 2 * MARGIN);
+  const alone = kind?.type === 'help' && kind.alone === true;
+  const wanted = alone
+    ? Math.max(size.width, Math.min(CARD_MAX_WIDTH, stage.width * CARD_WIDTH_SHARE))
+    : size.width;
   return {
-    width: Math.round(Math.min(size.width, maxWidth)),
+    width: Math.round(Math.min(wanted, maxWidth)),
     height: Math.round(Math.min(size.height, maxHeight)),
   };
+}
+
+/**
+ * Left edge of a window whose width changes: its right edge stays where it
+ * is, as long as the window stays in the stage.
+ */
+export function widenFromRight(window: Rect, width: number, stage: Size | null): number {
+  const x = window.x + window.width - width;
+  if (!stage) return Math.max(0, x);
+  return Math.round(Math.max(MARGIN, Math.min(x, stage.width - width - MARGIN)));
 }
 
 /** Keeps the title bar of a window reachable. */

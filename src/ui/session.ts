@@ -5,7 +5,7 @@ import type { DropReason } from '../engine/net/drop';
 import { ConnectError, Network } from '../engine/network';
 import type { AppId } from '../engine/services/catalog';
 import { exampleNetwork } from '../project/example';
-import { contextualNotion } from '../learn/content/context';
+import { DEVICE_NOTION, contextualNotion } from '../learn/content/context';
 import type { PathId } from '../learn/content/order';
 import { DEFAULT_PACK } from '../learn/content/default-pack';
 import { mergePacks } from '../learn/content/merge';
@@ -62,6 +62,7 @@ import {
   defaultWindowSize,
   fitWindow,
   placeWindow,
+  widenFromRight,
   type Point,
   type Rect,
   type Size,
@@ -79,8 +80,11 @@ export type WindowSpec =
   | { readonly type: 'switch'; readonly deviceId: string }
   /** Routing and ARP tables, of a router or of a computer. */
   | { readonly type: 'router'; readonly deviceId: string }
-  /** « Aide et connaissances », opened on a knowledge card when `notion` is given. */
-  | { readonly type: 'help'; readonly notion?: string; readonly at?: number }
+  /**
+   * « Aide et connaissances », opened on a knowledge card when `notion` is
+   * given. `alone`: the card is read for itself, the list of the cards folded.
+   */
+  | { readonly type: 'help'; readonly notion?: string; readonly at?: number; readonly alone?: boolean }
   /**
    * « Vérifier le réseau ». With `from` and `to`, the communication between
    * them is tested at once; `at` tells two requests for the same test apart.
@@ -116,6 +120,8 @@ export interface OpenWindow {
   readonly width: number;
   readonly height: number;
 }
+
+type HelpWindow = OpenWindow & { readonly spec: Extract<WindowSpec, { type: 'help' }> };
 
 /** What the last « Vérifier mon travail » found: the pupil must see that the click counted. */
 export interface CheckReport {
@@ -808,32 +814,62 @@ export class Session {
   }
 
   /**
-   * Opens « Aide et connaissances » on the card asked for, or else where the
-   * pupil left it (the guide of the current mode the first time).
+   * Opens « Aide et connaissances ». On the card asked for, read alone: the
+   * pupil came for it, not for the list of the cards. Without one (the Aide
+   * button), with the list, where the pupil left it (the home page of the
+   * help the first time).
    */
   openKnowledge(notion?: string): void {
-    this.openHelpOn(notion ?? this.helpTarget(false));
+    if (notion === undefined) this.openHelpOn(this.helpTarget(undefined), false);
+    else this.openHelpOn(notion, true);
   }
 
-  /** F1: the help about the selected device, or else as the Aide button. */
+  /** F1: the help about the selected device, read alone, or else as the Aide button. */
   openContextHelp(): void {
-    this.openHelpOn(this.helpTarget(true));
+    const selected = this.selection?.kind === 'device' ? this.network.device(this.selection.id) : undefined;
+    const card = this.helpTarget(selected?.kind);
+    this.openHelpOn(card, selected !== undefined && card === DEVICE_NOTION[selected.kind]);
   }
 
-  private helpTarget(aboutSelection: boolean): string | undefined {
-    const selected =
-      aboutSelection && this.selection?.kind === 'device'
-        ? this.network.device(this.selection.id)
-        : undefined;
+  private helpTarget(device: DeviceKind | undefined): string | undefined {
     return contextualNotion({
-      device: selected?.kind,
+      device,
       lastRead: this.reading.current,
       exists: (id) => this.notion(id) !== undefined,
     });
   }
 
-  private openHelpOn(card: string | undefined): void {
-    this.openWindow({ type: 'help', ...(card === undefined ? {} : { notion: card }), at: this.revision });
+  /**
+   * A help already open keeps the look the pupil gave it when another card is
+   * asked for; the Aide button always brings the list back.
+   */
+  private openHelpOn(card: string | undefined, alone: boolean): void {
+    const open = this.helpWindow;
+    this.openWindow({
+      type: 'help',
+      ...(card === undefined ? {} : { notion: card }),
+      at: this.revision,
+      alone: open ? open.spec.alone === true : alone,
+    });
+    if (!alone) this.setHelpList(true);
+  }
+
+  private get helpWindow(): HelpWindow | undefined {
+    return this.windows.find((w): w is HelpWindow => w.spec.type === 'help');
+  }
+
+  /**
+   * Shows the list of the cards beside the one read, or folds it. The window
+   * takes the width that goes with it, from its right edge.
+   */
+  setHelpList(shown: boolean): void {
+    const w = this.helpWindow;
+    if (!w || (w.spec.alone !== true) === shown) return;
+    const spec: WindowSpec = { ...w.spec, alone: !shown };
+    const { width } = fitWindow(defaultWindowSize(spec), this.viewport, spec);
+    const x = widenFromRight(w, width, this.viewport);
+    this.windows = this.windows.map((other) => (other.id === w.id ? { ...w, spec, x, width } : other));
+    this.touch();
   }
 
   /** A seed for a draw of questions: another one each time (from the clock). */
@@ -1427,7 +1463,8 @@ export class Session {
     if (!this.viewport) return { ...placeWindow(size, null, side, others.length), ...size };
     const own = this.anchorOf(spec);
     return chooseWindowPlace(size, this.viewport, side, {
-      devices: this.network.devices.map((d) => this.deviceRect(d)),
+      // The help is read for itself: it opens at its full height, whatever it covers.
+      devices: spec.type === 'help' ? [] : this.network.devices.map((d) => this.deviceRect(d)),
       own: own ? this.deviceRect(own) : null,
       windows: others,
     });

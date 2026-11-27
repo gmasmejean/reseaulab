@@ -19,6 +19,8 @@
   --layer-transport: #e4f4e8;
   --layer-application: #f3e5fb;
   --radius: 8px;
+  /* Text of a knowledge card: read at length, by pupils, sometimes from a distance. */
+  --reading-size: 16px;
   --shadow: 0 10px 30px rgb(15 23 42 / 0.18);
   color-scheme: light;
   font-family:
@@ -1713,10 +1715,27 @@ button.term-help[aria-expanded='true'] {
 }
 .knowledge {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 16px;
   flex: 1;
   min-height: 0;
+}
+/* A card read for itself: nothing beside it. */
+.knowledge.alone {
+  grid-template-columns: minmax(0, 1fr);
+}
+.knowledge-search {
+  display: flex;
+  gap: 6px;
+}
+.knowledge-search input {
+  flex: 1;
+  min-width: 0;
+}
+.knowledge-search button {
+  flex: none;
+  padding-inline: 8px;
+  color: var(--muted);
 }
 .knowledge-index {
   display: flex;
@@ -1859,19 +1878,22 @@ button.term-help[aria-expanded='true'] {
 }
 .knowledge-steps {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   flex: none;
 }
 .knowledge-steps button {
   padding-block: 3px;
+  white-space: nowrap;
 }
-.knowledge-steps button:nth-child(2) {
-  margin-right: auto;
+.knowledge-steps-end {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 .knowledge-home h2 {
   margin: 0 0 6px;
-  font-size: 1.25rem;
+  font-size: 1.3em;
 }
 .path-list {
   list-style: none;
@@ -1892,7 +1914,7 @@ button.term-help[aria-expanded='true'] {
 }
 .path-card h3 {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 1.05em;
 }
 .path-card p {
   margin: 0;
@@ -1918,7 +1940,16 @@ button.term-help[aria-expanded='true'] {
   overflow-y: auto;
   min-height: 0;
   padding-right: 6px;
-  line-height: 1.5;
+  font-size: var(--reading-size);
+  line-height: 1.6;
+}
+.knowledge.alone .knowledge-card {
+  padding: 4px 10px 12px 6px;
+}
+/* Lines stay short enough to be read, however wide the window is made. */
+.notion,
+.knowledge-home > p {
+  max-width: 42em;
 }
 .notion header {
   display: flex;
@@ -1927,11 +1958,12 @@ button.term-help[aria-expanded='true'] {
 }
 .notion h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.35em;
+  line-height: 1.25;
 }
 .notion h3 {
   margin: 0 0 4px;
-  font-size: 1rem;
+  font-size: 1em;
 }
 .level-badge {
   flex: none;
@@ -1943,13 +1975,17 @@ button.term-help[aria-expanded='true'] {
   font-weight: 600;
 }
 .notion-short {
-  margin: 8px 0;
+  margin: 10px 0;
   font-size: 1.05em;
   font-weight: 600;
 }
 .rich-text p,
 .rich-text ul {
-  margin: 0 0 8px;
+  margin: 0 0 0.7em;
+}
+.rich-text li + li,
+.notion-remember li + li {
+  margin-top: 0.25em;
 }
 .rich-text ul,
 .notion-remember ul {

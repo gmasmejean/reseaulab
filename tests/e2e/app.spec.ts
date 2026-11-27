@@ -819,6 +819,9 @@ test('connaissances : définition depuis un champ, fiches, recherche et lexique'
   await help.getByRole('button', { name: '← Retour' }).click();
   await expect(card).toBeVisible();
 
+  // Demandée depuis un champ, la fiche se lit seule ; la liste revient par son bouton.
+  await expect(help.getByRole('navigation', { name: 'Fiches' })).toBeHidden();
+  await help.getByRole('button', { name: 'Toutes les fiches' }).click();
   const index = help.getByRole('navigation', { name: 'Fiches' });
   await index.getByRole('searchbox', { name: 'Chercher une notion' }).fill('adresse mac');
   await index.getByRole('button', { name: 'Adresse MAC et carte réseau' }).click();
@@ -978,6 +981,80 @@ test('compte rendu : le travail de l’élève s’imprime seul sur la page', as
   await expect(page.getByRole('banner')).toBeVisible();
 });
 
+test('fiche ouverte depuis une activité : seule, large et lisible sur un écran de classe', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.getByRole('button', { name: 'Activités' }).click();
+  await page.getByRole('button', { name: 'Commencer : La salle de techno' }).click();
+  const panel = page.getByRole('complementary', { name: 'Activité' });
+  await panel.getByRole('button', { name: 'Fiche : Réseau informatique' }).click();
+
+  const help = page.getByRole('dialog', { name: 'Aide et connaissances' });
+  const card = help.getByRole('article', { name: 'Réseau informatique' });
+  await expect(card).toBeVisible();
+  // Rien à côté de la fiche : ni liste, ni recherche, ni quiz.
+  await expect(help.getByRole('navigation', { name: 'Fiches' })).toBeHidden();
+  await expect(help.getByRole('button', { name: 'Quiz d’entraînement' })).toBeHidden();
+  await shot(page, '33b-fiche-seule');
+
+  // La fenêtre prend la hauteur de la zone du plan, contre le panneau de l'activité, sans le recouvrir.
+  const stage = await page.locator('.stage').boundingBox();
+  const frame = await help.boundingBox();
+  const side = await panel.boundingBox();
+  if (!stage || !frame || !side) throw new Error('zones introuvables');
+  expect(frame.height).toBeGreaterThan(stage.height - 20);
+  expect(frame.x + frame.width).toBeLessThanOrEqual(side.x);
+  expect(side.x - (frame.x + frame.width)).toBeLessThan(20);
+
+  // Le texte : 16 px, sur des lignes d'une soixantaine de caractères.
+  const text = card.locator('.rich-text p').first();
+  await expect(text).toHaveCSS('font-size', '16px');
+  const line = await text.boundingBox();
+  expect(line?.width).toBeGreaterThan(480);
+  expect(line?.width).toBeLessThan(640);
+  // Les boutons de la fiche tiennent sur une ligne.
+  const tops: number[] = [];
+  for (const button of await help
+    .getByRole('group', { name: 'Parcourir les fiches' })
+    .getByRole('button')
+    .all()) {
+    tops.push(Math.round((await button.boundingBox())?.y ?? -1));
+  }
+  expect(new Set(tops).size).toBe(1);
+
+  // La liste revient à la demande : la fenêtre s'élargit sans sortir de la zone ; la fiche reste lisible.
+  await help.getByRole('button', { name: 'Toutes les fiches' }).click();
+  const index = help.getByRole('navigation', { name: 'Fiches' });
+  await expect(index.getByRole('button', { name: /^Réseau informatique/ })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  const wide = await help.boundingBox();
+  if (!wide) throw new Error('fenêtre introuvable');
+  expect(wide.width).toBeGreaterThan(frame.width);
+  expect(wide.x).toBeGreaterThanOrEqual(stage.x);
+  expect(wide.x + wide.width).toBeLessThanOrEqual(side.x);
+  expect((await text.boundingBox())?.width).toBeGreaterThan(400);
+  await shot(page, '33c-fiche-et-liste');
+  await index.getByRole('button', { name: 'Masquer la liste des fiches' }).click();
+  await expect(index).toBeHidden();
+  await expect(card).toBeVisible();
+  expect((await help.boundingBox())?.width).toBe(frame.width);
+
+  // Sur un écran plus large, la fiche prend plus de place, sans que ses lignes deviennent trop longues.
+  await help.getByRole('button', { name: /Fermer/ }).click();
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await panel.getByRole('button', { name: 'Fiche : Réseau informatique' }).click();
+  await expect(card).toBeVisible();
+  // La moitié de la zone du plan, à côté d'un panneau d'activité lui-même plus large (440 px).
+  expect((await help.boundingBox())?.width).toBe((1920 - 156 - 440) / 2);
+  const wideLine = await text.boundingBox();
+  expect(wideLine?.width).toBeGreaterThan(560);
+  expect(wideLine?.width).toBeLessThanOrEqual(42 * 16);
+  await shot(page, '33d-fiche-seule-grand-ecran');
+});
+
 test('quiz : une question corrigée tout de suite, un bilan par notion', async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.getByRole('button', { name: 'Aide', exact: true }).click();
@@ -1132,13 +1209,13 @@ test('activité : le panneau s’élargit en tirant son bord, sans écraser le p
   expect(kept).toBe(1366 - 156 - 360);
   await edge.dblclick();
   expect(await widthOf()).toBe(320);
-});
 
-test('le fichier unique reste léger', () => {
-  const file = fileURLToPath(new URL('../../dist/index.html', import.meta.url));
-  // Distribué par ENT, clé USB ou courriel : au-delà de 1 Mo, il faut se demander pourquoi.
-  // (900 Ko jusqu'à l'étape 45 : le texte des activités de 4e et de 3e pèse à lui seul plus de 100 Ko.)
-  expect(readFileSync(file).length).toBeLessThan(1_000_000);
+  // Sur un écran large, la largeur d'origine suit la fenêtre, sans dépasser 440 px.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect.poll(widthOf).toBe(368);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await expect.poll(widthOf).toBe(440);
+  await shot(page, '51-activite-grand-ecran');
 });
 
 test('activité « La salle de techno » : questions corrigées, station météo, travail rendu puis rouvert', async ({

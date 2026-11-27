@@ -1366,6 +1366,7 @@ describe('Aide et connaissances', () => {
     fireEvent.keyDown(window, { key: 'F1' });
     const help = () => screen.getByRole('dialog', { name: 'Aide et connaissances' });
     expect(within(help()).getByRole('region', { name: 'Accueil de l’aide' })).toBeInTheDocument();
+    expect(within(help()).getByRole('navigation', { name: 'Fiches' })).toBeInTheDocument();
     fireEvent.click(within(help()).getByRole('button', { name: 'Adresse IP' }));
     fireEvent.click(within(help()).getByRole('button', { name: /Fermer/ }));
 
@@ -1380,6 +1381,8 @@ describe('Aide et connaissances', () => {
     });
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Nom' }), { key: 'F1' });
     expect(within(help()).getByRole('article', { name: 'Routeur' })).toBeInTheDocument();
+    // La fiche de l'équipement regardé se lit seule ; sans sélection, F1 ouvre l'aide avec sa liste.
+    expect(within(help()).queryByRole('navigation', { name: 'Fiches' })).not.toBeInTheDocument();
     fireEvent.click(within(help()).getByRole('button', { name: '← Retour' }));
     expect(within(help()).getByRole('article', { name: 'Adresse IP' })).toBeInTheDocument();
     fireEvent.click(within(help()).getByRole('button', { name: '← Retour' }));
@@ -1432,6 +1435,7 @@ describe('Aide et connaissances', () => {
     const palette = screen.getByRole('complementary', { name: 'Palette d’équipements' });
     expect(within(palette).getByRole('button', { name: 'Câble' })).toHaveClass('ui-flash');
 
+    fireEvent.click(within(help).getByRole('button', { name: 'Toutes les fiches' }));
     fireEvent.click(within(help).getByRole('button', { name: 'Observer les échanges' }));
     fireEvent.click(screen.getByRole('button', { name: 'légende (me montrer à l’écran)' }));
     expect(screen.getByRole('status')).toHaveTextContent(
@@ -1462,6 +1466,7 @@ describe('Aide et connaissances', () => {
     expect(check).toHaveTextContent('✔ Bonne réponse !');
 
     // Trois questions sur l’adresse IP : « Une autre question » passe à la suivante.
+    fireEvent.click(within(help).getByRole('button', { name: 'Toutes les fiches' }));
     const index = within(help).getByRole('navigation', { name: 'Fiches' });
     fireEvent.click(within(index).getByRole('button', { name: 'Adresse IP' }));
     const ipCheck = within(help).getByRole('region', { name: 'Pour vérifier' });
@@ -1527,6 +1532,7 @@ describe('Aide et connaissances', () => {
       expect(document.querySelector('.print-cards')).toBeNull();
       expect(document.body.dataset.print).toBeUndefined();
 
+      fireEvent.click(within(help).getByRole('button', { name: 'Toutes les fiches' }));
       fireEvent.click(within(help).getByRole('button', { name: '⌂ Accueil' }));
       fireEvent.click(within(help).getByRole('button', { name: 'Imprimer les fiches : Les notions de 5e' }));
       expect(print).toHaveBeenCalledTimes(2);
@@ -1534,6 +1540,18 @@ describe('Aide et connaissances', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  test('liste masquée pendant un parcours : « Fiche suivante » reste, et suit le parcours', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    fireEvent.click(within(help).getByRole('button', { name: 'Commencer : Premiers pas' }));
+    fireEvent.click(within(help).getByRole('button', { name: 'Masquer la liste des fiches' }));
+    expect(within(help).getByRole('article', { name: 'Construire un réseau' })).toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: 'Fiche suivante →' }));
+    expect(within(help).getByRole('article', { name: 'Configurer un équipement' })).toBeInTheDocument();
+    expect(within(help).queryByRole('navigation', { name: 'Fiches' })).not.toBeInTheDocument();
   });
 
   test('recherche sans accents, filtre par niveau et lexique', () => {
@@ -2059,6 +2077,60 @@ describe('Activités guidées', () => {
     ).toBeInTheDocument();
   });
 
+  test('une fiche demandée se lit seule ; « Toutes les fiches » ramène la liste, qui se masque', () => {
+    const { session } = startFirst();
+    const panel = screen.getByRole('complementary', { name: 'Activité' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Fiche : Réseau informatique' }));
+    const help = screen.getByRole('dialog', { name: 'Aide et connaissances' });
+    // La fiche seule : ni liste, ni recherche, ni accueil, ni fiche suivante.
+    expect(within(help).getByRole('article', { name: 'Réseau informatique' })).toBeInTheDocument();
+    expect(within(help).queryByRole('navigation', { name: 'Fiches' })).not.toBeInTheDocument();
+    expect(within(help).queryByRole('button', { name: 'Quiz d’entraînement' })).not.toBeInTheDocument();
+    expect(within(help).queryByRole('button', { name: '⌂ Accueil' })).not.toBeInTheDocument();
+    expect(within(help).queryByRole('button', { name: 'Fiche suivante →' })).not.toBeInTheDocument();
+    expect(within(help).getByRole('button', { name: 'Imprimer' })).toBeInTheDocument();
+    const narrow = session.windows.find((w) => w.id === 'help');
+    expect(narrow).toMatchObject({ width: 560, height: 720 });
+
+    // Un lien de la fiche se suit sans quitter la lecture, et « Retour » en revient.
+    const card = within(help).getByRole('article', { name: 'Réseau informatique' });
+    fireEvent.click(within(card).getByRole('button', { name: 'Terminal' }));
+    expect(within(help).getByRole('article', { name: 'Terminal' })).toBeInTheDocument();
+    expect(within(help).queryByRole('navigation', { name: 'Fiches' })).not.toBeInTheDocument();
+    fireEvent.click(within(help).getByRole('button', { name: '← Retour' }));
+    expect(within(help).getByRole('article', { name: 'Réseau informatique' })).toBeInTheDocument();
+
+    // La liste revient à la demande, à côté de la même fiche ; la fenêtre s’élargit.
+    fireEvent.click(within(help).getByRole('button', { name: 'Toutes les fiches' }));
+    const index = within(help).getByRole('navigation', { name: 'Fiches' });
+    expect(within(index).getByRole('button', { name: /Réseau informatique/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    expect(within(help).getByRole('button', { name: '⌂ Accueil' })).toBeInTheDocument();
+    expect(within(help).getByRole('button', { name: 'Fiche suivante →' })).toBeInTheDocument();
+    expect(session.windows.find((w) => w.id === 'help')?.width).toBe(960);
+    // Le clavier suit le bouton, qui a changé de place.
+    const hide = within(index).getByRole('button', { name: 'Masquer la liste des fiches' });
+    expect(hide).toHaveFocus();
+
+    // Une autre fiche demandée depuis l’activité : la fenêtre garde l’allure choisie par l’élève.
+    fireEvent.click(within(panel).getByRole('button', { name: 'Fiche : Switch (commutateur)' }));
+    expect(within(help).getByRole('article', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+    expect(within(help).getByRole('navigation', { name: 'Fiches' })).toBeInTheDocument();
+
+    fireEvent.click(within(help).getByRole('button', { name: 'Masquer la liste des fiches' }));
+    expect(within(help).queryByRole('navigation', { name: 'Fiches' })).not.toBeInTheDocument();
+    expect(within(help).getByRole('article', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+    expect(within(help).getByRole('button', { name: 'Toutes les fiches' })).toHaveFocus();
+    expect(session.windows.find((w) => w.id === 'help')?.width).toBe(560);
+
+    // Le bouton Aide ramène toujours la liste.
+    fireEvent.click(screen.getByRole('button', { name: 'Aide' }));
+    expect(within(help).getByRole('navigation', { name: 'Fiches' })).toBeInTheDocument();
+    expect(within(help).getByRole('article', { name: 'Switch (commutateur)' })).toBeInTheDocument();
+  });
+
   test('indices donnés un par un, fiches liées, panneau repliable, sortie de l’activité', () => {
     const { session } = startFirst();
     const panel = screen.getByRole('complementary', { name: 'Activité' });
@@ -2129,6 +2201,41 @@ describe('Activités guidées', () => {
     expect(reopened).toHaveStyle({ width: '320px' });
     expect(again.activityWidth).toBeNull();
     expect(new Session(storage, new ManualFrames()).activityWidth).toBeNull();
+  });
+
+  test('sur un écran large, le panneau d’activité s’ouvre plus large ; la largeur choisie à la main l’emporte', () => {
+    const narrow = window.innerWidth;
+    const resize = (width: number) => {
+      act(() => {
+        window.innerWidth = width;
+        window.dispatchEvent(new Event('resize'));
+      });
+    };
+    try {
+      const { session } = setup();
+      fireEvent.click(screen.getByRole('button', { name: 'Activités' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Commencer : Mon premier réseau' }));
+      const panel = screen.getByRole('complementary', { name: 'Activité' });
+      const edge = within(panel).getByRole('separator', { name: 'Largeur de l’activité' });
+      expect(panel).toHaveStyle({ width: '320px' });
+      // La fenêtre passe sur un écran de 1920 px, puis de 1600 px : le panneau suit.
+      resize(1920);
+      expect(panel).toHaveStyle({ width: '440px' });
+      expect(edge).toHaveAttribute('aria-valuenow', '440');
+      resize(1600);
+      expect(panel).toHaveStyle({ width: '368px' });
+      // Réglée à la main, la largeur ne dépend plus de l'écran.
+      fireEvent.keyDown(edge, { key: 'ArrowLeft' });
+      expect(panel).toHaveStyle({ width: '408px' });
+      resize(1920);
+      expect(panel).toHaveStyle({ width: '408px' });
+      // Double-clic : la largeur d'origine de cet écran.
+      fireEvent.doubleClick(edge);
+      expect(panel).toHaveStyle({ width: '440px' });
+      expect(session.activityWidth).toBeNull();
+    } finally {
+      resize(narrow);
+    }
   });
 
   test('commencer une activité demande confirmation quand un réseau est en cours', () => {

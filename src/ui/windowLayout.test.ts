@@ -1,4 +1,11 @@
-import { chooseWindowPlace, clampWindow, defaultWindowSize, fitWindow, placeWindow } from './windowLayout';
+import {
+  chooseWindowPlace,
+  clampWindow,
+  defaultWindowSize,
+  fitWindow,
+  placeWindow,
+  widenFromRight,
+} from './windowLayout';
 
 const STAGE = { width: 1366, height: 560 };
 
@@ -21,16 +28,51 @@ describe('Disposition des fenêtres', () => {
     expect(fitWindow({ width: 700, height: 440 }, null)).toEqual({ width: 700, height: 440 });
   });
 
-  test('l’aide, lue pour elle-même, peut prendre les trois quarts de la zone', () => {
-    const stage = { width: 1210, height: 640 };
+  test('l’aide, lue pour elle-même, peut prendre presque toute la largeur de la zone', () => {
+    const stage = { width: 900, height: 640 };
     expect(fitWindow(defaultWindowSize({ type: 'help' }), stage, { type: 'help' })).toEqual({
-      width: 908,
+      width: 765,
       height: 620,
     });
     expect(fitWindow({ width: 960, height: 620 }, stage, { type: 'report' })).toEqual({
-      width: 666,
+      width: 495,
       height: 620,
     });
+  });
+
+  test('une fiche lue seule : une colonne étroite, aussi haute que la zone le permet', () => {
+    const alone = { type: 'help', alone: true } as const;
+    expect(defaultWindowSize(alone)).toEqual({ width: 560, height: 720 });
+    expect(defaultWindowSize({ type: 'help', alone: false })).toEqual({ width: 960, height: 620 });
+    // Écran de 1366 × 768, panneau d'activité ouvert.
+    expect(fitWindow(defaultWindowSize(alone), { width: 890, height: 678 }, alone)).toEqual({
+      width: 560,
+      height: 662,
+    });
+    // Sans le panneau d'activité : la moitié de la zone.
+    expect(fitWindow(defaultWindowSize(alone), { width: 1210, height: 678 }, alone).width).toBe(605);
+    // Zone très large : pas plus de 720 px, pour des lignes qui restent lisibles.
+    expect(fitWindow(defaultWindowSize(alone), { width: 1444, height: 990 }, alone)).toEqual({
+      width: 720,
+      height: 720,
+    });
+    expect(fitWindow(defaultWindowSize(alone), { width: 1764, height: 990 }, alone).width).toBe(720);
+    // L'aide avec sa liste garde sa largeur.
+    expect(
+      fitWindow(defaultWindowSize({ type: 'help' }), { width: 1764, height: 990 }, { type: 'help' }).width,
+    ).toBe(960);
+  });
+
+  test('une fenêtre qui change de largeur garde son bord droit, sans sortir de la zone', () => {
+    const stage = { width: 890, height: 678 };
+    const window = { x: 322, y: 8, width: 560, height: 662 };
+    expect(widenFromRight(window, 757, stage)).toBe(125);
+    expect(widenFromRight({ ...window, x: 125, width: 757 }, 560, stage)).toBe(322);
+    // Déplacée contre le bord gauche, elle s'élargit vers la droite.
+    expect(widenFromRight({ ...window, x: 20 }, 757, stage)).toBe(8);
+    // À moitié sortie à droite, elle revient dans la zone.
+    expect(widenFromRight({ ...window, x: 700 }, 757, stage)).toBe(125);
+    expect(widenFromRight({ ...window, x: 100 }, 960, null)).toBe(0);
   });
 
   test('les fenêtres s’ouvrent contre le bord demandé, chacune une barre de titre plus bas', () => {

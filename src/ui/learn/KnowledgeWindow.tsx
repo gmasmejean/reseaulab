@@ -198,8 +198,16 @@ function Card({ notion, onOpen }: { notion: Notion; onOpen: (id: string) => void
 /**
  * « Aide et connaissances » : how to use RéseauLab, and the notions to know,
  * as cards one can search, filter by school year and browse from link to link.
+ * `alone`: the card was asked for itself (from an activity, a field, a failed
+ * test): it is read without the list of the cards, which one button brings back.
  */
-export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined }) {
+export function KnowledgeWindow({
+  notion: asked,
+  alone = false,
+}: {
+  notion?: string | undefined;
+  alone?: boolean;
+}) {
   const session = useSession();
   const notions = session.pack.notions;
   const [query, setQuery] = useState('');
@@ -216,7 +224,9 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
     const last = before.current !== undefined && exists(before.current) ? before.current : undefined;
     const target = asked !== undefined && session.notion(asked) ? asked : (last ?? HOME);
     const trail = last !== undefined && last !== target ? [...before.trail, last] : before.trail;
-    return { current: target, trail: trail.filter(exists).slice(-MAX_TRAIL), path: before.path };
+    // Looking a card up leaves the path that was followed: « Fiche suivante » would lead astray.
+    const path = alone ? undefined : before.path;
+    return { current: target, trail: trail.filter(exists).slice(-MAX_TRAIL), path };
   });
   const [current, setCurrent] = useState<string>(start.current);
   /** Cards read before the current one ('' for the home page), for the « Retour » button. */
@@ -233,6 +243,18 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
   useEffect(() => {
     if (reader.current) reader.current.scrollTop = 0;
   }, [current]);
+
+  // The button that shows or folds the list is drawn elsewhere afterwards: the keyboard follows it.
+  const listToggle = useRef<HTMLButtonElement>(null);
+  const toggled = useRef(false);
+  useEffect(() => {
+    if (toggled.current) listToggle.current?.focus();
+    toggled.current = false;
+  }, [alone]);
+  const showList = (shown: boolean) => {
+    toggled.current = true;
+    session.setHelpList(shown);
+  };
 
   const go = (id: string) => {
     if (id === current || !exists(id)) return;
@@ -262,12 +284,15 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
 
   const visible = readingOrder(notions, filter);
   // In a path, the next card of the path; otherwise the next one of the list.
+  // A card read alone has no next one, unless a path is followed.
   const inPath = path && shown ? pathCards(notions, path) : [];
   const next = !shown
     ? undefined
     : inPath.some((n) => n.id === shown.id)
       ? nextNotion(inPath, shown.id)
-      : nextNotion(visible, shown.id);
+      : alone
+        ? undefined
+        : nextNotion(visible, shown.id);
   const readCount = visible.filter((n) => session.readCards.has(n.id)).length;
   const found = searchHits(visible, query);
   const searching = query.trim() !== '';
@@ -306,9 +331,9 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
     </li>
   );
 
-  return (
-    <div className="knowledge">
-      <nav className="knowledge-index" aria-label="Fiches">
+  const index = (
+    <nav className="knowledge-index" aria-label="Fiches">
+      <div className="knowledge-search">
         <input
           type="search"
           aria-label="Chercher une notion"
@@ -318,132 +343,165 @@ export function KnowledgeWindow({ notion: asked }: { notion?: string | undefined
             setQuery(e.target.value);
           }}
         />
-        <div className="knowledge-filters">
-          <select
-            aria-label="Niveau"
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as LevelFilter);
-            }}
-          >
-            {(['all', '5e', '4e'] as const).map((value) => (
-              <option key={value} value={value}>
-                {FILTER_LABEL[value]}
-              </option>
-            ))}
-          </select>
-          <div className="segmented" role="group" aria-label="Présentation">
-            {(
-              [
-                ['cards', 'Fiches'],
-                ['lexicon', 'Lexique'],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={view === value}
-                onClick={() => {
-                  setView(value);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="knowledge-list">
-          {found.length === 0 && <p className="muted">Aucune fiche ne correspond.</p>}
-          {searching && found.length > 0 && (
-            <ul>{found.map((hit) => item(hit.notion, hit.notion.title, hit.excerpt))}</ul>
-          )}
-          {!searching &&
-            view === 'cards' &&
-            CATEGORIES.map((category) => {
-              const cards = visible.filter((n) => n.category === category);
-              if (cards.length === 0) return null;
-              return (
-                <section key={category}>
-                  <h3>{CATEGORY_LABEL[category]}</h3>
-                  <ul>{cards.map((n) => item(n))}</ul>
-                </section>
-              );
-            })}
-          {!searching &&
-            view === 'lexicon' &&
-            lexiconByLetter(visible).map(({ letter, entries }) => (
-              <section key={letter} aria-label={`Lettre ${letter}`}>
-                <h3 className="lexicon-letter">{letter}</h3>
-                <ul>{entries.map((w) => item(w.notion, w.word))}</ul>
-              </section>
-            ))}
-        </div>
-        <p className="knowledge-progress muted small">
-          {readCount} fiche{readCount > 1 ? 's' : ''} lue{readCount > 1 ? 's' : ''} sur {visible.length}
-          {readCount > 0 && (
-            <>
-              {' · '}
-              <button
-                type="button"
-                className="link"
-                title="Sur un poste partagé : repartir de zéro pour un autre élève"
-                onClick={() => {
-                  session.clearRead();
-                }}
-              >
-                effacer
-              </button>
-            </>
-          )}
-        </p>
         <button
           type="button"
-          className="knowledge-quiz"
-          title="Quelques questions corrigées tout de suite, avec un bilan par notion"
+          ref={listToggle}
+          aria-label="Masquer la liste des fiches"
+          title="Masquer la liste : lire la fiche seule, en plus large"
           onClick={() => {
-            session.openQuiz();
+            showList(false);
           }}
         >
-          Quiz d’entraînement
+          <span aria-hidden>◀</span>
         </button>
-      </nav>
+      </div>
+      <div className="knowledge-filters">
+        <select
+          aria-label="Niveau"
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value as LevelFilter);
+          }}
+        >
+          {(['all', '5e', '4e'] as const).map((value) => (
+            <option key={value} value={value}>
+              {FILTER_LABEL[value]}
+            </option>
+          ))}
+        </select>
+        <div className="segmented" role="group" aria-label="Présentation">
+          {(
+            [
+              ['cards', 'Fiches'],
+              ['lexicon', 'Lexique'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={view === value}
+              onClick={() => {
+                setView(value);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="knowledge-list">
+        {found.length === 0 && <p className="muted">Aucune fiche ne correspond.</p>}
+        {searching && found.length > 0 && (
+          <ul>{found.map((hit) => item(hit.notion, hit.notion.title, hit.excerpt))}</ul>
+        )}
+        {!searching &&
+          view === 'cards' &&
+          CATEGORIES.map((category) => {
+            const cards = visible.filter((n) => n.category === category);
+            if (cards.length === 0) return null;
+            return (
+              <section key={category}>
+                <h3>{CATEGORY_LABEL[category]}</h3>
+                <ul>{cards.map((n) => item(n))}</ul>
+              </section>
+            );
+          })}
+        {!searching &&
+          view === 'lexicon' &&
+          lexiconByLetter(visible).map(({ letter, entries }) => (
+            <section key={letter} aria-label={`Lettre ${letter}`}>
+              <h3 className="lexicon-letter">{letter}</h3>
+              <ul>{entries.map((w) => item(w.notion, w.word))}</ul>
+            </section>
+          ))}
+      </div>
+      <p className="knowledge-progress muted small">
+        {readCount} fiche{readCount > 1 ? 's' : ''} lue{readCount > 1 ? 's' : ''} sur {visible.length}
+        {readCount > 0 && (
+          <>
+            {' · '}
+            <button
+              type="button"
+              className="link"
+              title="Sur un poste partagé : repartir de zéro pour un autre élève"
+              onClick={() => {
+                session.clearRead();
+              }}
+            >
+              effacer
+            </button>
+          </>
+        )}
+      </p>
+      <button
+        type="button"
+        className="knowledge-quiz"
+        title="Quelques questions corrigées tout de suite, avec un bilan par notion"
+        onClick={() => {
+          session.openQuiz();
+        }}
+      >
+        Quiz d’entraînement
+      </button>
+    </nav>
+  );
+
+  return (
+    <div className={alone ? 'knowledge alone' : 'knowledge'}>
+      {!alone && index}
       <div className="knowledge-reader">
         <div className="knowledge-steps" role="group" aria-label="Parcourir les fiches">
+          {alone && (
+            <button
+              type="button"
+              ref={listToggle}
+              title="Afficher la liste de toutes les fiches, la recherche et le lexique"
+              onClick={() => {
+                showList(true);
+              }}
+            >
+              <span aria-hidden>☰ </span>Toutes les fiches
+            </button>
+          )}
           <button type="button" onClick={back} disabled={trail.length === 0}>
             ← Retour
           </button>
-          <button
-            type="button"
-            aria-pressed={current === HOME}
-            title="Premiers pas et parcours par niveau"
-            onClick={() => {
-              go(HOME);
-            }}
-          >
-            ⌂ Accueil
-          </button>
-          {shown && (
+          {!alone && (
             <button
               type="button"
-              title="Imprimer cette fiche (ou l’enregistrer en PDF) pour le cahier"
+              aria-pressed={current === HOME}
+              title="Premiers pas et parcours par niveau"
               onClick={() => {
-                setPrinting([shown]);
+                go(HOME);
               }}
             >
-              Imprimer
+              ⌂ Accueil
             </button>
           )}
-          {next && (
-            <button
-              type="button"
-              title={`Fiche suivante : ${next.title}`}
-              onClick={() => {
-                open(next.id);
-              }}
-            >
-              Fiche suivante →
-            </button>
-          )}
+          <span className="knowledge-steps-end">
+            {shown && (
+              <button
+                type="button"
+                title="Imprimer cette fiche (ou l’enregistrer en PDF) pour le cahier"
+                onClick={() => {
+                  setPrinting([shown]);
+                }}
+              >
+                Imprimer
+              </button>
+            )}
+            {next && (
+              <button
+                type="button"
+                title={`Fiche suivante : ${next.title}`}
+                onClick={() => {
+                  open(next.id);
+                }}
+              >
+                Fiche suivante →
+              </button>
+            )}
+          </span>
         </div>
         {printing && <PrintCards notions={printing} onDone={printed} />}
         <div className="knowledge-card" ref={reader}>

@@ -584,6 +584,50 @@ describe('Session : zoom du plan et fenêtres', () => {
     expect(session.windows.map(({ x, y, width, height }) => ({ x, y, width, height }))).toEqual(before);
   });
 
+  test('une fiche demandée s’ouvre seule, à toute sa hauteur ; la liste élargit la fenêtre', () => {
+    const session = new Session(null, new ManualFrames());
+    const builtin = BUILTIN_ACTIVITIES.find((a) => a.id === 'college-musee');
+    if (!builtin) throw new Error('activité introuvable');
+    session.startActivity(builtin);
+    // Zone du plan en conception sur un écran de 1366 × 768, activité ouverte.
+    session.setViewport(900, 678);
+    const help = () => session.windows.find((w) => w.id === 'help');
+    // Une fiche se lit pour elle-même : en haut du bord droit, quels que soient les équipements dessous.
+    session.openKnowledge('routeur');
+    expect(help()).toMatchObject({
+      spec: { type: 'help', notion: 'routeur', alone: true },
+      x: 332,
+      y: 8,
+      width: 560,
+      height: 662,
+    });
+    // La liste revient : la fenêtre s'élargit vers la gauche, sans changer de hauteur ni de fiche.
+    session.setHelpList(true);
+    expect(help()).toMatchObject({
+      spec: { notion: 'routeur', alone: false },
+      x: 127,
+      y: 8,
+      width: 765,
+      height: 662,
+    });
+    // Une autre fiche demandée : la fenêtre ouverte garde l'allure que l'élève lui a donnée.
+    session.openKnowledge('passerelle');
+    expect(help()).toMatchObject({ spec: { notion: 'passerelle', alone: false }, width: 765 });
+    session.setHelpList(false);
+    expect(help()).toMatchObject({ spec: { notion: 'passerelle', alone: true }, x: 332, width: 560 });
+    // Le bouton Aide ramène la liste, sur la fiche en cours.
+    session.openKnowledge();
+    expect(help()).toMatchObject({ spec: { alone: false }, x: 127, width: 765 });
+    // Fermée puis redemandée : de nouveau seule.
+    session.closeWindow('help');
+    session.openKnowledge('passerelle');
+    expect(help()).toMatchObject({ spec: { alone: true }, width: 560 });
+    // Sans fenêtre d'aide, rien à replier.
+    session.closeWindow('help');
+    session.setHelpList(true);
+    expect(session.windows).toEqual([]);
+  });
+
   test('renumérote l’empilement des fenêtres plutôt que de le laisser croître', () => {
     const session = new Session(null, new ManualFrames());
     const { a, b } = lan(session);

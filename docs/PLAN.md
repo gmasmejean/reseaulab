@@ -1002,9 +1002,64 @@ constats d'interface A1 à A11.
       trajet par les trois switchs, adresses reçues, ordre de l'échange
       DHCP, câble de salle débranché, serveur DHCP arrêté) ; de bout en
       bout à 1366 × 768, du switch plein aux portables configurés.
+- [x] **Étape 62 — Une fiche demandée se lit seule** (demande de
+      l'enseignant). Sur un écran de 1366 × 768, une fiche ouverte depuis
+      une activité tenait dans 360 px de large : la liste des fiches en
+      prenait 276, et les boutons passaient sur deux lignes. (1) **Lecture
+      seule** : une fiche demandée pour elle-même — lien d'une activité,
+      « ? » d'un champ, test raté, quiz, clic droit, F1 sur un équipement —
+      s'ouvre sans la liste, la recherche ni le quiz ; restent « Toutes les
+      fiches », « Retour » et « Imprimer ». « Toutes les fiches » ramène
+      la liste à côté de la même fiche, et « ◀ » la masque ; la fenêtre
+      prend la largeur qui va avec, depuis son bord droit
+      (`setHelpList`, `widenFromRight`). Une fenêtre déjà ouverte garde
+      l'allure choisie par l'élève quand une autre fiche est demandée ; le
+      bouton Aide ramène toujours la liste. (2) **Fenêtre** : 560 × 720,
+      soit une colonne d'environ 65 caractères, à toute la hauteur de la
+      zone, contre le panneau de l'activité ; sur un écran plus large,
+      elle prend la moitié de la zone, jusqu'à 720 px (605 px à 1366 px
+      sans activité, 662 px à 1920 px à côté d'une activité). (3) **Texte** : 16 px au lieu
+      de 14 (`--reading-size`), interligne 1,6, titres et espacements
+      proportionnels, lignes limitées à 42 em. Tests : tailles et
+      élargissement (`windowLayout`), session (place, allure gardée,
+      bouton Aide), interface (liste absente puis rappelée, clavier qui
+      suit le bouton, parcours suivi liste masquée, F1), de bout en bout à
+      1366 × 768 (hauteur, largeur des lignes, boutons sur une ligne)
+      puis à 1920 × 1080 (fenêtre de 662 px).
+- [x] **Étape 63 — Panneau d'activité plus large sur un écran large**
+      (demande de l'enseignant). La largeur d'origine du panneau était de
+      320 px quel que soit l'écran : à 1920 px, les consignes faisaient
+      des lignes de 40 caractères à côté d'un plan de 1444 px. Elle vaut
+      désormais 23 % de la fenêtre, entre 320 et 440 px
+      (`defaultActivityWidth`, `panelWidth.ts`) : 320 px à 1366 px, rien
+      ne change sur un écran de classe ; 368 px à 1600 px ; 440 px à
+      1920 px, soit des lignes de 55 à 60 caractères. Elle suit la fenêtre
+      quand sa taille change. Une largeur réglée à la main l'emporte
+      toujours et reste gardée sur le poste ; le double-clic sur le bord
+      rend la largeur d'origine de l'écran. Tests : largeurs par écran,
+      panneau qui suit la fenêtre puis garde la largeur choisie à la main,
+      de bout en bout à 1366, 1600 et 1920 px.
 
 ## Écarts au plan
 
+- **Plus de limite de poids pour le fichier unique** (étape 62, décision
+  de l'enseignant) : le test « le fichier unique reste léger » (1 Mo
+  depuis l'étape 45) est retiré. Le fichier pèse 1 001 Ko à cette étape,
+  298 Ko une fois compressé.
+- **L'aide ne contourne plus les équipements** (étape 62) : depuis
+  l'étape 59, une fenêtre s'ouvre là où elle cache le moins le plan, quitte
+  à être moins haute ; l'aide s'ouvrait ainsi à 480 px de haut sur un
+  écran de classe. Elle se lit pour elle-même : elle s'ouvre désormais en
+  haut du bord droit, à sa pleine hauteur. Elle évite toujours la barre de
+  titre des autres fenêtres.
+- **L'aide avec sa liste peut prendre 85 % de la largeur** (étape 62), et
+  non plus 75 % : à côté de la liste, la fiche garde 450 px sur un écran de
+  classe, et ses boutons tiennent sur une ligne.
+- **Pas de « Fiche suivante » sur une fiche lue seule** (étape 62) : la
+  suivante de la liste n'a pas de rapport avec ce que l'élève cherchait. Le
+  bouton reste pendant un parcours, même liste masquée ; demander une fiche
+  précise fait quitter le parcours suivi, que « Continuer » reprend depuis
+  l'accueil.
 - **Pas de test de communication au milieu de l'activité** (étape 61) :
   dans « Reconstruire le réseau du collège », l'étape « Tester d'une salle
   à l'autre » ne garde que ce que l'élève a fait (simulation lancée,

@@ -1,4 +1,11 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
+import {
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type PointerEvent,
+  type RefObject,
+} from 'react';
 import type { Outcome } from '../../learn/activity/evaluate';
 import {
   OPEN_MIN_WORDS,
@@ -27,11 +34,11 @@ import {
 import { useSession } from '../context';
 import type { CheckReport } from '../session';
 import {
-  ACTIVITY_DEFAULT_WIDTH,
   ACTIVITY_MIN_WIDTH,
   ACTIVITY_WIDTH_STEP,
   MIN_STAGE_WIDTH,
   clampActivityWidth,
+  defaultActivityWidth,
 } from '../panelWidth';
 import { Feedback, QuestionForm } from './Question';
 import { RichText } from './RichText';
@@ -301,6 +308,13 @@ function availableWidth(panel: HTMLElement | null): number {
   return panel.getBoundingClientRect().width + (stage?.getBoundingClientRect().width ?? 0);
 }
 
+function onWindowResize(notify: () => void): () => void {
+  window.addEventListener('resize', notify);
+  return () => {
+    window.removeEventListener('resize', notify);
+  };
+}
+
 /**
  * The left edge of the panel, dragged to widen it for reading (or with the
  * arrow keys); a double click gives back the usual width. While dragging,
@@ -459,8 +473,10 @@ export function ActivityPanel() {
   const panel = useRef<HTMLElement>(null);
   /** Width followed while the edge is dragged; the session keeps it on release. */
   const [dragWidth, setDragWidth] = useState<number | null>(null);
+  // Nobody has resized the panel: the width that suits the screen, followed when the window changes.
+  const windowWidth = useSyncExternalStore(onWindowResize, () => window.innerWidth);
   if (!activity) return null;
-  const width = dragWidth ?? session.activityWidth ?? ACTIVITY_DEFAULT_WIDTH;
+  const width = dragWidth ?? session.activityWidth ?? defaultActivityWidth(windowWidth);
 
   const outcomes = session.activityOutcomes();
   const all = requiredObjectives(activity);

@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { ACTIVITY_MIN_WIDTH, MIN_STAGE_WIDTH, clampActivityWidth, parseActivityWidth } from './panelWidth';
+import {
+  ACTIVITY_MIN_WIDTH,
+  MIN_STAGE_WIDTH,
+  clampActivityWidth,
+  defaultActivityWidth,
+  parseActivityWidth,
+} from './panelWidth';
 
 describe('largeur du panneau d’activité', () => {
   test('jamais plus étroit que le minimum', () => {
@@ -19,6 +25,16 @@ describe('largeur du panneau d’activité', () => {
 
   test('place inconnue : seul le minimum compte', () => {
     expect(clampActivityWidth(900, 0)).toBe(900);
+  });
+
+  test('largeur d’origine : 320 px sur un écran de classe, plus sur un écran large, jamais plus de 440 px', () => {
+    expect(defaultActivityWidth(1024)).toBe(320);
+    expect(defaultActivityWidth(1366)).toBe(320);
+    expect(defaultActivityWidth(1600)).toBe(368);
+    expect(defaultActivityWidth(1920)).toBe(440);
+    expect(defaultActivityWidth(2560)).toBe(440);
+    // Fenêtre pas encore mesurée.
+    expect(defaultActivityWidth(0)).toBe(320);
   });
 
   test('valeur relue dans le navigateur', () => {
