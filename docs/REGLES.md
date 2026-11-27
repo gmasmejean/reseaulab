@@ -44,3 +44,7 @@ Ces règles s'appliquent à chaque étape du [plan](PLAN.md).
 3. Pas de dépendance ajoutée sans nécessité ; versions figées dans
    `pnpm-lock.yaml`.
 4. Tout écart au plan est noté dans le plan avec sa raison.
+5. Le fichier construit `dist/index.html` est versionné, pour qu'on puisse
+   récupérer l'application sans rien installer. Une étape qui change
+   l'application le reconstruit (`pnpm run build` ; `pnpm run e2e` le fait
+   aussi) et le committe avec elle.

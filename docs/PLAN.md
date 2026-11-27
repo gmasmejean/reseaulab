@@ -1042,6 +1042,12 @@ constats d'interface A1 à A11.
 
 ## Écarts au plan
 
+- **Le fichier construit est dans le dépôt** (décision de l'enseignant) :
+  `dist/index.html` est versionné, alors qu'un fichier produit ne l'est
+  d'habitude pas. Un collègue qui ne développe pas le télécharge depuis
+  GitHub sans rien installer. En contrepartie, il est reconstruit et
+  committé avec chaque étape qui change l'application (règle 5 du
+  processus).
 - **Plus de limite de poids pour le fichier unique** (étape 62, décision
   de l'enseignant) : le test « le fichier unique reste léger » (1 Mo
   depuis l'étape 45) est retiré. Le fichier pèse 1 001 Ko à cette étape,

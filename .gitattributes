@@ -1,0 +1,2 @@
+# Fichier construit : pas de diff ligne à ligne, hors statistiques de langage.
+dist/index.html -diff linguist-generated

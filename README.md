@@ -9,8 +9,10 @@ observer les échanges de données couche par couche.
 
 ## Utilisation au collège
 
-1. Récupérer le fichier unique `dist/index.html` (voir « Construire » plus bas,
-   ou demander le fichier déjà construit).
+1. Télécharger le fichier unique [`dist/index.html`](dist/index.html), déjà
+   construit : sur sa page GitHub, bouton **Download raw file** (la flèche ⬇
+   en haut à droite du fichier). Rien d'autre n'est nécessaire. Vous pouvez
+   le renommer, par exemple en `reseaulab.html`.
 2. Le déposer sur l'ENT, une clé USB ou un dossier partagé.
 3. Les élèves l'ouvrent par un double-clic : il s'ouvre dans le navigateur
    (Firefox, Chrome, Edge…). Tout fonctionne hors ligne.
@@ -453,6 +455,10 @@ pnpm run coverage   # couverture du moteur (seuils imposés)
 pnpm run e2e        # scénarios de bout en bout (Chrome installé requis)
 pnpm run build      # produit le fichier unique dist/index.html
 ```
+
+`dist/index.html` est versionné, pour qu'on puisse récupérer l'application
+sans rien installer : il est reconstruit et committé avec chaque changement
+de l'application.
 
 - Architecture, étapes, feuille de route et écarts : [`docs/PLAN.md`](docs/PLAN.md).
 - Règles de développement suivies : [`docs/REGLES.md`](docs/REGLES.md).
